@@ -1,36 +1,64 @@
 # Teyru 文件
 
 這個倉庫是 <https://docs.teyru.dev> 的來源：一個以 Next.js 與 Fumadocs 建置的靜態文件站，
-內容是 Teyru 語言、編譯器與標準程式庫的參考文件（繁體中文）。
+內容是 Teyru 語言、編譯器與標準程式庫的參考文件。
 
 Teyru 編譯器本身在 [teyru-lang/Teyru](https://github.com/teyru-lang/Teyru)，這個倉庫只放文件與網站，
 不含編譯器原始碼。
 
+## 語言與網址
+
+網站有三個 locale，與 <https://teyru.dev> 首頁提供的是同一組。繁體中文是預設 locale，
+也是文件原本撰寫的語言：
+
+| locale | 首頁 | 文件 |
+| --- | --- | --- |
+| `zh-TW`（預設） | `/` | `/docs` |
+| `zh-CN` | `/zh-CN` | `/zh-CN/docs` |
+| `en` | `/en` | `/en/docs` |
+
+預設 locale 不帶網址前綴（fumadocs 的 `hideLocale: 'default-locale'`，見 `lib/i18n.ts`），
+所以原本的 `/docs/...` 網址維持不變，只有另外兩個 locale 需要前綴。
+三個 locale 都有完整的十頁，導覽列上的語言選單切換時會停在同一個頁面。
+
+`lib/i18n.ts` 是 locale 設定，`lib/translations.ts` 是 fumadocs 自己介面字串的三個 locale 對照表
+（繁體中文與簡體中文取自官方 `@fumadocs/language` 套件，英文直接用 fumadocs 的預設字串）。
+
 ## 內容
 
-`content/docs/` 底下的頁面搬遷自編譯器倉庫的文件，技術內容逐字保留：
+內容放在 `content/docs/<locale>/`，一個 locale 一個資料夾（`lib/i18n.ts` 的 `parser: 'dir'`）。
+繁體中文那十頁搬遷自編譯器倉庫的文件，技術內容逐字保留：
 
-| 頁面 | 來源檔案 |
-| --- | --- |
-| `/docs` | `README.md` |
-| `/docs/language` | `docs/language.md` |
-| `/docs/diagnostics` | `docs/diagnostics.md` |
-| `/docs/lombok` | `docs/lombok.md` |
-| `/docs/json` | `docs/json.md` |
-| `/docs/framework` | `docs/framework.md` |
-| `/docs/modules` | `docs/modules.md` |
-| `/docs/native` | `docs/native.md` |
-| `/docs/architecture` | `docs/architecture.md` |
-| `/docs/other-languages/en` | `README.en.md` |
-| `/docs/other-languages/ja` | `README.ja.md` |
-| `/docs/other-languages/zh-cn` | `README.zh-CN.md` |
-| `/docs/legal` | `THIRD-PARTY-NOTICES.md` |
+| 頁面 | 繁體中文 | 簡體中文 | English | 來源檔案 |
+| --- | --- | --- | --- | --- |
+| 總覽 | `/docs` | `/zh-CN/docs` | `/en/docs` | `README.md`／`README.zh-CN.md`／`README.en.md` |
+| 語言參考 | `/docs/language` | `/zh-CN/docs/language` | `/en/docs/language` | `docs/language.md` |
+| 診斷碼一覽 | `/docs/diagnostics` | `/zh-CN/docs/diagnostics` | `/en/docs/diagnostics` | `docs/diagnostics.md` |
+| Lombok 相容層 | `/docs/lombok` | `/zh-CN/docs/lombok` | `/en/docs/lombok` | `docs/lombok.md` |
+| JSON 與 Gson | `/docs/json` | `/zh-CN/docs/json` | `/en/docs/json` | `docs/json.md` |
+| 框架 | `/docs/framework` | `/zh-CN/docs/framework` | `/en/docs/framework` | `docs/framework.md` |
+| 模組系統 | `/docs/modules` | `/zh-CN/docs/modules` | `/en/docs/modules` | `docs/modules.md` |
+| 原生互通 | `/docs/native` | `/zh-CN/docs/native` | `/en/docs/native` | `docs/native.md` |
+| 編譯器架構 | `/docs/architecture` | `/zh-CN/docs/architecture` | `/en/docs/architecture` | `docs/architecture.md` |
+| 授權 | `/docs/legal` | `/zh-CN/docs/legal` | `/en/docs/legal` | `THIRD-PARTY-NOTICES.md` |
 
-搬遷時只做了三件事：補上 `title`／`description` frontmatter、把指向倉庫檔案的相對連結改成站內路徑，
-以及把 `teyru` 程式碼區塊對到 Java 語法（Shiki 沒有 Teyru 的語法，見 `source.config.ts`）。
-內文的段落、表格與程式碼沒有改寫、刪減或翻譯。
+搬遷時只動了這幾件事：補上 `title`／`description` frontmatter、把指向倉庫檔案的相對連結改成站內路徑、
+把 `teyru` 程式碼區塊對到 Java 語法（Shiki 沒有 Teyru 的語法，見 `source.config.ts`），
+以及把另外兩個 locale 的頁面翻出來。側邊欄的順序與名稱寫在 `content/docs/<locale>/meta.json`。
 
-側邊欄的順序與名稱寫在 `content/docs/meta.json` 與 `content/docs/other-languages/meta.json`。
+### 翻譯
+
+`content/docs/zh-TW/` 是正本：它逐字來自編譯器倉庫，不翻譯也不改寫。
+`en` 與 `zh-CN` 是翻譯，其中總覽頁直接使用作者自己寫的 `README.en.md` 與 `README.zh-CN.md`。
+
+技術頁只翻散文。程式碼區塊、識別字、型別名稱、診斷碼、檔案路徑、命令列旗標、API 名稱一律照抄；
+程式碼區塊裡的註解、ASCII 流程圖裡的字，以及 `<...>` 這種描述性佔位字會跟著翻，
+因為那些是給人讀的文字而不是符號。翻譯不增添原文沒有的行為、數字或功能。
+
+### 未翻譯 / Untranslated
+
+無。三個 locale 的十頁都是完整翻譯；唯一保留原文的地方是正本本身，
+以及程式碼裡屬於符號的識別字與字面值。
 
 ## 開發
 
@@ -69,6 +97,8 @@ build command 是 `npm run build`，輸出目錄交給 Vercel 自動判斷即可
 
 搜尋索引會在建置時產生（`app/api/search/route.ts` 使用 `staticGET`），
 因此搜尋是純前端的，不需要外部搜尋服務。
+`app/sitemap.ts` 同樣在建置時產生 `sitemap.xml`，列出三個 locale 的所有頁面；
+每頁的 `alternates`（`hreflang` 與 `x-default`）由 `lib/shared.ts` 的 `pageAlternates()` 組出來。
 
 實際的設定：
 
@@ -85,10 +115,4 @@ build command 是 `npm run build`，輸出目錄交給 Vercel 自動判斷即可
   vercel deploy --prod   # 建置並發佈；完成後 docs.teyru.dev 就是它
   ```
 
-## 語言
 
-這個站沒有 i18n 層：文件本體是繁體中文，站台的導覽與區塊名稱也使用繁體中文。
-fumadocs 自己的介面字串大多已在 `lib/i18n.ts` 翻成繁體中文，沒翻到的部分維持英文原樣。
-
-多語系（英文／日文／簡體中文的介紹頁）屬於 `teyru-lang/website` 的範圍，不在這裡做。
-英文、日文與簡體中文的總覽仍然以頁面形式收在「其他語言版本」底下，但那是文件內容，不是介面語系。
