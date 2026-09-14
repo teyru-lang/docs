@@ -1,4 +1,5 @@
 import { source } from '@/lib/source';
+import { i18n } from '@/lib/i18n';
 import {
   DocsBody,
   DocsDescription,
@@ -11,11 +12,11 @@ import { notFound } from 'next/navigation';
 import { getMDXComponents } from '@/components/mdx';
 import type { Metadata } from 'next';
 import { createRelativeLink } from 'fumadocs-ui/mdx';
-import { getPageImageUrl, getPageMarkdownUrl, gitConfig } from '@/lib/shared';
+import { absoluteUrl, getPageImageUrl, getPageMarkdownUrl, gitConfig, pageAlternates } from '@/lib/shared';
 
-export default async function Page(props: PageProps<'/docs/[[...slug]]'>) {
-  const params = await props.params;
-  const page = source.getPage(params.slug);
+/** A documentation page, shared by the default locale and the prefixed ones. */
+export async function DocsPageView({ locale, slug }: { locale: string; slug?: string[] }) {
+  const page = source.getPage(slug, locale);
   if (!page) notFound();
 
   const MDX = page.data.body;
@@ -44,20 +45,23 @@ export default async function Page(props: PageProps<'/docs/[[...slug]]'>) {
   );
 }
 
-export async function generateStaticParams() {
-  return source.generateParams();
-}
-
-export async function generateMetadata(props: PageProps<'/docs/[[...slug]]'>): Promise<Metadata> {
-  const params = await props.params;
-  const page = source.getPage(params.slug);
+export async function docsMetadata(locale: string, slug?: string[]): Promise<Metadata> {
+  const page = source.getPage(slug, locale);
   if (!page) notFound();
+
+  const translations = Object.fromEntries(
+    i18n.languages.flatMap((lang) => {
+      const translated = source.getPage(slug, lang);
+      return translated ? [[lang, translated.url] as const] : [];
+    }),
+  );
 
   return {
     title: page.data.title,
     description: page.data.description,
+    alternates: pageAlternates(locale, translations),
     openGraph: {
-      images: getPageImageUrl(page).url,
+      images: absoluteUrl(getPageImageUrl(page).url),
     },
   };
 }
