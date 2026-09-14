@@ -1,9 +1,9 @@
 ---
-title: "Teyru（English）"
-description: "Teyru is an independently implemented programming language whose compiler is written entirely in Go and emits native executables directly."
+title: "Teyru"
+description: "Teyru is an independently implemented programming language whose compiler is written entirely in Go and emits native executables directly — no JVM, no javac, no bytecode."
 ---
 
-[繁體中文](/docs) · [简体中文](/docs/other-languages/zh-cn) · **English** · [日本語](/docs/other-languages/ja)
+[繁體中文](/docs) · [简体中文](/zh-CN/docs) · **English** · [日本語](https://github.com/teyru-lang/Teyru/blob/main/README.ja.md)
 
 **Teyru is an independently implemented programming language whose compiler is written entirely in Go and emits native executables directly — no JVM, no javac, no bytecode.**
 
@@ -25,7 +25,7 @@ Teyru source (.teyru)
 The back end **is LLVM**: `./teyru emit-llvm` prints the IR module so it can go straight
 into `opt`, `llc` or a custom pass; `./teyru emit` prints the generated C.
 
-**Docs:** [Language reference](/docs/language) · [Native interop](/docs/native) · [Lombok layer](/docs/lombok) · [Diagnostics](/docs/diagnostics) · [Compiler architecture](/docs/architecture) · [Contributor rules](https://github.com/teyru-lang/Teyru/blob/main/AGENTS.md)
+**Docs:** [Language reference](/en/docs/language) · [Native interop](/en/docs/native) · [Lombok layer](/en/docs/lombok) · [Diagnostics](/en/docs/diagnostics) · [Compiler architecture](/en/docs/architecture) · [Contributor rules](https://github.com/teyru-lang/Teyru/blob/main/AGENTS.md)
 
 ---
 
@@ -295,7 +295,7 @@ class Main {
 }
 ```
 
-The full list and the differences are in **[docs/lombok.md](/docs/lombok)**:
+The full list and the differences are in **[docs/lombok.md](/en/docs/lombok)**:
 `@Getter`/`@Setter`/`@ToString`/`@EqualsAndHashCode`/`@Data`/`@Value`/`@Builder`/
 `@NonNull`/`@Cleanup`/`@SneakyThrows`/`@Synchronized`/`@With`/`@Accessors`/
 `@FieldDefaults`/`@UtilityClass`/`@StandardException`/the `@Log` family/
@@ -314,7 +314,7 @@ copy), `@SuperBuilder` over a whole hierarchy, and `@Builder.ObtainVia`.
 | Expressions | Full operator set and precedence, conditional, casts, `instanceof` (including patterns), lambdas, method references (static, bound, unbound, constructor), anonymous classes, array initialisers, string concatenation, automatic boxing/unboxing |
 | Native extensions | Semicolon-free syntax, `val` (inferred, non-reassignable local), `var`, native properties (`get`/`set`/`field`), colon-separated `for` header, newline-separated try-with-resources |
 
-The complete syntax and semantics live in **[docs/language.md](/docs/language)**.
+The complete syntax and semantics live in **[docs/language.md](/en/docs/language)**.
 
 ---
 
@@ -338,8 +338,8 @@ compiles unchanged:
 | `java.util.stream` | `Stream`/`IntStream`/`LongStream`/`DoubleStream`, `Collectors`, `Collector`, `Spliterator`; lazy, entered through `Collection.stream()` |
 | `java.math` | `BigInteger`, `BigDecimal`, `MathContext`, `RoundingMode` |
 | `java.text` | `NumberFormat`/`DecimalFormat` (the full pattern language), `DateFormat`/`SimpleDateFormat`, `DateTimeFormatter`, `MessageFormat`; ROOT/en-US only, `format` takes an `Instant` |
-| `com.google.gson` | Gson's tree API plus a compiler-generated object binding ([docs/json.md](/docs/json)) |
-| framework | A Spring-shaped container and web layer ([docs/framework.md](/docs/framework)) |
+| `com.google.gson` | Gson's tree API plus a compiler-generated object binding ([docs/json.md](/en/docs/json)) |
+| framework | A Spring-shaped container and web layer ([docs/framework.md](/en/docs/framework)) |
 
 Collections are written in Teyru, so `for` works on them directly:
 
@@ -353,7 +353,7 @@ for (String n : names) {
 ```
 
 Dependencies are declared in `teyru.mod` and fetched and verified the way Go does
-it ([docs/modules.md](/docs/modules)):
+it ([docs/modules.md](/en/docs/modules)):
 
 ```sh
 teyru mod init example.com/app
@@ -363,7 +363,7 @@ teyru build ./...
 
 There is no reflection, no threading (and no `java.util.concurrent`), no `Scanner`
 and no time zone database. Each absence is deliberate and argued for in
-[docs/language.md](/docs/language) §11 and §13.
+[docs/language.md](/en/docs/language) §11 and §13.
 
 For your own native library, declare a `native` method and implement it in C:
 
@@ -377,7 +377,7 @@ teyru build --native-header native.h program.teyru   # the declarations to imple
 teyru build --native impl.c program.teyru            # compile together
 ```
 
-See [`docs/native.md`](/docs/native).
+See [`docs/native.md`](/en/docs/native).
 
 ---
 
@@ -459,7 +459,7 @@ familiar to Java developers. The main differences:
 9. **Not a bytecode platform**: no `.class` files, no `java.lang`, no JNI, and no
    interoperability with existing Java libraries — a deliberate trade-off.
 
-The full list is in [docs/language.md](/docs/language) §12.
+The full list is in [docs/language.md](/en/docs/language) §12.
 
 ---
 
@@ -485,7 +485,7 @@ teyru help                                     print usage
 | `-O0`…`-O3` | Optimisation level (default `-O2`) |
 | `--llvm-ir <path>` | Also write the LLVM IR module here |
 | `--native <file.c>` | Compile a C file into the program, implementing native methods (repeatable) |
-| `--native-header <path>` | Write the declarations of the native methods (see [docs/native.md](/docs/native)) |
+| `--native-header <path>` | Write the declarations of the native methods (see [docs/native.md](/en/docs/native)) |
 | `--link <arg>` | Extra argument for the link step, such as `--link -lm` |
 | `--no-lto` | Disable LTO (the build retries without it when the toolchain lacks support) |
 | `-v` | Print the compiler command being run |
@@ -512,4 +512,4 @@ Please read [AGENTS.md](https://github.com/teyru-lang/Teyru/blob/main/AGENTS.md)
 
 ## License
 
-See [LICENSE](https://github.com/teyru-lang/Teyru/blob/main/LICENSE) and [THIRD-PARTY-NOTICES.md](/docs/legal).
+See [LICENSE](https://github.com/teyru-lang/Teyru/blob/main/LICENSE) and [THIRD-PARTY-NOTICES.md](/en/docs/legal).

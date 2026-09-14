@@ -3,7 +3,7 @@ title: "Teyru"
 description: "編譯器完全用 Go 撰寫、直接產生原生執行檔的程式語言——不依賴 JVM、不依賴 javac、不產生任何 bytecode。"
 ---
 
-**繁體中文** · [简体中文](/docs/other-languages/zh-cn) · [English](/docs/other-languages/en) · [日本語](/docs/other-languages/ja)
+**繁體中文** · [简体中文](/zh-CN/docs) · [English](/en/docs) · [日本語](https://github.com/teyru-lang/Teyru/blob/main/README.ja.md)
 
 **Teyru 是一門獨立實作的程式語言：編譯器完全用 Go 撰寫，直接產生原生執行檔——不依賴 JVM、不依賴 javac、不產生任何 bytecode。**
 

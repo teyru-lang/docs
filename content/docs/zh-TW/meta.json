@@ -1,0 +1,15 @@
+{
+  "title": "Teyru 文件",
+  "pages": [
+    "index",
+    "language",
+    "diagnostics",
+    "lombok",
+    "json",
+    "framework",
+    "modules",
+    "native",
+    "architecture",
+    "legal"
+  ]
+}

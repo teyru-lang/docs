@@ -1,0 +1,158 @@
+---
+title: "The Teyru Compiler Architecture"
+description: "The complete pipeline from source file to native executable: lexing, parsing, semantic analysis, C code generation, and the runtime."
+---
+
+## Pipeline
+
+```
+Source file (UTF-8)
+   │  internal/source      — file, line mapping, diagnostic container
+   ▼
+Token stream
+   │  internal/lexer       — keywords, operators, literals, text blocks
+   │                        newlines are not tokens; only an NL flag is set on the token
+   ▼
+AST
+   │  internal/parser      — recursive descent; cursor + lookahead + choice-point backtracking
+   ▼
+Checked program model
+   │  internal/sema        — symbol table, types, generic erasure, overloads, layout
+   ▼
+C source
+   │  internal/codegen    — class→struct, vtable/itable, GC root info
+   ▼
+Native executable
+      clang/LLVM or gcc + internal/runtime/src (GC, strings, arrays, exceptions)
+```
+
+## Newlines as Statement Terminators
+
+Teyru has no semicolons. The lexer does not produce NEWLINE tokens; instead it records
+on every token whether a newline preceded it. The parser uses two things to decide
+whether a statement ends:
+
+1. **Whether the newline at the current parse position is significant** (the `nl` stack;
+   not significant inside parentheses or argument lists).
+2. **Whether the prefix is already complete**. For example, a newline directly after
+   `return` is a return with no value, but a newline after an operator, comma, `.`, `::`
+   or `->` does not terminate the statement, and when the start of a line is `.` or `::`
+   it is likewise treated as a continuation.
+
+`continues()` in `internal/parser/parser.go` is the single decision point.
+
+## Types and Symbols
+
+- `ast.Type` has seven kinds: native, class (including type arguments), array, type variable, wildcard, null, error.
+- Generics are erased in `sema.erasure`; at runtime only the class is known, not the type arguments.
+- Overload resolution (`pickOverload`) follows the three JLS phases (strict, boxing allowed, variable arity);
+  the first phase that finds an applicable candidate decides, and only within the same phase are conversion
+  costs compared (exactly the same 0, widening/upcast 1, boxing 2, unboxing 3; when an upcast is still
+  needed after boxing it is 3).
+- A method's vtable slot is decided in `layout()`: copied from the superclass, and an overrider keeps the same
+  slot; interface methods additionally have a globally unique selector (`Selector`) for the itable to use;
+  each class's interface table is **sparse**, holding only the selectors it can actually implement, sorted
+  by selector, and `ty_itab` scans these entries and then searches the superclass. (A dense table has one
+  pointer per slot with as many slots as there are selectors in the whole program; a class pays for that
+  `.data` no matter how few it implements, which is why hello world ended up carrying 792 KB.)
+
+## Key Mappings to C
+
+| Teyru | C |
+|---|---|
+| Class `Foo` | `struct C_Foo { tyobj obj; ... }` (fields flattened per `InstFields`, including inherited ones) |
+| Instance methods | `M_<class>_<name>_<idx>(C_Foo* this, ...)` |
+| Virtual call | `this->obj.cls->vtable[slot](...)` |
+| Interface call | `ty_itab(obj, selector)(...)` |
+| `new Foo(...)` | GNU statement expression: allocate → set `cls` → call the constructor |
+| Arrays | `tyarr { tyobj; len; data; esize; refs; elemcls }`, elements stored inline |
+| String constants | static `tystr` (does not go through the GC) |
+| `try`/`catch` | `tycatch` + `setjmp`/`longjmp` |
+| property reads and writes | lowered into getter/setter calls (recorded by `sema.Props`) |
+| `for (a : b : c)` | C's `while`: `a` runs once, `b` is re-tested each iteration, `c` sits at the end of the loop, and `continue` jumps to the label at the end of the loop |
+| record `Point(int x,int y)` | struct + constructor + `x()`/`y()` + `toString`/`hashCode`/`equals` |
+| enum constants | static fields, created in `<clinit>` and filled with the ordinal/name |
+
+## Performance Design
+
+The generated C is compiled by clang/LLVM with `-O2` plus LTO (`--no-lto` turns it off; toolchains
+that do not support LTO fall back automatically), and cross-function inlining, constant propagation
+and loop vectorisation are all left to LLVM. On top of that, the compiler and the runtime deliberately
+keep hot paths at the level of a single instruction:
+
+| Mechanism | Location | Description |
+|---|---|---|
+| Inline allocation | `static inline ty_alloc` in `tyrt.h` | The bump pointer path is fully inlined; only when a block is exhausted or the GC threshold is exceeded is `ty_alloc_slow` called |
+| Inline bounds check | `codegen.boundCheck` | The check is inlined as a statement expression at the point of use, producing one comparison for every index (constant indices too; `sema` does not fold them first, leaving the simplification to LLVM) |
+| Constant folding | `codegen.foldBinary`, `ident` | Literal arithmetic and string concatenation are computed at compile time; a `static final` constant has its value substituted in, and the outer expression is left to LLVM |
+| Dead chunk reclamation | the sweep in `tyrt.c` | If no object in a chunk is alive, the whole chunk is `free`d back to the system and later collections no longer walk it; a chunk still in use has every one of its blocks walked (counting the live ones once, marking or freeing once each), so the cost of a single collection is proportional to the amount of retained memory rather than to the amount of live memory |
+| String constants | `codegen.strLit` | String literals are static `tystr`, neither allocated nor seen by the GC |
+| Class initialisation | `codegen.clinitStmt` | Lazy initialisation, but the flag is tested by the generated code itself; a class with no static initialiser block anywhere in its inheritance chain gets no `<clinit>` function (the slot is `NULL`), and `main` does not name it either — naming it means taking its address in `main`, and one address is enough for link-time optimisation to keep the whole class, together with its vtable, interface table and all its methods, in the executable |
+| Escape analysis | `codegen.escape.go` | Objects that do not leave their method are placed on the C stack, letting LLVM promote fields and delete the object |
+| Native interop | `codegen.native.go` | The C symbol and declaration of a `native` method are generated by the compiler (`--native-header`) |
+
+Escape analysis (`escape.go`) only promotes local objects that satisfy both conditions at once:
+the declared type is exactly the same as the class of the `new` (`sameCreatedClass`), and that class
+has a compiler-allocated struct and a directly callable constructor (`promotable`). The decision is
+made by walking every use inside the method (`escWalk`): using the object as a receiver to read a
+native field, reading a reference field that "could not possibly hold this object", writing to the
+object's own field (including `c.next = c`), `instanceof`, and calling a method whose "receiver does
+not leak" all count as safe. As soon as the reference itself is consumed as a value (as an argument,
+in `==`/`!=`, in a cast, or assigned to another variable), stored into another object or array,
+returned/thrown/`yield`ed, captured by a lambda or method reference or anonymous class, or reaches a
+node the analysis does not cover, it stays on the heap. Whether a method leaks its receiver is a
+transitive analysis over the call graph (`leaksThis`): native methods are assumed not to, methods
+without a body are assumed to, and a cycle encountered during the analysis is likewise treated as
+leaking. A promoted object itself is not in a chunk (`valid_obj` rejects its address), but its
+reference fields sit on the C stack, so the conservative native stack scan still sees the heap
+objects it points to.
+
+Known performance limits: escape analysis only covers objects that stay within their method; objects
+that really do go on the heap still go through conservative mark-and-sweep (with no generational
+assumption), so on loads where objects live a long time and are collected over and over, HotSpot may
+still come out ahead. All five current benchmarks are faster than the JVM; see `sh scripts/bench.sh`
+for how to reproduce them.
+
+## Garbage Collection
+
+- **Conservative mark-and-sweep**. Objects are not moved, so temporary pointers on the C side are always valid.
+- Roots: the shadow stack (`ty_roots`/`ty_sp`), the table of static field addresses registered with
+  `ty_gc_register_static`, and a **conservative scan of the native stack** (starting at the current stack
+  pointer and ending at the top of the thread stack, obtained from `pthread_getattr_np`). A word on the stack
+  is not guaranteed to be an object, so every candidate address must pass `valid_obj`: it must be 16-byte
+  aligned, must be the start of some block in some chunk (the `starts` bitmap is rebuilt before each
+  collection, and an address landing inside a block never counts), and must not be a block that has already
+  been freed.
+- Marking: `tyclass.refoffs` lists the reference field offsets that need to be traced for each class; arrays use the `refs` flag.
+- Sweep: unmarked blocks enter size-classed free lists (`TY_NCLASS` classes; oversized ones go to `bigfree`)
+  and are reused first by the next allocation; the highest bit of the block size word (the first word of the
+  header) is `TY_FREE_BIT`, meaning already freed, and the free list link sits in the second word. A chunk that
+  becomes completely empty is `free`d straight back to the system, so a long-running program does not hold on
+  to its peak memory forever, but the **head chunk is the exception**: it carries the bump pointer and is
+  always retained.
+- Trigger: the single condition that the allocated amount exceeds `ty_gc_threshold`. The threshold starts at
+  4 MB and after each collection is set to twice the live amount, never lower than 4 MB. Running out of chunks
+  is **not** a reason to collect — when the free list has no usable block, a new chunk is simply grown, because
+  collecting before the threshold is reached would only rescan the live objects for nothing.
+- Known costs: every collection must scan the entire stack in use, and there is no generational assumption; the
+  sweep phase must additionally walk every block of every retained chunk.
+
+## Exceptions
+
+`ty_cur_catch` is a chain of handlers. `throw` calls `ty_throw`, which `longjmp`s to the nearest
+handler; when there is no handler, it prints a message and exits with status 1.
+
+`finally` has two paths, and both are indispensable:
+
+1. **The exception path**: a handler is wrapped around the outside of the `try`, and after `setjmp`
+   returns, `finally` runs first and the exception is then rethrown. A throw inside a catch block
+   also takes the same path.
+2. **The normal exit path**: `return`, `break` and `continue` do not go through `longjmp`,
+   so the code generator maintains a finally stack (`Emitter.finallys`), and before each
+   jump statement it first runs the `finally`s being left (from inner to outer), only then jumping.
+   The `close()` of `try`-with-resources is an implicit `finally` of the same mechanism,
+   so resources are closed on both the return and the exception paths.
+
+Local variables captured by local and anonymous classes become fields of a synthetic class
+(`Class.CapFields`), filled in by the constructor or the closure creation expression; this also
+makes the "receiver of a method reference" evaluated only once, at creation time.

@@ -1,9 +1,9 @@
 ---
-title: "Teyru（简体中文）"
-description: "Teyru 是一门独立实现的编程语言：编译器完全用 Go 编写，直接生成原生可执行文件。"
+title: "Teyru"
+description: "Teyru 是一门独立实现的编程语言：编译器完全用 Go 编写，直接生成原生可执行文件——不依赖 JVM、不依赖 javac、不产生任何 bytecode。"
 ---
 
-[繁體中文](/docs) · **简体中文** · [English](/docs/other-languages/en) · [日本語](/docs/other-languages/ja)
+[繁體中文](/docs) · **简体中文** · [English](/en/docs) · [日本語](https://github.com/teyru-lang/Teyru/blob/main/README.ja.md)
 
 **Teyru 是一门独立实现的编程语言：编译器完全用 Go 编写，直接生成原生可执行文件——不依赖 JVM、不依赖 javac、不产生任何 bytecode。**
 
@@ -23,7 +23,7 @@ Teyru 源码 (.teyru)
 后端是 **LLVM**：`./teyru emit-llvm` 可以直接打印 IR 模块，接 `opt`／`llc`／自定义 pass
 都没有问题；只想看 C 也可以用 `./teyru emit`。
 
-**文档**：[语言参考](/docs/language) · [原生互通](/docs/native) · [Lombok 兼容层](/docs/lombok) · [诊断码一览](/docs/diagnostics) · [编译器架构](/docs/architecture) · [工作规范](https://github.com/teyru-lang/Teyru/blob/main/AGENTS.md)
+**文档**：[语言参考](/zh-CN/docs/language) · [原生互通](/zh-CN/docs/native) · [Lombok 兼容层](/zh-CN/docs/lombok) · [诊断码一览](/zh-CN/docs/diagnostics) · [编译器架构](/zh-CN/docs/architecture) · [工作规范](https://github.com/teyru-lang/Teyru/blob/main/AGENTS.md)
 
 ---
 
@@ -282,7 +282,7 @@ class Main {
 }
 ```
 
-完整清单与差异见 **[docs/lombok.md](/docs/lombok)**：`@Getter`／`@Setter`／`@ToString`／
+完整清单与差异见 **[docs/lombok.md](/zh-CN/docs/lombok)**：`@Getter`／`@Setter`／`@ToString`／
 `@EqualsAndHashCode`／`@Data`／`@Value`／`@Builder`／`@NonNull`／`@Cleanup`／
 `@SneakyThrows`／`@Synchronized`／`@With`／`@Accessors`／`@FieldDefaults`／
 `@UtilityClass`／`@StandardException`／`@Log` 系列／`@ExtensionMethod`／
@@ -301,7 +301,7 @@ class Main {
 | 表达式 | 完整运算符与优先级、三元、cast、`instanceof`（含 pattern）、lambda、方法引用（静态／绑定／未绑定／构造器）、匿名类、对象初始化列表、字符串拼接、自动 boxing／unboxing |
 | 原生扩展 | 无分号语法、`val`（推断类型的不可重绑定局部变量）、`var`、原生 property（`get`／`set`／`field`）、`for` 的双冒号头部、try-with-resources 以换行分隔 |
 
-完整的语法与语义写在 **[docs/language.md](/docs/language)**。
+完整的语法与语义写在 **[docs/language.md](/zh-CN/docs/language)**。
 
 ---
 
@@ -323,8 +323,8 @@ class Main {
 | `java.util.stream` | `Stream`／`IntStream`／`LongStream`／`DoubleStream`、`Collectors`、`Collector`、`Spliterator`；惰性求值，入口是 `Collection.stream()` |
 | `java.math` | `BigInteger`、`BigDecimal`、`MathContext`、`RoundingMode` |
 | `java.text` | `NumberFormat`／`DecimalFormat`（完整 pattern 语言）、`DateFormat`／`SimpleDateFormat`、`DateTimeFormatter`、`MessageFormat`；只做 ROOT／en-US，`format` 用 `Instant` |
-| `com.google.gson` | Gson 的树状 API，以及由编译器生成的对象绑定（[docs/json.md](/docs/json)） |
-| 框架 | Spring 形状的容器与 web 层（[docs/framework.md](/docs/framework)） |
+| `com.google.gson` | Gson 的树状 API，以及由编译器生成的对象绑定（[docs/json.md](/zh-CN/docs/json)） |
+| 框架 | Spring 形状的容器与 web 层（[docs/framework.md](/zh-CN/docs/framework)） |
 
 集合以 Teyru 编写，所以 `for` 循环直接支持：
 
@@ -337,7 +337,7 @@ for (String n : names) {
 }
 ```
 
-依赖用 `teyru.mod` 声明，获取与校验照 Go 的做法（[docs/modules.md](/docs/modules)）：
+依赖用 `teyru.mod` 声明，获取与校验照 Go 的做法（[docs/modules.md](/zh-CN/docs/modules)）：
 
 ```sh
 teyru mod init example.com/app
@@ -346,7 +346,7 @@ teyru build ./...
 ```
 
 没有反射、没有线程（也没有 `java.util.concurrent`）、没有 `Scanner`、没有时区数据库——这些缺席都是刻意的，理由记在
-[docs/language.md](/docs/language) §11 与 §13。
+[docs/language.md](/zh-CN/docs/language) §11 与 §13。
 
 需要自己的原生库时，声明 `native` 方法并用 C 实现：
 
@@ -360,7 +360,7 @@ teyru build --native-header native.h program.teyru   # 生成要实现的原型
 teyru build --native impl.c program.teyru            # 一起编译
 ```
 
-完整说明见 [`docs/native.md`](/docs/native)。
+完整说明见 [`docs/native.md`](/zh-CN/docs/native)。
 
 ---
 
@@ -432,7 +432,7 @@ Teyru 不是 Java 的子集，而是“Java 开发者一看就懂”的独立语
 9. **不是 bytecode 平台**：没有 `.class`、没有 `java.lang`、没有 JNI，
    目前也**无法**与既有 Java 库互通——这是刻意的取舍。
 
-完整清单见 [docs/language.md §12](/docs/language)。
+完整清单见 [docs/language.md §12](/zh-CN/docs/language)。
 
 ---
 
@@ -458,7 +458,7 @@ teyru help                                     帮助
 | `-O0`…`-O3` | 优化等级（默认 `-O2`） |
 | `--llvm-ir <path>` | 额外输出 LLVM IR 模块 |
 | `--native <file.c>` | 加入 C 文件一起编译，实现 native 方法（可重复） |
-| `--native-header <path>` | 生成 native 方法的声明（见 [docs/native.md](/docs/native)） |
+| `--native-header <path>` | 生成 native 方法的声明（见 [docs/native.md](/zh-CN/docs/native)） |
 | `--link <arg>` | 传给链接步骤的参数，例如 `--link -lm` |
 | `--no-lto` | 关闭 LTO（工具链不支持时自动退回） |
 | `-v` | 显示实际执行的编译命令 |
@@ -485,4 +485,4 @@ sh scripts/bench.sh       # 与 JVM 对照的性能测试（需要 java 才会�
 
 ## 许可
 
-见 [LICENSE](https://github.com/teyru-lang/Teyru/blob/main/LICENSE) 与 [THIRD-PARTY-NOTICES.md](/docs/legal)。
+见 [LICENSE](https://github.com/teyru-lang/Teyru/blob/main/LICENSE) 与 [THIRD-PARTY-NOTICES.md](/zh-CN/docs/legal)。

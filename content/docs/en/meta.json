@@ -1,5 +1,5 @@
 {
-  "title": "Teyru 文件",
+  "title": "Teyru Docs",
   "pages": [
     "index",
     "language",
@@ -10,7 +10,6 @@
     "modules",
     "native",
     "architecture",
-    "other-languages",
     "legal"
   ]
 }
