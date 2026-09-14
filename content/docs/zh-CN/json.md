@@ -1,6 +1,6 @@
 ---
 title: "JSON 与 Gson 兼容层"
-description: "Gson 形状的树状 API，以及由编译器生成的对象绑定。"
+description: "Gson 形状的树状 API，以及运行期读取类字段的对象绑定。"
 ---
 
 Teyru 的 JSON 分成两层：`lib/10_json.teyru` 是 Gson 的**树状 API**（纯 Teyru，不需要

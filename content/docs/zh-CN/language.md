@@ -501,12 +501,13 @@ for (String n : names) {
 | `java.io` | `lib/16` | `File`（`listFiles`）、`Path`／`Paths`、`Files`（`readString`／`writeString`／`readAllLines`／`exists`／`createDirectories`） |
 | `java.util.regex` | `lib/21` | `Pattern`／`Matcher`：回溯式匹配，支持字面量、`.`、`*`／`+`／`?`／`{n,m}` 及其惰性形式、字符类、`\d`／`\w`／`\s`、`^`／`$`、`|`、捕获与非捕获组、`replaceAll`／`replaceFirst`／`split`（含 `limit` 的三种正负号）；不支持的语法（占有量词、环视、反向引用、`\p{...}`）在 `compile` 就被拒绝。`String.matches`／`replaceAll`／`replaceFirst`／`split` 就是这五个方法，不是另一套实现 |
 | `java.net` | `lib/15` | `ServerSocket`、`Socket`、`SocketInputStream`／`SocketOutputStream`；同步阻塞的 POSIX socket，超时通过 `SocketTimeoutException` 报告 |
+| `java.util.Base64` | `lib/25` | 编码（`encodeToString`）；没有解码 |
 | `java.util.stream` | `lib/22` | `Stream`／`IntStream`／`LongStream`／`DoubleStream`、`Collectors`（26 个工厂）、`Collector`、`Spliterator`／`Spliterators`、`StreamSupport`、统计与 `OptionalInt` 家族；中间操作构建流水线、终端操作才拉取，`Collection.stream()` 是入口 |
 | `java.math` | `lib/23` | `BigInteger`（base-2^30 limb、符号与大小）、`BigDecimal`（unscaled value 与 scale）、`MathContext`、`RoundingMode`；算法照 JDK 翻译，因为小数位数、除法留下的 scale、舍入方式都是可观察的 |
 | `java.text` | `lib/24` | `NumberFormat`／`DecimalFormat`／`DecimalFormatSymbols`（完整的 pattern 语言）、`DateFormat`／`SimpleDateFormat`（四种 style 与 parse）、`DateTimeFormatter`、`MessageFormat`、`ChoiceFormat`、`ParseException`／`ParsePosition`。**没有 `Locale`**（只做 ROOT／en-US），**没有 `java.util.Date`**（`format`／`parse` 经由 `Instant`），`format` 没有 `FieldPosition` 重载 |
 | `java.util` 其余 | `lib/25` | `Properties`、`Random`（逐字节照 java.util.Random）、`UUID`、`BitSet`、`StringTokenizer`、`Enumeration`、`ArrayOps`（数组的范围形式） |
-| `com.google.gson` | `lib/10`、`lib/19` | Gson 的树形 API，以及由编译器生成的对象绑定（见 [docs/json.md](/zh-CN/docs/json)） |
-| 框架 | `lib/17`、`lib/18` | Spring 形状的容器与 web 层（见 [docs/framework.md](/zh-CN/docs/framework)） |
+| `com.google.gson` | `lib/10`、`lib/19` | Gson 的树形 API，以及运行期读取类字段的对象绑定（见 [docs/json.md](/zh-CN/docs/json)） |
+| 框架 | `lib/17`、`lib/18` | Spring 形状的容器与 web 层；HTTP/1.1 的 keep-alive、chunked、Cookie、HEAD／OPTIONS，以及 WebSocket（`WebSocketHandler` + `server.addWebSocket`）——见 [docs/framework.md](/zh-CN/docs/framework) |
 
 ### 名称怎么找
 

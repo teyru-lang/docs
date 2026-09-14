@@ -187,22 +187,22 @@ emitted by the parser at the end of a statement and at a `throw` line break), an
 | TY-TYP-0096 | `switch expression does not cover all possible input values` | A switch **expression** must be exhaustive: an `int`/`String` selector must have a `default`, and an enum selector must cover every constant. A switch statement is not subject to this. |
 | TY-TYP-0097 | `native methods %s and %s both need the C symbol %s` | Two overloaded native methods encode to the same C symbol (for example the class name `AI` and `int[]`). Rename one or change a parameter type. |
 | TY-TYP-0098 | `non-static %s cannot be referenced from a static context` | The lambda body uses the `this` of the place where it is written (including unqualified instance method calls, bare field names and `super`), but the lambda is written in a static method or a static initialiser block, so there is no instance to capture. Java rejects it as well. |
-| TY-TYP-0108 | `%s is a prelude class; it has no generated JSON binding` | A JSON binding is requested for a prelude class (String, JsonObject…). |
-| TY-TYP-0109 | `two fields of %s both map to the JSON name %s` | After `@SerializedName`, two fields have the same name. |
-| TY-TYP-0112 | `%s is bound from JSON but has no no-argument constructor; ...` | Gson uses Unsafe to allocate the object while bypassing the constructor and Teyru does not, so a class read from JSON needs a no-argument constructor. |
-| TY-TYP-0111 | `%s answers with %s, which has no JSON mapping; ...` | The return type of the controller method has no JSON mapping (arrays, List…). Return a String or an HttpResponse instead, or a class whose binding can run all the way through. |
-| TY-TYP-0110 | `%s has no JSON mapping for its type %s` | The field type has no JSON mapping. Gson throws only at run time; here it is reported on the line of the binding. |
+| TY-TYP-0108 | (removed) | The JSON binding reads the class at run time; there is no step that generates one. |
+| TY-TYP-0109 | (removed) | As above: two fields of one @SerializedName name are only visible when they are read. |
+| TY-TYP-0112 | (removed) | A class read from JSON is built at run time, so a constructor that cannot be called shows up at newInstance. |
+| TY-TYP-0111 | (removed) | A controller's answer is written as JSON by the binding whatever type it is. |
+| TY-TYP-0110 | (removed) | Whether a field's type binds is something the reading finds out. |
 | TY-TYP-0114 | `not a statement: %s has no effect` | An expression statement without a side effect (JLS 14.8). This language ends an expression at the line break, so `long x = a` followed by a newline and `+ b` are two statements, the second a silent unary plus — `x` comes up one term short with no message at all. It is reported now. |
 | TY-TYP-0113 | `resource type %s is not a subtype of AutoCloseable` | The resource type of try-with-resources must be a subtype of `AutoCloseable`. The implicit `close()` is one interface call, so a class that merely “happens to have a `close()` method” compiles into an itable call on an object that has no such entry, and blows up at run time. |
 | TY-TYP-0115 | `cannot resolve import %s` | The import path points at nothing. In Teyru a name is looked up by its **simple name**, and whatever package is written in front makes no difference, so a misspelt package such as `import java.utli.List` used to be ignored silently and you still got `List`. Now an import has to point at: a package the standard library answers for (the `teyru` package itself, plus `java.util`, `com.google.gson`, `lombok`… for compatibility, see docs/language.md §11), a package declared by some file in this build, or a type whose fully qualified name is exactly this path. |
-| TY-TYP-0100 | `two beans are named %s: %s and %s` | Two beans were given the same name (`@Component("x")` or `@Bean("x")`). |
-| TY-TYP-0101 | `%s is declared by the framework and cannot be redefined` | `__TeyruFramework` is a synthetic class used for container registration and the name is reserved. |
-| TY-TYP-0102 | `@Bean method %s must not be static`／`@Bean method %s must return the bean's type`／`@Bean method %s does not return a class type` | A `@Bean` method must not be static and its return type must be a class (a primitive type is boxed). |
-| TY-TYP-0103 | `no bean of type %s to inject into %s` | Some `@Autowired` type has no bean. Spring finds out at startup; here it is found at compile time. |
-| TY-TYP-0104 | `%d beans of type %s: name one with @Qualifier` | Several beans share the type, with neither a `@Primary` nor a `@Qualifier`. |
-| TY-TYP-0105 | `two constructors of %s are annotated @Autowired` / `%s has %d constructors and none is annotated @Autowired` | The rule for picking a constructor to inject with: the single constructor, or the one marked `@Autowired`. |
-| TY-TYP-0106 | `@PostConstruct method %s must take no arguments and return void` | The signature of a lifecycle callback. |
-| TY-TYP-0107 | `circular dependency: %s` | The dependencies between beans form a cycle. Spring throws at startup; here it is rejected at compile time. |
+| TY-TYP-0100 | (removed) | Two beans of one name are refused by the container at refresh(). |
+| TY-TYP-0101 | `%s is declared by the framework and cannot be redefined` | `__TeyruFramework` is the generated class the container's registry lives in; its name is reserved. |
+| TY-TYP-0102 | `@Bean method %s must not be static` / `@Bean method %s must return the bean's type` / `@Bean method %s does not return a class type` | A `@Bean` method must not be static and must return a class type (a primitive is boxed). |
+| TY-TYP-0103 | (removed) | A missing bean is an exception at refresh() now, which is when Spring finds out too. |
+| TY-TYP-0104 | (removed) | Two candidates are an exception at refresh(), with both names in the message. |
+| TY-TYP-0105 | (removed) | Which constructor to call is decided at run time: the @Autowired one, the only one, or the one that takes nothing. |
+| TY-TYP-0106 | (removed) | A @PostConstruct signature is checked when it is called. |
+| TY-TYP-0107 | (removed) | A dependency loop is an exception at refresh(), with the cycle in the message. |
 | TY-TYP-0099 | `reference to %s is ambiguous: it is declared in both %s and %s` | Two `import p.*` both provide the same simple name (JLS 6.5.5.1). Write the fully qualified name or disambiguate with a single-type import (`import a.Widget`). |
 
 ## TY-PROP: native property

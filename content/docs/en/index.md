@@ -341,7 +341,7 @@ compiles unchanged:
 | `java.util.stream` | `Stream`/`IntStream`/`LongStream`/`DoubleStream`, `Collectors`, `Collector`, `Spliterator`; lazy, entered through `Collection.stream()` |
 | `java.math` | `BigInteger`, `BigDecimal`, `MathContext`, `RoundingMode` |
 | `java.text` | `NumberFormat`/`DecimalFormat` (the full pattern language), `DateFormat`/`SimpleDateFormat`, `DateTimeFormatter`, `MessageFormat`; ROOT/en-US only, `format` takes an `Instant` |
-| `com.google.gson` | Gson's tree API plus a compiler-generated object binding ([docs/json.md](/en/docs/json)) |
+| `com.google.gson` | Gson's tree API plus an object binding that reads the class's fields at run time ([docs/json.md](/en/docs/json)) |
 | framework | A Spring-shaped container and web layer ([docs/framework.md](/en/docs/framework)) |
 
 Collections are written in Teyru, so `for` works on them directly:

@@ -9,22 +9,24 @@ description: "依賴注入與請求綁定都在編譯期做完，而不是像 Sp
 ## 為什麼不是反射
 
 Spring 在啟動時掃描 classpath、讀註解、用反射建立與注入 bean、把請求綁到方法。
-Teyru 沒有反射——但它在**編譯期知道整個程式**：每個類別、每個欄位、每個建構子、
-每條繼承邊。所以這些工作在編譯期做完，而不是啟動時做完。
+這裡的容器也讀註解、也用反射建立與注入（`lib/28_container_reflect.teyru`）——
+差別在 bean 清單：沒有 classpath 可以掃，所以清單是編譯器列出來的，其餘每一件事
+都是啟動時從類別本身讀出來的。
 
 兩邊的差別是具體的：
 
 | | Spring | Teyru |
 |---|---|---|
-| bean 從哪來 | 執行期掃描 classpath | 編譯器列舉所有 `@Component` 等標註的類別 |
-| 注入誰 | 執行期依型別查詢 | 編譯期解析成 bean 名稱（`ctx.getBean("userRepo")`） |
-| 缺少 bean | `NoSuchBeanDefinitionException`，啟動時 | `TY-TYP-0103`，編譯期，附原始碼位置 |
-| 循環相依 | `BeanCurrentlyInCreationException`，啟動時 | `TY-TYP-0107`，編譯期，印出環 |
-| 執行期新增 bean | 可以 | 不行 |
-| 啟動成本 | 掃描與反射 | 沒有——註冊表是靜態初始化填好的 |
+| bean 從哪來 | 執行期掃描 classpath | 編譯器列出帶 `@Component` 等標註的類別（沒有 classpath 可掃） |
+| 讀註解與注入 | 執行期反射 | 執行期反射，讀的是類別本身 |
+| 缺少 bean | `NoSuchBeanDefinitionException`，啟動時 | `IllegalStateException`，`refresh()` 時 |
+| 循環相依 | `BeanCurrentlyInCreationException`，啟動時 | `IllegalStateException`，`refresh()` 時，訊息裡有環 |
+| 執行期新增 bean | 可以 | 不行（清單來自編譯器） |
+| 啟動成本 | 掃描與反射 | 反射，沒有掃描 |
 
-代價是明確的：不能執行期擴充。好處也是：整類錯誤從「部署之後才看到」變成「編譯
-不過」。
+代價是明確的：bean 清單在編譯期就固定，執行期加不了；而缺少 bean、兩個候選、
+相依成環這些錯誤也從編譯錯誤變成 `refresh()` 時的例外——那是 Spring 的取捨，也是
+改用反射之後換到的東西。
 
 ## 容器
 

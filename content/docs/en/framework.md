@@ -7,23 +7,24 @@ description: "Dependency injection and request binding are both done at compile 
 `internal/sema/framework*.go`, make up an application framework whose
 interfaces are copied from Spring but whose implementation differs.
 
-## Why not reflection
+## Reflection, and the one thing that is not
 
 Spring scans the classpath at startup, reads annotations, uses reflection to
-create and inject beans, and binds requests to methods. Teyru has no
-reflection — but it **knows the whole program at compile time**: every class,
-every field, every constructor, every inheritance edge. So this work is done at
-compile time rather than at startup.
+create and inject beans, and binds requests to methods. This container reads
+annotations and uses reflection to create and inject too
+(`lib/28_container_reflect.teyru`). What differs is the bean list: there is no
+classpath to scan, so the compiler writes that list down, and everything else
+about a bean is read off the class while the program starts.
 
 The differences between the two are concrete:
 
 | | Spring | Teyru |
 |---|---|---|
-| Where beans come from | Scanning the classpath at runtime | The compiler enumerates every class annotated with `@Component` and the like |
-| Which bean is injected | Looked up by type at runtime | Resolved to a bean name at compile time (`ctx.getBean("userRepo")`) |
-| Missing bean | `NoSuchBeanDefinitionException`, at startup | `TY-TYP-0103`, at compile time, with the source location |
-| Circular dependency | `BeanCurrentlyInCreationException`, at startup | `TY-TYP-0107`, at compile time, printing the cycle |
-| Adding a bean at runtime | Possible | Not possible |
+| Where beans come from | Scanning the classpath at runtime | The compiler writes down the classes annotated with `@Component` and the like; there is no classpath to scan |
+| Reading annotations and injecting | Reflection at runtime | Reflection at runtime, reading the class itself |
+| Missing bean | `NoSuchBeanDefinitionException`, at startup | `IllegalStateException`, at `refresh()` |
+| Circular dependency | `BeanCurrentlyInCreationException`, at startup | `IllegalStateException`, at `refresh()`, with the cycle in the message |
+| Adding a bean at runtime | Possible | Not possible: the list comes from the compiler |
 | Startup cost | Scanning and reflection | None — the registry is filled in by static initialization |
 
 The trade-off is explicit: no runtime extension. The benefit is equally

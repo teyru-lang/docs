@@ -479,8 +479,7 @@ try {
 查一次資料是走一次陣列，執行期不建表。成員表只在程式真的會用到反射時
 才寫進執行檔（用到時整份都會帶上，量到的 hello world 從 445.9 KB 變成約 3 MB；
 沒用到的一行都不帶）。與 Java 的差異：類別名是 Teyru 的
-（`String.class.getName()` 是 `teyru.String`，`forName` 兩種名字都收）、沒有註解
-反射、所有陣列共用一個類別（所以沒有 `getComponentType`）、沒有泛型型別參數的
+（`String.class.getName()` 是 `teyru.String`，`forName` 兩種名字都收）、註解可以反射，但元素是**按名字讀**（`ann.stringValue("value")`，不是 Java 的 `ann.value()`）；所有陣列共用一個類別（所以沒有 `getComponentType`）、沒有泛型型別參數的
 反射、原生型別取值器只收完全相符的裝箱型別、不檢查存取控制（只有 final 會攔）。
 `java.util.function`（`lib/09`）提供 `Function`／`BiFunction`／`Consumer`／
 `Supplier`／`Predicate`／`Runnable`／`Comparator`。
@@ -501,12 +500,13 @@ for (String n : names) {
 | `java.io` | `lib/16` | `File`（`listFiles`）、`Path`／`Paths`、`Files`（`readString`／`writeString`／`readAllLines`／`exists`／`createDirectories`） |
 | `java.util.regex` | `lib/21` | `Pattern`／`Matcher`：回溯式比對，支援字面值、`.`、`*`／`+`／`?`／`{n,m}` 與其懶惰形式、字元類別、`\d`／`\w`／`\s`、`^`／`$`、`|`、捕獲與非捕獲群組、`replaceAll`／`replaceFirst`／`split`（含 `limit` 的三種正負號）；不支援的語法（佔有量詞、前後視、反向參考、`\p{...}`）在 `compile` 就被拒絕。`String.matches`／`replaceAll`／`replaceFirst`／`split` 就是這五個方法，不是另一套實作 |
 | `java.net` | `lib/15` | `ServerSocket`、`Socket`、`SocketInputStream`／`SocketOutputStream`；同步阻塞的 POSIX socket，逾時以 `SocketTimeoutException` 回報 |
+| `java.util.Base64` | `lib/25` | 編碼（`encodeToString`）；沒有解碼 |
 | `java.util.stream` | `lib/22` | `Stream`／`IntStream`／`LongStream`／`DoubleStream`、`Collectors`（26 個工廠）、`Collector`、`Spliterator`／`Spliterators`、`StreamSupport`、統計與 `OptionalInt` 家族；中間操作建管線、終端操作才拉，`Collection.stream()` 是入口 |
 | `java.math` | `lib/23` | `BigInteger`（base-2^30 limb、符號與大小）、`BigDecimal`（unscaled value 與 scale）、`MathContext`、`RoundingMode`；演算法照 JDK 翻譯，因為小數位數、除法留下的 scale、進位方式都是可觀察的 |
 | `java.text` | `lib/24` | `NumberFormat`／`DecimalFormat`／`DecimalFormatSymbols`（完整 pattern 語言）、`DateFormat`／`SimpleDateFormat`（四種 style 與 parse）、`DateTimeFormatter`、`MessageFormat`、`ChoiceFormat`、`ParseException`／`ParsePosition`。**沒有 `Locale`**（只做 ROOT／en-US），**沒有 `java.util.Date`**（`format`／`parse` 走 `Instant`），`format` 沒有 `FieldPosition` 多載 |
 | `java.util` 其餘 | `lib/25` | `Properties`、`Random`（逐位元組照 java.util.Random）、`UUID`、`BitSet`、`StringTokenizer`、`Enumeration`、`ArrayOps`（陣列的範圍形式） |
-| `com.google.gson` | `lib/10`、`lib/19` | Gson 的樹狀 API，以及由編譯器產生的物件綁定（見 [docs/json.md](/docs/json)） |
-| 框架 | `lib/17`、`lib/18` | Spring 形狀的容器與 web 層（見 [docs/framework.md](/docs/framework)） |
+| `com.google.gson` | `lib/10`、`lib/19` | Gson 的樹狀 API，以及執行期讀取類別欄位的物件綁定（見 [docs/json.md](/docs/json)） |
+| 框架 | `lib/17`、`lib/18` | Spring 形狀的容器與 web 層；HTTP/1.1 的 keep-alive、chunked、Cookie、HEAD／OPTIONS，以及 WebSocket（`WebSocketHandler` + `server.addWebSocket`）——見 [docs/framework.md](/docs/framework) |
 
 ### 名稱怎麼找
 
@@ -556,7 +556,7 @@ Teyru 是照**簡單名稱**找的，前面寫什麼套件都一樣，所以 `im
 5. **原生 property**：欄位加 accessor 區塊；`field` 代表底層儲存。
 6. **`val`**：推斷型別的不可重綁區域變數。
 7. 捕獲的區域變數不要求 effectively final。
-8. 沒有 annotation processor、沒有註解（annotation）的執行期反射、沒有 JNI。
+8. 沒有 annotation processor、沒有 JNI。註解可以反射，但有一個差別：元素是**按名字讀**（`ann.stringValue("value")`），不是 Java 的 `ann.value()`；值是陣列的元素不帶。
 9. 泛型與 checked exception 的規則同 Java，但沒有 checked 檢查。
 10. 型別引數推論比 javac 弱一層，靠目標型別而不是完整的約束求解（沒有 JLS 18）：
     - lambda 的型別引數會**從主體回推**：目標是 `Fn<String, ? extends R>` 而主體是
@@ -586,7 +586,7 @@ Teyru 是照**簡單名稱**找的，前面寫什麼套件都一樣，所以 `im
   switch 窮盡性上被視為不可判定而要求 `default`；switch **陳述式**的窮盡性
   仍從寬
 - 執行緒（檔案與網路 I/O 有，見 `java.io`／`java.net`）
-- 反射缺的部分：註解反射、泛型型別參數的反射、每個元素型別的陣列類別
+- 反射缺的部分：泛型型別參數的反射、每個元素型別的陣列類別
   （所有陣列共用一個類別）、原生型別取值器的 Java 拓寬（對 `byte` 欄位呼叫
   `getInt` 在 Java 會過，這裡是 `IllegalArgumentException`）
 - 與 Java 生態互通（JAR、JDK 類別庫、JNI）

@@ -9,19 +9,20 @@ description: "依赖注入与请求绑定都在编译期完成，而不是像 Sp
 ## 为什么不是反射
 
 Spring 在启动时扫描 classpath、读注解、用反射创建与注入 bean、把请求绑定到方法。
-Teyru 没有反射——但它在**编译期知道整个程序**：每个类、每个字段、每个构造器、
-每条继承边。所以这些工作在编译期做完，而不是启动时做完。
+这里的容器也读注解、也用反射创建与注入（`lib/28_container_reflect.teyru`）——
+差别在 bean 清单：没有 classpath 可以扫，所以清单是编译器列出来的，其余每一件事
+都是启动时从类本身读出来的。
 
 两边的差别是具体的：
 
 | | Spring | Teyru |
 |---|---|---|
-| bean 从哪来 | 运行时扫描 classpath | 编译器枚举所有 `@Component` 等标注的类 |
-| 注入谁 | 运行时按类型查询 | 编译期解析成 bean 名称（`ctx.getBean("userRepo")`） |
-| 缺少 bean | `NoSuchBeanDefinitionException`，启动时 | `TY-TYP-0103`，编译期，附带源码位置 |
-| 循环依赖 | `BeanCurrentlyInCreationException`，启动时 | `TY-TYP-0107`，编译期，打印出环 |
-| 运行时新增 bean | 可以 | 不行 |
-| 启动成本 | 扫描与反射 | 没有——注册表是静态初始化填好的 |
+| bean 从哪来 | 运行时扫描 classpath | 编译器列出带 `@Component` 等标注的类（没有 classpath 可扫） |
+| 读注解与注入 | 运行时反射 | 运行时反射，读的是类本身 |
+| 缺少 bean | `NoSuchBeanDefinitionException`，启动时 | `IllegalStateException`，`refresh()` 时 |
+| 循环依赖 | `BeanCurrentlyInCreationException`，启动时 | `IllegalStateException`，`refresh()` 时，消息里有环 |
+| 运行时新增 bean | 可以 | 不行（清单来自编译器） |
+| 启动成本 | 扫描与反射 | 反射，没有扫描 |
 
 代价是明确的：不能在运行期扩展。好处也是：整类错误从“部署之后才看到”变成“编译
 不过”。

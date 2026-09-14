@@ -1,6 +1,6 @@
 ---
 title: "JSON 與 Gson 相容層"
-description: "Gson 形狀的樹狀 API，以及由編譯器產生的物件綁定。"
+description: "Gson 形狀的樹狀 API，以及執行期讀取類別欄位的物件綁定。"
 ---
 
 Teyru 的 JSON 分成兩層：`lib/10_json.teyru` 是 Gson 的**樹狀 API**（純 Teyru，不需要

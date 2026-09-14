@@ -327,7 +327,7 @@ class Main {
 | `java.util.stream` | `Stream`／`IntStream`／`LongStream`／`DoubleStream`、`Collectors`、`Collector`、`Spliterator`；延遲求值，`Collection.stream()` 是入口 |
 | `java.math` | `BigInteger`、`BigDecimal`、`MathContext`、`RoundingMode` |
 | `java.text` | `NumberFormat`／`DecimalFormat`（完整 pattern 語言）、`DateFormat`／`SimpleDateFormat`、`DateTimeFormatter`、`MessageFormat`；只做 ROOT／en-US，`format` 走 `Instant` |
-| `com.google.gson` | Gson 的樹狀 API，以及由編譯器產生的物件綁定（[docs/json.md](/docs/json)） |
+| `com.google.gson` | Gson 的樹狀 API，以及執行期讀取類別欄位的物件綁定（[docs/json.md](/docs/json)） |
 | 框架 | Spring 形狀的容器與 web 層（[docs/framework.md](/docs/framework)） |
 
 集合以 Teyru 撰寫，所以 `for` 迴圈直接支援：

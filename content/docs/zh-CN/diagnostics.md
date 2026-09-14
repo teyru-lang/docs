@@ -186,22 +186,22 @@ hello.teyru:4:11: error[TY-TYP-0051]: incompatible types: String cannot be conve
 | TY-TYP-0096 | `switch expression does not cover all possible input values` | switch **表达式**必须穷尽：`int`／`String` 选择子一定要有 `default`，枚举选择子要覆盖每一个常量。switch 语句不受此限。 |
 | TY-TYP-0097 | `native methods %s and %s both need the C symbol %s` | 两个重载 native 方法编码后得到同一个 C 符号（例如类名 `AI` 与 `int[]`）。改名或者改参数类型。 |
 | TY-TYP-0098 | `non-static %s cannot be referenced from a static context` | lambda 主体用到书写处的 `this`（含未限定的实例方法调用、裸字段名与 `super`），但 lambda 写在 static 方法或 static 初始化块里，没有实例可捕获。Java 同样拒绝。 |
-| TY-TYP-0108 | `%s is a prelude class; it has no generated JSON binding` | 对前导类（String、JsonObject…）要求生成 JSON 绑定。 |
-| TY-TYP-0109 | `two fields of %s both map to the JSON name %s` | 两个字段经过 `@SerializedName` 后同名。 |
-| TY-TYP-0112 | `%s is bound from JSON but has no no-argument constructor; ...` | Gson 用 Unsafe 绕过构造器分配对象，Teyru 没有，所以从 JSON 读取的类需要一个无参构造器。 |
-| TY-TYP-0111 | `%s answers with %s, which has no JSON mapping; ...` | controller 方法的返回类型没有 JSON 映射（数组、List…）。改成返回 String 或 HttpResponse，或者是一个绑定能走完的类。 |
-| TY-TYP-0110 | `%s has no JSON mapping for its type %s` | 字段类型没有 JSON 映射。Gson 在运行期才抛，这里在绑定的那一行就报。 |
+| TY-TYP-0108 | （已移除） | JSON 绑定改由运行期读取类，没有“生成绑定”这个步骤。 |
+| TY-TYP-0109 | （已移除） | 同上：`@SerializedName` 造成的同名在读取时才看得出来。 |
+| TY-TYP-0112 | （已移除） | 从 JSON 读取的类由运行期建立，构造器的限制改在 `newInstance` 时浮现。 |
+| TY-TYP-0111 | （已移除） | controller 的返回值一律由绑定写成 JSON，没有映射不了的类型。 |
+| TY-TYP-0110 | （已移除） | 字段类型能不能绑定，是读取时才知道的事。 |
 | TY-TYP-0114 | `not a statement: %s has no effect` | 没有副作用的表达式语句（JLS 14.8）。这个语言在换行处结束表达式，所以 `long x = a` 换行 `+ b` 是两个语句，第二个是安静的一元加号——`x` 少一项而没有任何消息。现在会报出来。 |
 | TY-TYP-0113 | `resource type %s is not a subtype of AutoCloseable` | try-with-resources 的资源类型必须是 `AutoCloseable` 的子类型。隐含的 `close()` 是一次接口调用，所以“刚好有 `close()` 方法”的类会编译成对象没有条目的 itable 调用，运行期才爆。 |
 | TY-TYP-0115 | `cannot resolve import %s` | 导入路径指不到任何东西。名字在 Teyru 里是按**简单名称**找的，前面写什么包都一样，所以 `import java.utli.List` 这种拼错的包以前是被安静地忽略、然后照样拿到 `List`。现在导入必须指向：标准库响应的包（`teyru` 本身，以及兼容用的 `java.util`、`com.google.gson`、`lombok`…，见 docs/language.md §11）、本次构建中某个文件声明的包，或者是一个完整名称就是这条路径的类型。 |
-| TY-TYP-0100 | `two beans are named %s: %s and %s` | 两个 bean 取了同一个名字（`@Component("x")` 或 `@Bean("x")`）。 |
+| TY-TYP-0100 | （已移除） | 容器改读类之后，重名 bean 在 `refresh()` 时被拒绝。 |
 | TY-TYP-0101 | `%s is declared by the framework and cannot be redefined` | `__TeyruFramework` 是容器注册用的合成类，名字被保留。 |
-| TY-TYP-0102 | `@Bean method %s must not be static`／`@Bean method %s must return the bean's type`／`@Bean method %s does not return a class type` | `@Bean` 方法必须不是 static，且返回类型是一个类（基本类型会被装箱）。 |
-| TY-TYP-0103 | `no bean of type %s to inject into %s` | 某个 `@Autowired` 的类型没有任何 bean。Spring 在启动时才发现，这里在编译期。 |
-| TY-TYP-0104 | `%d beans of type %s: name one with @Qualifier` | 同类型有多个 bean，没有 `@Primary` 也没有 `@Qualifier`。 |
-| TY-TYP-0105 | `two constructors of %s are annotated @Autowired` / `%s has %d constructors and none is annotated @Autowired` | 构造器注入的选择规则：单一构造器，或者标了 `@Autowired` 的那一个。 |
-| TY-TYP-0106 | `@PostConstruct method %s must take no arguments and return void` | 生命周期回调的签名。 |
-| TY-TYP-0107 | `circular dependency: %s` | bean 之间的依赖形成环。Spring 在启动时抛异常，这里在编译期就拒绝。 |
+| TY-TYP-0102 | `@Bean method %s must not be static`／`@Bean method %s must return the bean's type`／`@Bean method %s does not return a class type` | `@Bean` 方法必须不是 static、且返回类型是一个类（基本类型会装箱）。 |
+| TY-TYP-0103 | （已移除） | 缺少 bean 现在是 `refresh()` 时的异常——Spring 也是启动时才发现。 |
+| TY-TYP-0104 | （已移除） | 两个候选是 `refresh()` 时的异常，消息里带着两个名字。 |
+| TY-TYP-0105 | （已移除） | 构造器选择改在运行期：标了 `@Autowired` 的、唯一的那个、或无参的那个。 |
+| TY-TYP-0106 | （已移除） | `@PostConstruct` 的签名改在调用时才检查。 |
+| TY-TYP-0107 | （已移除） | 依赖成环是 `refresh()` 时的异常，消息里有环。 |
 | TY-TYP-0099 | `reference to %s is ambiguous: it is declared in both %s and %s` | 两个 `import p.*` 都提供同一个简单名称（JLS 6.5.5.1）。写出完整名称，或者用单类型导入（`import a.Widget`）消歧义。 |
 
 ## TY-PROP：原生 property
