@@ -6,8 +6,8 @@ description: "The syntax and semantics of Teyru 0.2: source files and lexing, ty
 This document describes the syntax and semantics of Teyru 0.2. It follows the implementation:
 every language feature written here has a corresponding test in `tests/programs/`, and
 `go test ./...` verifies each one; the standard library API, however, is only partially covered
-(for example `Map.putAll` and `Map.keys` are not yet exercised by any test), so test coverage is
-still incomplete.
+(for example `Map.putAll` and `String.getBytes` are not yet exercised by any test), so test
+coverage is still incomplete.
 
 - [1. Source files and lexing](#1-source-files-and-lexing)
 - [2. Newlines and statement termination](#2-newlines-and-statement-termination)
@@ -523,8 +523,8 @@ for (String n : names) {
 
 | Package | Files | Contents |
 |---|---|---|
-| `java.time` | `lib/20` | `LocalDate`/`LocalTime`/`LocalDateTime`/`Instant`/`Duration`/`Period`/`DayOfWeek`/`Month`; the calendar arithmetic is done on epoch days, and the output is byte-for-byte identical to the JDK (no time zones, `now()` reads UTC) |
-| `java.io` | `lib/16` | `File`, `Path`/`Paths`, `Files` (`readString`/`writeString`/`readAllLines`/`exists`/`createDirectories`/`listFiles`) |
+| `java.time` | `lib/20` | `LocalDate`/`LocalTime`/`LocalDateTime`/`Instant`/`Duration`/`Period`/`DayOfWeek`/`Month`; the calendar arithmetic is done on epoch days (no time zones, `now()` reads UTC). `LocalDate`, `Instant`, `Duration` and `DayOfWeek`/`Month` output byte-for-byte identically to the JDK; four places differ: the year is neither zero-padded nor given a plus sign (`1-01-01`, `10000-01-01`, where the JDK has `0001-01-01`, `+10000-01-01`), `LocalTime`'s `plus*`/`minus*` clear the nanoseconds (`00:00:00.000000001` plus one hour is `01:00`), `LocalDateTime`'s `plusHours`/`plusMinutes`/`plusSeconds` do not cross the day (`1899-01-01T23:00` plus 25 hours is `1899-01-01T00:00`), and `Period.between` and `addTo`/`subtractFrom` compute differently from the JDK (`2000-03-31` to `2000-04-30` is `P1M`, where the JDK has `P30D`) |
+| `java.io` | `lib/16` | `File` (`listFiles`), `Path`/`Paths`, `Files` (`readString`/`writeString`/`readAllLines`/`exists`/`createDirectories`) |
 | `java.util.regex` | `lib/21` | `Pattern`/`Matcher`: backtracking matching, supporting literals, `.`, `*`/`+`/`?`/`{n,m}` and their lazy forms, character classes, `\d`/`\w`/`\s`, `^`/`$`, `|`, capturing and non-capturing groups, `replaceAll`/`replaceFirst`/`split` (including all three signs of `limit`); unsupported syntax (possessive quantifiers, lookaround, backreferences, `\p{...}`) is rejected at `compile` time. `String.matches`/`replaceAll`/`replaceFirst`/`split` are exactly these five methods, not another implementation |
 | `java.net` | `lib/15` | `ServerSocket`, `Socket`, `SocketInputStream`/`SocketOutputStream`; synchronous blocking POSIX sockets, with timeouts reported as `SocketTimeoutException` |
 | `java.util.stream` | `lib/22` | `Stream`/`IntStream`/`LongStream`/`DoubleStream`, `Collectors` (26 factories), `Collector`, `Spliterator`/`Spliterators`, `StreamSupport`, statistics and the `OptionalInt` family; intermediate operations build the pipeline and only terminal operations pull, with `Collection.stream()` as the entry point |
@@ -604,22 +604,24 @@ When you need your own native library, a `native` method can be implemented in C
       `Fn<String, ? extends R>` and the body is `s -> s.length()`, `R` is fixed as `Integer`.
       The other direction does not work — when the body itself is a generic call that needs a
       target type, the two depend on each other and the one-way substitution stops there:
-      `words.stream().flatMap(w -> Stream.of(w.split(" ")))` needs
-      `Function<String, Stream<String>>` written out first.
+      `words.stream().flatMap(w -> Stream.of(w.split(" ")))` can be written on its own, but once
+      `.collect(...)` is attached `collect` cannot get the element type, so
+      `Function<String, Stream<String>>` must be written out first.
     - If an argument has only one candidate method, that parameter's type is used as the
       target — so nested generic calls can be inferred.
     - **A generic call with free type variables gets no target type as a chained-call receiver**:
       `xs.sort(naturalOrder())` needs the type witness written out
-      (`Comparator.<String>naturalOrder()`); for `comparing(...).thenComparing(...)` even a
-      witness does not work, and it must first go into a variable with a declared type
-      (`Comparator<String> c = comparing(...)`, then `c.thenComparing(...)`). javac handles
-      both spellings.
+      (`Comparator.<String>naturalOrder()`); `comparing(...).thenComparing(...)` gets no target
+      type either, and a witness only takes effect when every type variable of that call is
+      written out (`Comparator.<String,Integer>comparing(...)`), so otherwise it must first go
+      into a variable with a declared type (`Comparator<String> c = comparing(...)`, then
+      `c.thenComparing(...)`). javac handles both spellings.
     - An explicit witness belongs to its own call: in `pair(f, Builder.<Integer>make())` the
       outer witness is not overridden by the inner one.
 11. **No capture conversion**: `List<? extends Number>` here is just `List<Number>`. The writes
-    Java blocks through capture (`add` on a `? extends` container) are not blocked here; the
-    other way round, the reads Java needs capture to compile (`list.get(0).doubleValue()`) work
-    here directly.
+    Java blocks through capture (`add` on a `? extends` container) are not blocked here; reads
+    are no different (`list.get(0).doubleValue()` is accepted by javac too, so it is not
+    capture conversion that holds it back).
 
 ## 13. Not yet implemented
 
@@ -627,7 +629,11 @@ When you need your own native library, a `native` method can be implemented in C
 - A `sealed` type's `permits` clause is not verified: a sealed type without `permits` is
   treated as undecidable for switch exhaustiveness and requires a `default`; the
   exhaustiveness of a switch **statement** is still lenient
-- Reflection, threads (file and network I/O exist, see `java.io`/`java.net`)
+- Threads (file and network I/O exist, see `java.io`/`java.net`)
+- What reflection is missing: annotation reflection, reflection of generic type parameters, an
+  array class per element type (all arrays share one class), and Java's widening in the
+  primitive getters (`getInt` on a `byte` field compiles in Java and is an
+  `IllegalArgumentException` here)
 - Interoperating with the Java ecosystem (JARs, the JDK class library, JNI)
 - Unicode escapes in identifiers (`\u0041` cannot spell out an identifier)
 - Explicit type arguments on a generic constructor `new <T>Foo(...)`

@@ -10,9 +10,9 @@ Teyru 的 JSON 分成两层：`lib/10_json.teyru` 是 Gson 的**树状 API**（�
 
 `JsonElement`、`JsonObject`、`JsonArray`、`JsonPrimitive`、`JsonNull`、
 `JsonParser.parseString`、`Gson`、`GsonBuilder`、`JsonSyntaxException`，
-行为对齐 Gson 2.10.0，包含几个容易做错的细节：
+行为对齐 Gson 2.10，包含几个容易做错的细节：
 
-- `JsonNull` 继承 `JsonElement` 而不是 `JsonPrimitive`（Gson 2.10 的改动）。
+- `JsonNull` 继承 `JsonElement` 而不是 `JsonPrimitive`。
 - 解析后的数字保留原始字面量，所以 `1e5` 打印回来还是 `1e5`，不会变成 `100000.0`。
 - 转义规则照 Gson 的替换表：`"` 与 `\` 会转义、五个短形式 `\b \t \n \f \r`、
   其余小于 0x20 的用 `\u00xx`（小写十六进制）、`/` **不**转义、非 ASCII 以 UTF-8
@@ -29,7 +29,8 @@ Teyru 的 JSON 分成两层：`lib/10_json.teyru` 是 Gson 的**树状 API**（�
   `Set`）；`JsonMember` 的 `getKey`／`getValue` 对应 `Map.Entry`。
 - 数字只到 `long`，没有 `getAsBigDecimal`／`getAsBigInteger`。
 - 数值访问器抛出 `IllegalArgumentException` 而不是 `NumberFormatException`
-  （标准库没有后者；前者是它的父类，所以 catch 父类的代码不受影响）。
+  （前者是后者的父类，所以 catch 父类的代码不受影响；指名
+  `NumberFormatException` 的 catch 拦不到它们）。
 
 ## 对象绑定（lib/19 加上编译器）
 
@@ -65,7 +66,8 @@ String out = gson.toJson(p)
   生成的成员也在内）。
 
 支持的字段类型：`String`、`boolean`/`byte`/`short`/`char`/`int`/`long`/`float`/
-`double` 与其装箱类型、enum（写成常量名称，读回来比对名称，与 Gson 相同）、其他
+`double` 与其装箱类型、enum（写成常量名称，读回来比对名称，与 Gson 相同；名字对不上
+时 Gson 留 `null`，这里抛出 `JsonParseException`）、其他
 可绑定的类（递归）、`Object`（保留原始树：读进来的 `JsonObject` 原样写回去）。
 `char` 和 Gson 一样写成单字符字符串、也从字符串读回来。`@SerializedName` 可以改名。
 **不支持**：`List`／`Map`／数组字段、`@Expose`／`@Since`／`@Until`／`@JsonAdapter`

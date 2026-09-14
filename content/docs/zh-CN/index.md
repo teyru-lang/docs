@@ -3,7 +3,7 @@ title: "Teyru"
 description: "Teyru 是一门独立实现的编程语言：编译器完全用 Go 编写，直接生成原生可执行文件——不依赖 JVM、不依赖 javac、不产生任何 bytecode。"
 ---
 
-[繁體中文](/docs) · **简体中文** · [English](/en/docs) · [日本語](https://github.com/teyru-lang/Teyru/blob/main/README.ja.md)
+[繁體中文](/docs) · **简体中文** · [English](/en/docs)
 
 **Teyru 是一门独立实现的编程语言：编译器完全用 Go 编写，直接生成原生可执行文件——不依赖 JVM、不依赖 javac、不产生任何 bytecode。**
 
@@ -51,14 +51,17 @@ Teyru 源码 (.teyru)
 
 | 指标 | Teyru（原生） | Java（HotSpot） | 差距 |
 |---|---|---|---|
-| 启动 100 次总时间 | **0.065 s**（0.65 ms/次） | 2.02 s（20.2 ms/次） | **约 31 倍快** |
-| 可执行文件大小 | **445.9 KB** | JDK 安装约 346 MB | 约 794 倍小 |
-| 峰值内存（hello） | **2.2 MB** | 50.7 MB | **约 23 倍省** |
-| `bench_fib` 递归 | **0.0060 s** | 0.0269 s | **4.5 倍快** |
-| `bench_loop` 循环与整数运算 | **0.0209 s** | 0.0434 s | **2.1 倍快** |
-| `bench_oop` 对象与虚调用 | **0.0049 s** | 0.0254 s | **5.2 倍快** |
-| `bench_string` 字符串处理 | **0.0145 s** | 0.0544 s | **3.8 倍快** |
-| `bench_alloc` 短命对象分配 | **0.0276 s** | 0.0311 s | **1.1 倍快** |
+| 启动 100 次总时间 | **0.0755 s**（0.76 ms/次） | 2.06 s（20.6 ms/次） | **约 27 倍快** |
+| 可执行文件大小 | **450.9 KB** | JDK 安装约 346 MB | 约 786 倍小 |
+| 峰值内存（hello） | **4.1 MB** | 49.8 MB | **约 12 倍省** |
+| `bench_fib` 递归 | **0.0053 s** | 0.0266 s | **5.0 倍快** |
+| `bench_loop` 循环与整数运算 | **0.0203 s** | 0.0438 s | **2.2 倍快** |
+| `bench_oop` 对象与虚调用 | **0.0046 s** | 0.0259 s | **5.6 倍快** |
+| `bench_string` 字符串处理 | **0.0149 s** | 0.0534 s | **3.6 倍快** |
+| `bench_alloc` 短命对象分配 | **0.0234 s** | 0.0306 s | **1.3 倍快** |
+| `bench_invoke` 2000 万次反射调用（见 `examples/bench_invoke.teyru`） | **0.5002 s** | 0.246 s | **约 2 倍慢** |
+
+`bench_invoke` 的 Java 数字是用 javac 手动量的（脚本没把这支程序算进 Java 栏）。它是微基准，与上面整支程序的数字性质不同；放在这里是因为「反射没有拖慢普通调用」需要一个数字，而它同时显示 `Method.invoke` 这条路径仍比 HotSpot 慢一倍。
 
 **为什么快：**
 
@@ -248,7 +251,7 @@ Teyru 以 Java SE 25 最终定案的语法为基准（不含预览功能），�
 | 513 | 弹性构造器本体（`super()` 之前可以写语句） | ✅ |
 | 440 | Record 模式（含嵌套解构、`instanceof` 版本） | ✅ |
 | 441 | switch 的模式匹配与 `when` 守卫 | ✅ |
-| 507 | 原生类型 pattern（`case int i`、`o instanceof int i`，精确转换语义） | ✅ |
+| 507 | 原生类型 pattern（`case int i`、`o instanceof int i`，精确转换语义；Java 25 仍为预览功能） | ✅ |
 | 456 | 未命名变量与模式 `_` | ✅ |
 | 395 | record（含紧凑构造器） | ✅ |
 | 394 | `instanceof` 类型模式 | ✅ |
@@ -366,9 +369,9 @@ teyru build --native impl.c program.teyru            # 一起编译
 
 ## 编辑器与工具
 
-- **VS Code**：`editors/vscode/` 提供 `.teyru` 的 TextMate 语法高亮、语言配置与片段。
+- **VS Code**：[`teyru-lang/editors`](https://github.com/teyru-lang/editors) 仓库的 `vscode/` 提供 `.teyru` 的 TextMate 语法高亮、语言配置与片段。
   用 `npx @vscode/vsce package` 打包，再用 `code --install-extension teyru-0.1.0.vsix` 安装。
-- **tree-sitter**：`editors/tree-sitter-teyru/` 是完整文法，附高亮 query、缩进 query
+- **tree-sitter**：同一仓库的 `tree-sitter-teyru/` 是完整文法，附高亮 query、缩进 query
   与 corpus 测试，Neovim、Helix、Zed 等可直接使用。
 - GitHub 目前仍把 `.teyru` 显示为 Java：linguist 还没有 Teyru 的定义，
   `.gitattributes` 先映射到最接近的语法。
@@ -394,8 +397,8 @@ teyru build --native impl.c program.teyru            # 一起编译
 | `tests/native` | native 方法互通测试：Teyru 声明、C 实现与期望输出（`TestNative`） |
 | `examples` | 示例程序与 JVM 对照的 benchmark（`bench_*.teyru` 与 `.java`） |
 | `scripts` | 开发脚本：`bench.sh` 性能测量、`pre-commit` 钩子 |
-| `docs` | 语言参考、诊断码、架构 |
-| `editors` | 编辑器支持：VS Code 扩展与 tree-sitter 文法 |
+| [`teyru-lang/docs`](https://github.com/teyru-lang/docs) | 语言参考、诊断码、架构（另一个仓库，即本文档站） |
+| [`teyru-lang/editors`](https://github.com/teyru-lang/editors) | 编辑器支持：VS Code 扩展与 tree-sitter 文法（另一个仓库） |
 
 ---
 

@@ -44,7 +44,7 @@ System.out.println(p)                  // Person(name=ada, age=36)
 | `@Data` | ⚠️ 部分 | getter + setter + `@RequiredArgsConstructor` + `@ToString` + `@EqualsAndHashCode`；隐式构造函数收 `@NonNull` 字段并在里面插入检查 |
 | `@Value` | ⚠️ 部分 | private final 字段、getter、全参构造函数、`staticConstructor`；继承会被 `TY-TYP-0007` 拦下 |
 | `@Builder` | ⚠️ 部分 | 类、构造函数与方法；`builderMethodName`／`buildMethodName`／`builderClassName`／`toBuilder`／`@Builder.Default`／`@Builder.ObtainVia`／`setterPrefix`（首字母会大写：`with` 加 `name` 是 `withName`） |
-| `@NonNull` | ⚠️ 部分 | 字段与参数都检查：字段被收进生成的构造函数时插入检查，`@Setter` 生成的 setter 也检查，手写方法与构造函数的参数（只标在参数上即可）同样检查。Teyru 没有字段写入拦截，所以直接赋值字段不检查（见 §3） |
+| `@NonNull` | ⚠️ 部分 | 字段与参数都检查：字段被收进生成的构造函数时插入检查，`@Setter` 生成的 setter 也检查，手写方法与构造函数的参数（只标在参数上即可）同样检查。直接赋值字段不检查（Lombok 也一样）；`@Builder` 的检查位置与 Lombok 不同（见 §3） |
 | `@With` | ⚠️ 部分 | 字段上的 `@With` 生成 `withX(T)`，以全参构造函数复制；写在类上不会为所有字段生成（Lombok 会） |
 | `@Accessors` | ⚠️ 部分 | `chain`／`fluent`／`prefix`；`fluent = true` 不会像 Lombok 那样连带把 setter 变成可链式（要另外写 `chain = true`，见 §3） |
 | `@FieldDefaults` | ✅ 完整 | `level`／`makeFinal` |
@@ -58,10 +58,10 @@ System.out.println(p)                  // Person(name=ada, age=36)
 | `@FieldNameConstants` | ⚠️ 部分 | 生成嵌套的 `Fields` 类；`prefix` 是加在常量的**值**上，不是加在名称上，与 Lombok（1.18.4 以前）相反 |
 | `@Delegate` | ✅ 完整 | 为字段类型的公开方法生成委托方法 |
 | `@Helper` | ✅ 完整 | 方法内的局部类：生成实例，声明之后同名的非限定调用都走它（实例必须有无参构造函数） |
-| `@Tolerate` | ✅ 完整 | 被标的成员对生成器“不存在”：`@Setter private Date date` 加上 `@Tolerate public void setDate(String)` 会同时有两个重载 |
+| `@Tolerate` | ✅ 完整 | 被标的成员对生成器“不存在”：`@Setter private Instant date` 加上 `@Tolerate public void setDate(String)` 会同时有两个重载 |
 | `@Locked` | ✅ 完整 | 用具名锁字段包住方法体 |
-| `@NonFinal` | ✅ 完整 | 移除 final |
-| `@PackagePrivate` | ✅ 完整 | 移除访问修饰符 |
+| `@NonFinal` | ⚠️ 部分 | 收得下注解，但没有任何作用：Lombok 用它让 `@FieldDefaults(makeFinal = true)`／`@Value` 放过一个字段，这里不读；标在类上时，继承检查在更早的阶段就已经跑过了 |
+| `@PackagePrivate` | ⚠️ 部分 | 只有写在类上才有效，把该类字段与方法的访问修饰符拿掉；写在字段或方法上（Lombok 的用法：让 `@FieldDefaults(level = …)`／`@Value` 放过一个字段）没有作用 |
 | `@Var` | ✅ 完整 | 已废弃的 Lombok 别名，无需生成任何东西 |
 | `@SuperBuilder` | ✅ 完整 | 构造函数链上的所有字段都在同一个 builder；见 §4 |
 | `@Singular` | ✅ 完整 | 逐项添加、批量添加、清除、`build()` 取得副本；`@Singular("name")` 可改名；见 §4 |
@@ -71,7 +71,8 @@ System.out.println(p)                  // Person(name=ada, age=36)
 | `@CustomLog` | ✅ 完整 | 读取 `lombok.config` 的 `lombok.log.custom.declaration`（见 §3.5） |
 
 “完整”的定义：`tests/programs/t16`–`t19`、`t54` 有对应的测试，`go test ./...` 会验证输出；
-`t55_lombok_every.teyru` 在一支程序里把上表每一个 ✅ 的注解各用一次，输出逐行比对；
+`t55_lombok_every.teyru` 在一支程序里把上表每一个 ✅ 的注解各用一次（只有 `@CustomLog`
+与 `@onX` 家族不在里面，见下一句），输出逐行比对；
 `t91_lombok_log.teyru` 覆盖 `@Log`、`@CustomLog`（含 `lombok.config`）与 `@onX` 家族；
 `t144_lombok_parity.teyru` 覆盖 `@NonNull` 的各条路径、`@Tolerate`、
 `onlyExplicitlyIncluded`、`setterPrefix`、方法上的 `@Builder`、`@Builder.ObtainVia`、
@@ -171,10 +172,12 @@ class Person {
 ## 3. 与 Lombok 的差异（重要）
 
 1. **没有 annotation processor。** 展开发生在编译器内部，`javac` 完全不参与。
-2. **`@NonNull` 没有字段写入拦截。** 字段标了 `@NonNull`、又被收进生成的构造函数时会
-   插入检查，`@Setter` 生成的 setter、手写方法与构造函数的参数（只标在参数上即可）也都
-   会插入检查；Lombok 对“直接赋值字段”也检查，但 Teyru 的字段读写不经过方法，
-   拦不到。这条限制在 Lombok 中同样无法用 setter 表达。
+2. **`@NonNull` 检查的位置。** 字段标了 `@NonNull`、又被收进生成的构造函数时会插入
+   检查，`@Setter` 生成的 setter、手写方法与构造函数的参数（只标在参数上即可）也都
+   会插入检查；直接赋值字段不检查——Lombok 的说明也只承诺“给这个字段**生成**的方法
+   赋值”会插检查，这点两边一致。差别在 `@Builder`：Lombok 在 builder 的 setter 上
+   就检查，`builder().name(null)` 当场抛出；这里的 builder setter 不检查，检查落在
+   `build()` 调用的构造函数里。
 3. **`@Singular` 传的是可变副本**，不是 `Collections.unmodifiableList` 包装（见 §4）。
 4. **`@SuperBuilder` 生成一个扁平的 builder**，不是 builder 继承链（见 §4）。
 5. **`@onX` 注解只会被复制，不会被执行。** 注解字面上会挂到生成出来的成员上，
@@ -193,8 +196,9 @@ class Person {
    （static 的用 `<类>.<方法>(...)`，实例方法用一个新实例）；`@Builder.ObtainVia` 由
    `toBuilder` 读取，`method`／`isStatic` 两种形式都支持。
 9. **`@Helper` 只认方法内的局部类。** 这里会生成一个实例，声明之后同名的非限定
-   调用都走它；写在成员类上（Lombok 也一样）没有作用，只是把类标成 static。
-   `@Tolerate` 则是让生成器“看不到”被标的成员：`@Setter private Date date` 加上
+   调用都走它；写在成员类上没有作用，只是把类标成 static（Lombok 会直接报错：
+   `@Helper is legal only on method-local classes`）。
+   `@Tolerate` 则是让生成器“看不到”被标的成员：`@Setter private Instant date` 加上
    `@Tolerate public void setDate(String)` 之后两个重载都在，与 Lombok 相同。
 10. **`@Accessors(fluent = true)` 不会顺便开启链式。** Lombok 的 `fluent` 会连带把
     setter 的返回值改成自身，所以 `new F().n(5).n()` 在 Lombok 成立；这里的 setter

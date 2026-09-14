@@ -46,14 +46,14 @@ Go 标准库以 BSD 3-Clause 许可证发布，条款见
 
 ---
 
-## 4. 编辑器工具（`editors/`）
+## 4. 编辑器工具（[`teyru-lang/editors`](https://github.com/teyru-lang/editors)）
 
 | 组件 | 来源 | 许可证 |
 |---|---|---|
-| `editors/tree-sitter-teyru/src/tree_sitter/alloc.h`、`array.h`、`parser.h` | 从 [tree-sitter](https://github.com/tree-sitter/tree-sitter) 复制，供生成的解析器使用 | MIT（Copyright (c) 2018 Max Brunsfeld） |
-| `editors/tree-sitter-teyru/src/parser.c` | 由 tree-sitter CLI（v0.25.10）从 `grammar.js` 生成，内含 tree-sitter 的运行时代码 | MIT（同上）；`.gitattributes` 标记为 generated |
-| `editors/tree-sitter-teyru/grammar.js`、`queries/`、`test/` | 本项目原创 | GPL-2.0-only，见 `editors/tree-sitter-teyru/LICENSE` |
-| `editors/vscode/`（TextMate 语法、语言配置、片段） | 本项目原创 | 见 `LICENSE` |
+| `tree-sitter-teyru/src/tree_sitter/alloc.h`、`array.h`、`parser.h` | 从 [tree-sitter](https://github.com/tree-sitter/tree-sitter) 复制，供生成的解析器使用 | MIT（Copyright (c) 2018 Max Brunsfeld） |
+| `tree-sitter-teyru/src/parser.c` | 由 tree-sitter CLI（v0.25.10）从 `grammar.js` 生成的解析表与词法分析器 | MIT（同上） |
+| `tree-sitter-teyru/grammar.js`、`queries/`、`test/` | 本项目原创 | GPL-2.0-only，见 `tree-sitter-teyru/LICENSE` |
+| `vscode/`（TextMate 语法、语言配置、片段） | 本项目原创 | 见 `LICENSE` |
 
 tree-sitter 的 MIT 条款要求著作权声明与许可声明随所有副本保留，本文件的这一节与
 上游的 `LICENSE` 一并满足。这些文件只被编辑器用来做语法高亮与解析，不会进入
@@ -80,7 +80,7 @@ tree-sitter 的 MIT 条款要求著作权声明与许可声明随所有副本保
 |---|---|
 | `LICENSE` | 本项目的主要许可证 |
 | `LICENSE-CLASSPATH-EXCEPTION-2.0` | Classpath Exception 全文（条款来自 OpenJDK，随主要许可证一并保留） |
-| `editors/tree-sitter-teyru/LICENSE` | 该文法本身的许可证（GPL-2.0-only，与本项目主要许可证相同） |
+| `tree-sitter-teyru/LICENSE`（在 `teyru-lang/editors`） | 该文法本身的许可证（GPL-2.0-only，与本项目主要许可证相同） |
 
 若发行时修改了上述任何一项（例如把 clang 静态链接进产物，或把 Go 标准库
 嵌入发行包），必须重新生成本文件并附上对应的许可证全文。

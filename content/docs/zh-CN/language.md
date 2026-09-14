@@ -5,7 +5,7 @@ description: "Teyru 0.2 的语法与语义：源文件与词法、类型、声�
 
 本文档描述 Teyru 0.2 的语法与语义。文档以实现为准：这里写的每一项语言特性都在
 `tests/programs/` 有对应的测试，`go test ./...` 会逐项验证；标准库的 API 则只
-覆盖一部分（例如 `Map.putAll`、`Map.keys` 还没有测试用到），测试覆盖范围仍不完整。
+覆盖一部分（例如 `Map.putAll`、`String.getBytes` 还没有测试用到），测试覆盖范围仍不完整。
 
 - [1. 源文件与词法](#1-源文件与词法)
 - [2. 换行与语句终止](#2-换行与语句终止)
@@ -497,8 +497,8 @@ for (String n : names) {
 
 | 包 | 文件 | 内容 |
 |---|---|---|
-| `java.time` | `lib/20` | `LocalDate`／`LocalTime`／`LocalDateTime`／`Instant`／`Duration`／`Period`／`DayOfWeek`／`Month`；历法算在 epoch day 上，输出与 JDK 逐字节相同（没有时区，`now()` 读 UTC） |
-| `java.io` | `lib/16` | `File`、`Path`／`Paths`、`Files`（`readString`／`writeString`／`readAllLines`／`exists`／`createDirectories`／`listFiles`） |
+| `java.time` | `lib/20` | `LocalDate`／`LocalTime`／`LocalDateTime`／`Instant`／`Duration`／`Period`／`DayOfWeek`／`Month`；历法算在 epoch day 上（没有时区，`now()` 读 UTC）。`LocalDate`、`Instant`、`Duration`、`DayOfWeek`／`Month` 的输出与 JDK 逐字节相同；四处不同：年份不补零也不加正号（`1-01-01`、`10000-01-01`，JDK 是 `0001-01-01`、`+10000-01-01`）、`LocalTime` 的 `plus*`／`minus*` 清掉纳秒（`00:00:00.000000001` 加一小时是 `01:00`）、`LocalDateTime` 的 `plusHours`／`plusMinutes`／`plusSeconds` 不跨日（`1899-01-01T23:00` 加 25 小时是 `1899-01-01T00:00`）、`Period.between` 与 `addTo`／`subtractFrom` 的算法与 JDK 不同（`2000-03-31` 到 `2000-04-30` 是 `P1M`，JDK 是 `P30D`） |
+| `java.io` | `lib/16` | `File`（`listFiles`）、`Path`／`Paths`、`Files`（`readString`／`writeString`／`readAllLines`／`exists`／`createDirectories`） |
 | `java.util.regex` | `lib/21` | `Pattern`／`Matcher`：回溯式匹配，支持字面量、`.`、`*`／`+`／`?`／`{n,m}` 及其惰性形式、字符类、`\d`／`\w`／`\s`、`^`／`$`、`|`、捕获与非捕获组、`replaceAll`／`replaceFirst`／`split`（含 `limit` 的三种正负号）；不支持的语法（占有量词、环视、反向引用、`\p{...}`）在 `compile` 就被拒绝。`String.matches`／`replaceAll`／`replaceFirst`／`split` 就是这五个方法，不是另一套实现 |
 | `java.net` | `lib/15` | `ServerSocket`、`Socket`、`SocketInputStream`／`SocketOutputStream`；同步阻塞的 POSIX socket，超时通过 `SocketTimeoutException` 报告 |
 | `java.util.stream` | `lib/22` | `Stream`／`IntStream`／`LongStream`／`DoubleStream`、`Collectors`（26 个工厂）、`Collector`、`Spliterator`／`Spliterators`、`StreamSupport`、统计与 `OptionalInt` 家族；中间操作构建流水线、终端操作才拉取，`Collection.stream()` 是入口 |
@@ -540,7 +540,7 @@ Teyru 是按**简单名称**找的，前面写什么包都一样，所以 `impor
 
 ### 没有的东西
 
-反射、线程、`java.util.concurrent`、时区数据库、`Scanner`。这些缺失都是刻意的：它们要么需要运行时反射，要么需要一份比整个语言还大
+线程、`java.util.concurrent`、时区数据库、`Scanner`。这些缺失都是刻意的：它们要么需要一份比整个语言还大
 的数据表（时区），要么需要语言本身没有的东西（线程），要么——`Scanner` 就是——
 只做一半会比不做更糟。
 
@@ -562,20 +562,22 @@ Teyru 是按**简单名称**找的，前面写什么包都一样，所以 `impor
     - lambda 的类型实参会**从主体反推**：目标是 `Fn<String, ? extends R>` 而主体是
       `s -> s.length()` 时 `R` 定为 `Integer`。反过来不行——主体本身是一个需要目标
       类型的泛型调用时，两边互相依赖，单向代入停在那里：
-      `words.stream().flatMap(w -> Stream.of(w.split(" ")))` 要先把
+      `words.stream().flatMap(w -> Stream.of(w.split(" ")))` 单独写得出来，接上
+      `.collect(...)` 之后 `collect` 就拿不到元素类型，要先把
       `Function<String, Stream<String>>` 写出来。
     - 实参如果只有唯一一个候选方法，会拿该参数的类型当目标——所以嵌套的泛型调用
       可以推断出来。
     - **带自由类型变量的泛型调用，当它是链式调用的接收者时，拿不到目标类型**：
       `xs.sort(naturalOrder())` 要写出类型见证（`Comparator.<String>naturalOrder()`）；
-      `comparing(...).thenComparing(...)` 则是连见证都不生效，只能先放进一个有声明
-      类型的变量（`Comparator<String> c = comparing(...)` 之后 `c.thenComparing(...)`）。
+      `comparing(...).thenComparing(...)` 同样拿不到目标类型，见证要把该调用的类型变量
+      写齐才生效（`Comparator.<String,Integer>comparing(...)`），否则只能先放进一个有
+      声明类型的变量（`Comparator<String> c = comparing(...)` 之后 `c.thenComparing(...)`）。
       javac 对这两种写法都可以。
     - 显式见证属于它自己的调用：`pair(f, Builder.<Integer>make())` 的外层见证不会被
       内层覆盖。
 11. **没有捕获转换**：`List<? extends Number>` 在这里就是 `List<Number>`。Java 靠捕获
-    挡下的写入（对 `? extends` 的容器 `add`）这里挡不住；反过来看，Java 靠捕获才
-    能编译通过的读取（`list.get(0).doubleValue()`）这里直接可行。
+    挡下的写入（对 `? extends` 的容器 `add`）这里挡不住；读取则没有差别
+    （`list.get(0).doubleValue()` javac 也收，不是捕获转换挡的）。
 
 ## 13. 尚未实现
 

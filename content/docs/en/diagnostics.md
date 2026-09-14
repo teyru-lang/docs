@@ -61,11 +61,11 @@ emitted by the parser at the end of a statement and at a `throw` line break), an
 
 | Code | Message | Explanation and fix |
 |---|---|---|
-| TY-TYP-0001 | `duplicate type %s`／`duplicate nested type %s` | A type with the same name is declared twice. |
+| TY-TYP-0001 | `duplicate type %s (also declared at %s)`／`duplicate nested type %s` | A type with the same name is declared twice. |
 | TY-TYP-0002 | `type variable %s cannot have type arguments` | A type variable cannot itself carry type arguments. |
 | TY-TYP-0003 | `cannot find type %s` | The type name cannot be found; check the spelling, the import or the prelude. |
 | TY-TYP-0004 | `type %s expects %d type arguments, found %d` | The number of generic arguments does not match. |
-| TY-TYP-0005 | `primitive type %s cannot be a type argument` | Generics cannot use a primitive type; use the wrapper class. |
+| TY-TYP-0005 | `primitive type %s cannot be a type argument; use its box type` | Generics cannot use a primitive type; use the wrapper class. |
 | TY-TYP-0006 | `class cannot extend interface %s` | A class uses `implements` for an interface. |
 | TY-TYP-0007 | `cannot extend final class %s` | A class marked `final` cannot be extended. When `final` is applied by `@Value`/`@UtilityClass`, this is reported only after annotation expansion (the “block inheritance” check used to run before expansion, so those two annotations had no effect). |
 | TY-TYP-0008 | `cyclic inheritance involving %s` | The inheritance relationship forms a cycle. |
@@ -78,13 +78,13 @@ emitted by the parser at the end of a statement and at a `throw` line break), an
 | TY-TYP-0015 | `abstract or native method %s cannot have a body` | An `abstract`/`native` method cannot have a body. |
 | TY-TYP-0016 | `abstract method %s in non-abstract class %s` | A class with abstract methods must be marked `abstract`. |
 | TY-TYP-0017 | (removed) | A `native` method can now be declared in any class and implemented in C supplied through `--native`. |
-| TY-TYP-0018 | `'%s' is only allowed for local variables` | `var`/`val` cannot be used for a field, a parameter or a return type. |
+| TY-TYP-0018 | `'%s' is only allowed for local variables; fields need an explicit type` | `var`/`val` cannot be used for a field, a parameter or a return type. |
 | TY-TYP-0019 | `%s must implement %s from %s` | A concrete class does not implement an abstract method of an interface or superclass. |
 | TY-TYP-0020 | `missing return statement` | A method with a return value has paths that lack a `return`. |
 | TY-TYP-0021 | `duplicate local variable %s` | A local variable is declared twice in the same scope. |
 | TY-TYP-0022 | `break outside of loop or switch` | `break` may only appear inside a loop or switch (the labelled form is the exception). |
 | TY-TYP-0023 | `continue outside of loop` | `continue` may only appear inside a loop. |
-| TY-TYP-0024 | `thrown value must be a Throwable` | The object thrown by `throw` must extend `Throwable`. |
+| TY-TYP-0024 | `thrown value must be a Throwable, found %s` | The object thrown by `throw` must extend `Throwable`. |
 | TY-TYP-0025 | `cannot synchronize on void` | The lock of a `synchronized` cannot be a void expression. |
 
 ### Statements (0026–0044)
@@ -94,12 +94,12 @@ emitted by the parser at the end of a statement and at a `throw` line break), an
 | TY-TYP-0026 | `local variables cannot be declared final; use 'val'` | Use `val` for a local variable that cannot be rebound. |
 | TY-TYP-0027 | `'%s' requires an initializer` | `var`/`val` must have an initial value. |
 | TY-TYP-0028 | `'%s' cannot infer a type from null` | A type cannot be inferred from `null`; write the type out explicitly. |
-| TY-TYP-0029 | `'%s' cannot infer a functional interface type` | A lambda needs a target type; declare the interface type explicitly. |
-| TY-TYP-0030 | `for-each requires an array or Iterable` | The enhanced `for` only works on an array or an `Iterable`. |
+| TY-TYP-0029 | `'%s' cannot infer a functional interface type; declare it explicitly` | A lambda needs a target type; declare the interface type explicitly. |
+| TY-TYP-0030 | `for-each requires an array or Iterable, found %s` | The enhanced `for` only works on an array or an `Iterable`. |
 | TY-TYP-0031 | `incompatible types: %s is not assignable to %s` | The loop variable type does not match the element type. |
 | TY-TYP-0032 | `return value required for %s` | A method with a return value cannot `return` empty-handed. |
 | TY-TYP-0033 | `cannot return a value from a void method` | A void method cannot return a value. |
-| TY-TYP-0034 | `catch type must be a Throwable` | The `catch` type must be from the `Throwable` family. |
+| TY-TYP-0034 | `catch type must be a Throwable, found %s` | The `catch` type must be from the `Throwable` family. |
 | TY-TYP-0035 | `switch selector must be a char, byte, short, int, Character, Byte, Short, Integer, String or enum type, found %s` | The selector type of the switch is not legal. |
 | TY-TYP-0036 | `duplicate default label` | A single switch may have only one `default`. |
 | TY-TYP-0037 | `incompatible pattern type %s for switch on %s` | `case <type> <name>` is unrelated to the selector type. |
@@ -165,8 +165,8 @@ emitted by the parser at the end of a statement and at a `throw` line break), an
 | TY-TYP-0078 | `cannot invoke %s on %s` | Calling a method on this type is not legal. |
 | TY-TYP-0079 | `%s has %s access in %s` | The method is not visible enough. |
 | TY-TYP-0080 | `cannot find symbol %s in %s`／`on array` | The member does not exist on that type. |
-| TY-TYP-0081 | `cannot infer the functional interface for this lambda` | The lambda/method reference has no target type; specify one explicitly. |
-| TY-TYP-0082 | `lambda target type must be a functional interface` | The target type is not an interface. |
+| TY-TYP-0081 | `cannot infer the functional interface for this lambda; declare the target type`／`cannot infer the functional interface for this method reference` | The lambda/method reference has no target type; specify one explicitly. |
+| TY-TYP-0082 | `lambda target type must be a functional interface, found %s`／`method reference target type must be a functional interface` | The target type is not an interface. |
 | TY-TYP-0083 | `%s is not a functional interface` | The interface has several abstract methods and cannot be a lambda target. |
 | TY-TYP-0084 | `lambda has %d parameters but %s requires %d` | The number of lambda parameters does not match. |
 | TY-TYP-0085 | `cannot construct %s` | The target of the constructor reference cannot be constructed. |
@@ -197,7 +197,7 @@ emitted by the parser at the end of a statement and at a `throw` line break), an
 | TY-TYP-0115 | `cannot resolve import %s` | The import path points at nothing. In Teyru a name is looked up by its **simple name**, and whatever package is written in front makes no difference, so a misspelt package such as `import java.utli.List` used to be ignored silently and you still got `List`. Now an import has to point at: a package the standard library answers for (the `teyru` package itself, plus `java.util`, `com.google.gson`, `lombok`… for compatibility, see docs/language.md §11), a package declared by some file in this build, or a type whose fully qualified name is exactly this path. |
 | TY-TYP-0100 | `two beans are named %s: %s and %s` | Two beans were given the same name (`@Component("x")` or `@Bean("x")`). |
 | TY-TYP-0101 | `%s is declared by the framework and cannot be redefined` | `__TeyruFramework` is a synthetic class used for container registration and the name is reserved. |
-| TY-TYP-0102 | `@Bean method %s ...` | A `@Bean` method must not be static and its return type must be a class (a primitive type is boxed). |
+| TY-TYP-0102 | `@Bean method %s must not be static`／`@Bean method %s must return the bean's type`／`@Bean method %s does not return a class type` | A `@Bean` method must not be static and its return type must be a class (a primitive type is boxed). |
 | TY-TYP-0103 | `no bean of type %s to inject into %s` | Some `@Autowired` type has no bean. Spring finds out at startup; here it is found at compile time. |
 | TY-TYP-0104 | `%d beans of type %s: name one with @Qualifier` | Several beans share the type, with neither a `@Primary` nor a `@Qualifier`. |
 | TY-TYP-0105 | `two constructors of %s are annotated @Autowired` / `%s has %d constructors and none is annotated @Autowired` | The rule for picking a constructor to inject with: the single constructor, or the one marked `@Autowired`. |

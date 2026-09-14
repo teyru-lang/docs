@@ -3,7 +3,7 @@ title: "Teyru"
 description: "Teyru is an independently implemented programming language whose compiler is written entirely in Go and emits native executables directly — no JVM, no javac, no bytecode."
 ---
 
-[繁體中文](/docs) · [简体中文](/zh-CN/docs) · **English** · [日本語](https://github.com/teyru-lang/Teyru/blob/main/README.ja.md)
+[繁體中文](/docs) · [简体中文](/zh-CN/docs) · **English**
 
 **Teyru is an independently implemented programming language whose compiler is written entirely in Go and emits native executables directly — no JVM, no javac, no bytecode.**
 
@@ -53,14 +53,17 @@ Temurin; produced by `RUNS=5 sh scripts/bench.sh`, best of 5 runs):
 
 | Metric | Teyru (native) | Java (HotSpot) | Difference |
 |---|---|---|---|
-| 100 startups | **0.065 s** (0.65 ms each) | 2.02 s (20.2 ms each) | **~31x faster** |
-| Executable size | **445.9 KB** | ~346 MB JDK installation | ~794x smaller |
-| Peak RSS (hello) | **2.2 MB** | 50.7 MB | **~23x less** |
-| `bench_fib` recursion | **0.0060 s** | 0.0269 s | **4.5x faster** |
-| `bench_loop` loops and integer math | **0.0209 s** | 0.0434 s | **2.1x faster** |
-| `bench_oop` objects and virtual calls | **0.0049 s** | 0.0254 s | **5.2x faster** |
-| `bench_string` string handling | **0.0145 s** | 0.0544 s | **3.8x faster** |
-| `bench_alloc` short-lived allocation | **0.0276 s** | 0.0311 s | **1.1x faster** |
+| 100 startups | **0.0755 s** (0.76 ms each) | 2.06 s (20.6 ms each) | **~27x faster** |
+| Executable size | **450.9 KB** | ~346 MB JDK installation | ~786x smaller |
+| Peak RSS (hello) | **4.1 MB** | 49.8 MB | **~12x less** |
+| `bench_fib` recursion | **0.0053 s** | 0.0266 s | **5.0x faster** |
+| `bench_loop` loops and integer math | **0.0203 s** | 0.0438 s | **2.2x faster** |
+| `bench_oop` objects and virtual calls | **0.0046 s** | 0.0259 s | **5.6x faster** |
+| `bench_string` string handling | **0.0149 s** | 0.0534 s | **3.6x faster** |
+| `bench_alloc` short-lived allocation | **0.0234 s** | 0.0306 s | **1.3x faster** |
+| `bench_invoke` 20M reflective calls (see `examples/bench_invoke.teyru`) | **0.5002 s** | 0.246 s | **about 2x slower** |
+
+The Java figure on the `bench_invoke` row was measured by hand with javac, since the script does not run that program under the JVM. It is a microbenchmark, unlike the whole-program rows above; it is here because "reflection did not slow ordinary calls down" needs a number, and it also shows that `Method.invoke` is still twice as slow as HotSpot's.
 
 **Where the speed comes from:**
 
@@ -260,7 +263,7 @@ dropping only semicolons and adding native properties:
 | 513 | Flexible constructor bodies (statements before `super()`) | ✅ |
 | 440 | Record patterns (including nested and in `instanceof`) | ✅ |
 | 441 | Pattern matching for switch with `when` guards | ✅ |
-| 507 | Primitive type patterns (`case int i`, `o instanceof int i`, exact conversions) | ✅ |
+| 507 | Primitive type patterns (`case int i`, `o instanceof int i`, exact conversions; Java 25 still has this as a preview feature) | ✅ |
 | 456 | Unnamed variables and patterns `_` | ✅ |
 | 395 | Records (including compact constructors) | ✅ |
 | 394 | `instanceof` patterns | ✅ |
@@ -383,11 +386,12 @@ See [`docs/native.md`](/en/docs/native).
 
 ## Editors and tooling
 
-- **VS Code**: `editors/vscode/` adds TextMate syntax highlighting, language
-  configuration and snippets for `.teyru` files. Package it with
+- **VS Code**: the `vscode/` directory of the
+  [`teyru-lang/editors`](https://github.com/teyru-lang/editors) repository adds TextMate
+  syntax highlighting, language configuration and snippets for `.teyru` files. Package it with
   `npx @vscode/vsce package` and install the result with
   `code --install-extension teyru-0.1.0.vsix`.
-- **tree-sitter**: `editors/tree-sitter-teyru/` is a complete grammar with
+- **tree-sitter**: `tree-sitter-teyru/` in the same repository is a complete grammar with
   highlight queries, indentation queries and corpus tests, usable from Neovim,
   Helix, Zed and anything else that loads tree-sitter parsers.
 - GitHub still labels `.teyru` files as Java. Linguist has no Teyru definition
@@ -414,8 +418,8 @@ See [`docs/native.md`](/en/docs/native).
 | `tests/native` | Native-method interop test: Teyru declarations, a C implementation and the expected output (`TestNative`) |
 | `examples` | Examples and the JVM comparison benchmarks (`bench_*.teyru` and `.java`) |
 | `scripts` | Development scripts: `bench.sh`, the `pre-commit` hook |
-| `docs` | Language reference, diagnostics, architecture |
-| `editors` | Editor support: the VS Code extension and the tree-sitter grammar |
+| [`teyru-lang/docs`](https://github.com/teyru-lang/docs) | Language reference, diagnostics, architecture (a separate repository, namely this documentation site) |
+| [`teyru-lang/editors`](https://github.com/teyru-lang/editors) | Editor support: the VS Code extension and the tree-sitter grammar (a separate repository) |
 
 ---
 

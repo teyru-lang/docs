@@ -79,9 +79,12 @@ class Main {
 ### Constructor selection
 
 The rule since Spring 4.3: if there is only one constructor, use it; otherwise
-find the one marked `@Autowired`; otherwise use the no-argument one. If several
-are marked `@Autowired`, or none are and there are several with no no-argument
-constructor, it is `TY-TYP-0105`.
+find the one marked `@Autowired`; otherwise use the no-argument one. With the
+constructor that was chosen, every parameter must itself be marked `@Autowired`
+(or `@Value`) to be injected: an unmarked parameter is not filled in, the
+generated factory calls the constructor with the missing arguments, and the
+compile fails with `TY-TYP-0072`. If several are marked `@Autowired`, or none
+are and there are several with no no-argument constructor, it is `TY-TYP-0105`.
 
 ### Lifecycle
 
@@ -125,7 +128,7 @@ class PetController {
 | `@GetMapping`／`@PostMapping`／`@PutMapping`／`@DeleteMapping`／`@PatchMapping` | The path and the verb |
 | `@PathVariable` | The value of `{name}` in the path, converted to the parameter's type |
 | `@RequestParam` | A query parameter; `defaultValue` can supply a default |
-| `@RequestHeader` | A request header (names are case-insensitive); `defaultValue` is declared but has no effect, and a missing header is an empty string |
+| `@RequestHeader` | A request header (names are case-insensitive); `defaultValue` is the value used when the header is absent, and with none given it is an empty string |
 | `@RequestBody` | The request body; if the parameter is a `String` it is received as-is, and if it is a class (or record) it is parsed with the Gson binding |
 | `@ResponseBody` | Declared; `@RestController` already implies it, so it makes no difference whether it is present |
 

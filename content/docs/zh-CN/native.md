@@ -85,7 +85,7 @@ teyru build --native impl.c --native-header native.h program.teyru -o program
 ## 2. 符号命名
 
 ```
-tyn_<类型>_<方法>_<参数类型…>
+tyn_<类>_<方法>_<参数类型…>
 ```
 
 - 类与方法名由 `util.Mangle` 转写：`.` 与 `$` 变成 `_`。
@@ -191,7 +191,7 @@ System.out.println(Native.apply(t, 4))   // 40
   没有结构体描述符、没有内存布局协商。
 - **`native` 方法不能有 body。** 构造方法可以是 native（`lib/02_string.teyru` 的
   `String(String original)` 就是），`--native-header` 会一并声明它：符号是
-  `tyn_<类型>__init__<参数描述符>`，实例构造方法的第一个参数是 `void *self`。
+  `tyn_<类>__init__<参数描述符>`，实例构造方法的第一个参数是 `void *self`。
 - **GC 不会移动对象，所以 C 端可以放心保存 `void *`——但只在那个对象还活着的时候。**
   如果要在 C 端长期持有引用，请用 `ty_gc_register_static` 注册一个根，
   否则回收器会在下次回收时把对象收走。

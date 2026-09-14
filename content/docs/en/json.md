@@ -10,9 +10,9 @@ compiler cooperation needed), and `lib/19_gson.teyru` adds the compiler's **obje
 
 `JsonElement`, `JsonObject`, `JsonArray`, `JsonPrimitive`, `JsonNull`,
 `JsonParser.parseString`, `Gson`, `GsonBuilder`, `JsonSyntaxException`,
-with behavior aligned to Gson 2.10.0, including several details that are easy to get wrong:
+with behavior aligned to Gson 2.10, including several details that are easy to get wrong:
 
-- `JsonNull` extends `JsonElement` rather than `JsonPrimitive` (a Gson 2.10 change).
+- `JsonNull` extends `JsonElement` rather than `JsonPrimitive`.
 - Parsed numbers keep the original literal, so `1e5` prints back as `1e5` and does not become `100000.0`.
 - Escaping follows Gson's substitution table: `"` and `\` are escaped, the five short forms
   `\b \t \n \f \r`, everything else below 0x20 uses `\u00xx` (lowercase hex), `/` is **not**
@@ -31,8 +31,8 @@ Differences from Gson (deliberate):
   `Set`); `JsonMember`'s `getKey`/`getValue` correspond to `Map.Entry`.
 - Numbers only go up to `long`; there is no `getAsBigDecimal`/`getAsBigInteger`.
 - Numeric accessors throw `IllegalArgumentException` rather than `NumberFormatException`
-  (the standard library does not have the latter; the former is its superclass, so code that
-  catches the superclass is unaffected).
+  (the former is the latter's superclass, so code that catches the superclass is unaffected;
+  a `catch` that names `NumberFormatException` will not catch them).
 
 ## Object binding (lib/19 plus the compiler)
 
@@ -70,7 +70,8 @@ When the compiler sees `fromJson(s, Person.class)`, it generates
 
 Supported field types: `String`, `boolean`/`byte`/`short`/`char`/`int`/`long`/`float`/
 `double` and their boxed classes, enum (written as the constant name, read back by comparing
-names, the same as Gson), other bindable classes (recursive), `Object` (preserves the original
+names, the same as Gson; when the name does not match Gson leaves `null`, while this throws
+`JsonParseException`), other bindable classes (recursive), `Object` (preserves the original
 tree: a `JsonObject` that was read in is written back as-is).
 Like Gson, `char` is written as a single-character string and read back from a string too.
 `@SerializedName` can rename it.

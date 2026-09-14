@@ -497,7 +497,7 @@ for (String n : names) {
 
 | 套件 | 檔案 | 內容 |
 |---|---|---|
-| `java.time` | `lib/20` | `LocalDate`／`LocalTime`／`LocalDateTime`／`Instant`／`Duration`／`Period`／`DayOfWeek`／`Month`；曆法算在 epoch day 上（沒有時區，`now()` 讀 UTC）。`LocalDate`、`Instant`、`Duration`、`DayOfWeek`／`Month` 的輸出與 JDK 逐位元組相同；四處不同：年份不補零也不加正號（`1-01-01`、`10000-01-01`，JDK 是 `0001-01-01`、`+10000-01-01`）、`LocalTime` 的 `plus*`／`minus*` 清掉奈秒（`01:00:00.000000001` 加一小時是 `01:00`）、`LocalDateTime` 的 `plusHours`／`plusMinutes`／`plusSeconds` 不跨日（`1899-01-01T23:00` 加 25 小時是 `1899-01-01T00:00`）、`Period.between` 與 `addTo`／`subtractFrom` 的算法與 JDK 不同（`2000-03-31` 到 `2000-04-30` 是 `P1M`，JDK 是 `P30D`） |
+| `java.time` | `lib/20` | `LocalDate`／`LocalTime`／`LocalDateTime`／`Instant`／`Duration`／`Period`／`DayOfWeek`／`Month`；曆法算在 epoch day 上（沒有時區，`now()` 讀 UTC）。`LocalDate`、`Instant`、`Duration`、`DayOfWeek`／`Month` 的輸出與 JDK 逐位元組相同；四處不同：年份不補零也不加正號（`1-01-01`、`10000-01-01`，JDK 是 `0001-01-01`、`+10000-01-01`）、`LocalTime` 的 `plus*`／`minus*` 清掉奈秒（`00:00:00.000000001` 加一小時是 `01:00`）、`LocalDateTime` 的 `plusHours`／`plusMinutes`／`plusSeconds` 不跨日（`1899-01-01T23:00` 加 25 小時是 `1899-01-01T00:00`）、`Period.between` 與 `addTo`／`subtractFrom` 的算法與 JDK 不同（`2000-03-31` 到 `2000-04-30` 是 `P1M`，JDK 是 `P30D`） |
 | `java.io` | `lib/16` | `File`（`listFiles`）、`Path`／`Paths`、`Files`（`readString`／`writeString`／`readAllLines`／`exists`／`createDirectories`） |
 | `java.util.regex` | `lib/21` | `Pattern`／`Matcher`：回溯式比對，支援字面值、`.`、`*`／`+`／`?`／`{n,m}` 與其懶惰形式、字元類別、`\d`／`\w`／`\s`、`^`／`$`、`|`、捕獲與非捕獲群組、`replaceAll`／`replaceFirst`／`split`（含 `limit` 的三種正負號）；不支援的語法（佔有量詞、前後視、反向參考、`\p{...}`）在 `compile` 就被拒絕。`String.matches`／`replaceAll`／`replaceFirst`／`split` 就是這五個方法，不是另一套實作 |
 | `java.net` | `lib/15` | `ServerSocket`、`Socket`、`SocketInputStream`／`SocketOutputStream`；同步阻塞的 POSIX socket，逾時以 `SocketTimeoutException` 回報 |
@@ -540,7 +540,7 @@ Teyru 是照**簡單名稱**找的，前面寫什麼套件都一樣，所以 `im
 
 ### 沒有的東西
 
-反射、執行緒、`java.util.concurrent`、時區資料庫、`Scanner`。這些缺席都是刻意的：它們要嘛需要執行期反射，要嘛需要一份比整個語言還大
+執行緒、`java.util.concurrent`、時區資料庫、`Scanner`。這些缺席都是刻意的：它們要嘛需要一份比整個語言還大
 的資料表（時區），要嘛需要語言本身沒有的東西（執行緒），要嘛——`Scanner` 就是——
 做半套會比不做更糟。
 

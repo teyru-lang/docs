@@ -78,7 +78,8 @@ require (
 require block: paths sorted, versions aligned into one column. A single-line
 `require x v1.0.0` is also expanded into a block, because the next `teyru get`
 will add another line, and that is what the file will look like next. Comments
-stay where the author put them.
+stay where the author put them, except for comments attached to the `require`
+directive itself (the `require` line and the line above it): those are dropped.
 
 ---
 
@@ -107,9 +108,9 @@ An import path may also be the **name the package declares**: a directory with
 `package todo` has the identity `example.com/app/todo`, and both
 `import todo.Store` and `import todo.*` can reach it — the name is the one the
 author wrote and the identity is the one the build gives it, and both are looked
-up. When two different packages declare the same name and both provide the same
-type, `TY-TYP-0099` is reported at the use site, rather than picking one by load
-order.
+up. When two `import p.*` both provide the same simple name (whether `p` is
+written as the identity or as the declared name), `TY-TYP-0099` is reported at
+the use site, rather than picking one by load order.
 
 ### A package's identity is its import path
 

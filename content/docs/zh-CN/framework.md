@@ -75,8 +75,9 @@ class Main {
 ### 构造器选择
 
 Spring 4.3 起的规则：只有一个构造器就用它，否则找标了 `@Autowired` 的，否则用无参
-的那个。标了多个 `@Autowired`，或都没有而有多个又没有无参构造器时，是
-`TY-TYP-0105`。
+的那个。被选上的构造器，每个参数都要自己标 `@Autowired`（或 `@Value`）才会被注入：
+没标的参数不会被填充，生成的工厂就用少掉的实参调用它，编译以 `TY-TYP-0072` 失败。
+标了多个 `@Autowired`，或都没有而有多个又没有无参构造器时，是 `TY-TYP-0105`。
 
 ### 生命周期
 
@@ -117,7 +118,7 @@ class PetController {
 | `@GetMapping`／`@PostMapping`／`@PutMapping`／`@DeleteMapping`／`@PatchMapping` | 路径与动词 |
 | `@PathVariable` | 路径里 `{name}` 的值，会转换成参数的类型 |
 | `@RequestParam` | 查询参数，`defaultValue` 可给默认值 |
-| `@RequestHeader` | 请求头（名称不区分大小写）；`defaultValue` 已声明但没有作用，缺请求头时是空字符串 |
+| `@RequestHeader` | 请求头（名称不区分大小写）；`defaultValue` 是没有这个请求头时的值，不给就是空字符串 |
 | `@RequestBody` | 请求体；参数是 `String` 就原样拿到，是类（或 record）就以 Gson 绑定解析 |
 | `@ResponseBody` | 已声明；`@RestController` 本来就隐含，所以有没有都一样 |
 
