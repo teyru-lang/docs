@@ -135,9 +135,13 @@ payload 就是這樣接），是類別或 record 時由**編譯器為該型別�
 錯誤，不是第一次請求時的例外。
 
 **回應**：回傳 `HttpResponse` 就完全自己決定；回傳 `String` 是 `text/plain`；回傳
-`void` 是空主體；其他類別（含 record 與 enum，enum 寫成常數名稱的字串）以 Gson
-綁定序列化成 `application/json`（見 `docs/json.md`）。基本型別沒有映射，跟陣列、
-`List` 一樣是 `TY-TYP-0111`。
+`void` 是空主體；其他一律由 Gson 綁定寫成 `application/json`（見 `docs/json.md`）
+——record、enum（寫成常數名稱的字串）、陣列、`List`、`Map` 都一樣。原本「基本型別
+沒有映射」的 `TY-TYP-0111` 已經移除，綁定現在收得下所有型別。
+
+**處理函式的參數**：型別是 `HttpRequest` 的參數就是這個請求本身（名字不拘），
+Spring 把 `HttpServletRequest` 交給處理函式也是這樣；其餘沒有標註的參數照舊當成
+同名查詢參數。
 
 **路由**：`Router.match` 取最特定的符合——字面片段勝過變數片段，所以
 `/pets/mine` 不會被 `/pets/{id}` 吃掉，與註冊順序無關。路徑存在但動詞不對是 405，
@@ -156,17 +160,86 @@ HttpServer server = new HttpServer(port, router, ctx)
 `tests/programs/t141_web_param_errors.teyru` 就是這樣測的，後者涵蓋轉型失敗的 400、
 enum 參數與回傳值、`defaultValue`。
 
+### 啟動與設定
+
+```teyru
+class Main {
+  public static void main(String[] args) {
+    SpringApplication.run(Main.class, args)
+  }
+}
+```
+
+`SpringApplication.run` 等同於 `new ApplicationContext()` ＋
+`SpringApplication.loadConfig(ctx, args)` ＋ `ctx.refresh()`，設定來源依序是：
+工作目錄的 `application.properties`（`--spring.config.name=路徑` 可以換一份），
+再疊上 `--key=value` 形式的命令列參數。讀回來用 `ctx.getProperty("app.name")` 與
+`ctx.getProperty("app.name", "預設")`，問有沒有用 `ctx.hasProperty(...)`。
+
+`@ConfigurationProperties(prefix = "app")` 標在 bean 上，`app.*` 就會綁進它的欄位，
+鍵名比對是寬鬆的：`app.max-size` 綁 `maxSize`、`app.max_size` 也綁。`@Profile("prod")`
+的 bean 只在該 profile 生效（`--spring.profiles.active=prod`）。`@PreDestroy` 的方法
+在 `ctx.close()` 時執行。
+
+### 跨請求的關注點
+
+| 東西 | 怎麼宣告 | 行為 |
+|---|---|---|
+| `@ControllerAdvice` ＋ `@ExceptionHandler(X.class)` | 類別上的 advice、方法上的處理 | controller 拋出的 `X`（含子類別）由這個方法回答；回傳值就是回應，可以是 `HttpResponse`、`ResponseEntity` 或主體 |
+| `HandlerInterceptor` | 實作介面的 bean | 每個請求都會 `preHandle`，回 `false` 就是 403（由 interceptor 決定內容）；`afterCompletion` 在回應送出前跑 |
+| 靜態檔案 | `spring.web.static=目錄` | 沒有路由認領的路徑就找該目錄裡的檔案，Content-Type 依副檔名；路徑含 `..` 一律 404 |
+| CORS | `spring.web.cors=來源,來源` | 預檢由伺服器直接回答，不進 controller；標頭蓋在**最後真正送出的**回應上 |
+
+反射呼叫會把例外包成 `InvocationTargetException`，但 advice 看到的是 controller
+真正想拋的那個：這層包裝在比對之前先拆掉。
+
+### 會話
+
+```teyru
+@GetMapping("/cart")
+String cart(HttpRequest req) {
+  HttpSession s = Sessions.of(req)
+  Object n = s.getAttribute("count")
+  int v = n == null ? 0 : ((Integer) n).intValue()
+  s.setAttribute("count", Integer.valueOf(v + 1))
+  return "count=" + s.getString("count")
+}
+```
+
+`Sessions.of(req)` 找出這個請求的 cookie 指到的會話，沒有就建一個，並在**伺服器要
+送出的回應**上補 `Set-Cookie`（`TEYRUSSESSIONID`，帶 `HttpOnly`）。這裡是唯一能蓋
+cookie 的地方：路由的回應是處理函式回傳後才產生的，這也是為什麼處理函式拿到的是
+請求而不是注入的回應。
+
+`isNew()` 只在建立它的那個請求為 true，下一個請求起就是 false；`find(req)` 只找不建
+（登入頁讀既有會話就是這個）；`invalidate()` 把 id 從 store 拿掉，客戶端手上的舊
+cookie 就指不到東西，下一個請求會拿到新的會話；`attributeNames()` 保持首次設定的
+順序；`Sessions.count()`／`clear()` 是給測試用的。
+
+### 測試
+
+`MockServer` 不開 socket，直接問 `HttpServer.handle`：
+
+```teyru
+MockServer server = new MockServer(ctx)
+server.get("/pets")                                  // 主體
+server.request("POST", "/pets", body, "application/json")
+server.handle(req)                                   // 自己組的請求，看標頭
+```
+
+理由與 Spring 的 MockMvc 相同：測路由不該需要一個埠、一個客戶端或第二條執行緒
+（本語言現在還沒有執行緒）。`server.handle(req)` 收的是**已經準備好**的請求，
+cookie 要自己 `readCookies()`。
+
 ## 已知限制
 
 1. **一次處理一個連線。** 語言沒有執行緒（`docs/language.md` §13），所以第二個連線
    要等第一個處理完。這對「會回應請求的程式」夠用，對「服務一群人」不夠；形狀已經
    是 thread-per-connection 需要的形狀。
 2. **沒有內容協商。** 只看方法的宣告型別，不看 `Accept`。
-3. **回傳陣列、`List` 或基本型別還沒有 JSON 映射**（`TY-TYP-0111`），因為綁定尚未
-   支援它們。
-4. **只有 `Application.boot` 讀 `--key=value` 形式的命令列參數**寫進屬性；沒有
-   `application.properties` 檔案的讀取。
-5. **`@PreDestroy` 不執行**；沒有 `@Conditional`、`@Profile`、`@Import`、
-   `@Lazy`、AOP、交易、`@ExceptionHandler`。
-6. **沒有 `@ComponentScan` 的範圍控制**：整個程式都是掃描範圍，因為編譯器看得見
-   全部——要排除什麼，就不要標註它。
+3. **會話活在行程裡。** 兩個行程後面接同一個服務時，請求要回到產生會話的那一個；
+   會話 id 是 `java.util.Random` 的 128 位元，對單一伺服器夠用，不是密碼學來源。
+4. **沒有 multipart 上傳、沒有驗證註解、沒有 SSE。**
+5. **沒有 `@Conditional`、`@Import`、`@Lazy`、AOP、交易**，也沒有
+   `@ComponentScan` 的範圍控制：整個程式都是掃描範圍，因為編譯器看得見全部——要
+   排除什麼，就不要標註它。

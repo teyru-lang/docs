@@ -147,12 +147,16 @@ converter is that binding. A failed parse throws the same
 `JsonSyntaxException`. A type with no JSON mapping is a compile error, not an
 exception on the first request.
 
-**Responses**: returning an `HttpResponse` means you decide everything
-yourself; returning a `String` is `text/plain`; returning `void` is an empty
-body; other classes (including records and enums, with an enum written as a
-string of the constant name) are serialized via the Gson binding into
-`application/json` (see `docs/json.md`). Primitive types have no mapping and,
-like arrays and `List`, are `TY-TYP-0111`.
+**Response**: returning an `HttpResponse` decides everything yourself; returning a
+`String` is `text/plain`; returning `void` is an empty body; anything else is
+written as `application/json` by the Gson binding (see `docs/json.md`) —
+records, enums (written as the constant's name), arrays, `List` and `Map` alike.
+The old "primitive types have no mapping" diagnostic, `TY-TYP-0111`, is gone:
+the binding takes every type now.
+
+**Handler parameters**: a parameter of type `HttpRequest` is the request itself,
+whatever it is named — the way Spring hands a handler its `HttpServletRequest`.
+Any other unannotated parameter is still a query parameter of the same name.
 
 **Routing**: `Router.match` takes the most specific match — a literal segment
 beats a variable segment, so `/pets/mine` is not swallowed by `/pets/{id}`,
@@ -174,6 +178,85 @@ connection: that is how `tests/programs/t102_web.teyru` and
 400 from a failed conversion, enum parameters and return values, and
 `defaultValue`.
 
+### Starting up, and settings
+
+```teyru
+class Main {
+  public static void main(String[] args) {
+    SpringApplication.run(Main.class, args)
+  }
+}
+```
+
+`SpringApplication.run` is `new ApplicationContext()` plus
+`SpringApplication.loadConfig(ctx, args)` plus `ctx.refresh()`. Settings come
+from `application.properties` in the working directory (`--spring.config.name=`
+points at another file) and then from `--key=value` arguments on the command
+line, which win. Read one back with `ctx.getProperty("app.name")` or
+`ctx.getProperty("app.name", "fallback")`, and ask whether one exists with
+`ctx.hasProperty(...)`.
+
+`@ConfigurationProperties(prefix = "app")` on a bean binds `app.*` into its
+fields, with relaxed names: `app.max-size` and `app.max_size` both reach
+`maxSize`. A bean under `@Profile("prod")` is built only when that profile is
+active (`--spring.profiles.active=prod`). A `@PreDestroy` method runs when the
+context is closed with `ctx.close()`.
+
+### The concerns that cross requests
+
+| thing | how it is declared | what it does |
+|---|---|---|
+| `@ControllerAdvice` with `@ExceptionHandler(X.class)` | the advice on the class, the handler on a method | a controller that throws `X` (or a subclass) is answered by this method, whose return value is the response — an `HttpResponse`, a `ResponseEntity` or a body |
+| `HandlerInterceptor` | a bean implementing it | `preHandle` runs before every route and answering false is a 403; `afterCompletion` runs before the answer is written |
+| static files | `spring.web.static=<dir>` | a path no route claims is a file in that directory, its content type from its extension; a path containing `..` is a 404 |
+| CORS | `spring.web.cors=origin,origin` | a preflight is answered by the server and never reaches a controller, and the headers go on the answer that is finally sent |
+
+A route is called reflectively, so what a controller throws arrives wrapped in
+an `InvocationTargetException`; the wrapper is taken off before the advice is
+chosen, so advice matches the exception the controller meant.
+
+### Sessions
+
+```teyru
+@GetMapping("/cart")
+String cart(HttpRequest req) {
+  HttpSession s = Sessions.of(req)
+  Object n = s.getAttribute("count")
+  int v = n == null ? 0 : ((Integer) n).intValue()
+  s.setAttribute("count", Integer.valueOf(v + 1))
+  return "count=" + s.getString("count")
+}
+```
+
+`Sessions.of(req)` finds the session the request's cookie names, or makes one
+and puts a `Set-Cookie` (`TEYRUSSESSIONID`, `HttpOnly`) on the answer the server
+is about to send. That is the only place it can go: a route's response is built
+after the handler has returned, which is also why a handler is given the request
+rather than an injected response.
+
+`isNew()` is true only for the request that made the session. `find(req)` looks
+one up without making one, which is what a login page reads. `invalidate()`
+takes the id out of the store, so the cookie the client still holds names
+nothing and the next request gets a fresh session. `attributeNames()` keeps the
+order attributes were first set in. `Sessions.count()` and `clear()` are for
+tests.
+
+### Testing
+
+`MockServer` asks the server without opening a socket:
+
+```teyru
+MockServer server = new MockServer(ctx)
+server.get("/pets")                                  // the body
+server.request("POST", "/pets", body, "application/json")
+server.handle(req)                                   // a request you built, for headers
+```
+
+The reason is the same one Spring has MockMvc: testing a route should not need a
+port, a client, or a second thread (and this language has no threads yet).
+`server.handle(req)` takes a request that is already prepared — call
+`readCookies()` yourself if it carries a cookie.
+
 ## Known limitations
 
 1. **One connection at a time.** The language has no threads
@@ -183,13 +266,12 @@ connection: that is how `tests/programs/t102_web.teyru` and
    needs.
 2. **No content negotiation.** Only the method's declared type is looked at, not
    `Accept`.
-3. **Returning arrays, `List`, or primitive types has no JSON mapping yet**
-   (`TY-TYP-0111`), because the binding does not support them yet.
-4. **Only `Application.boot` reads command-line arguments of the form
-   `--key=value`** into properties; there is no reading of an
-   `application.properties` file.
-5. **`@PreDestroy` is not executed**; there is no `@Conditional`, `@Profile`,
-   `@Import`, `@Lazy`, AOP, transactions, or `@ExceptionHandler`.
-6. **No scope control for `@ComponentScan`**: the whole program is in scan
-   scope, because the compiler sees everything — if you want to exclude
-   something, just don't annotate it.
+3. **Sessions live in the process.** With two processes behind one address a
+   request has to come back to the one that made the session, and the id is 128
+   bits of `java.util.Random` — enough for one server, not a cryptographic
+   source.
+4. **No multipart uploads, no validation annotations, no SSE.**
+5. **No `@Conditional`, `@Import`, `@Lazy`, AOP or transactions**, and no scope
+   control for `@ComponentScan`: the whole program is in scan scope, because the
+   compiler sees everything — if you want to exclude something, just don't
+   annotate it.
