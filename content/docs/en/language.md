@@ -501,7 +501,9 @@ additions just as the JDK does), and `computeIfAbsent`/`merge`/`forEach` are all
 `java.lang.reflect` (`lib/26`) provides `Class`, `Field`, `Method`, `Constructor`,
 `Modifier` and `Array`, plus the six reflection exceptions. They read the static tables
 the compiler emits per class, so a lookup is an array walk and nothing is built at run
-time. Where they differ from Java: the class names are Teyru's (`String.class.getName()`
+time. The member tables ship only when a program can reach reflection: one that can carries
+all of them (a measured hello world goes from 445.9 KB to about 3 MB), and one that cannot
+carries none. Where they differ from Java: the class names are Teyru's (`String.class.getName()`
 is `teyru.String`, and `forName` takes either spelling), annotations are not reflectable,
 all arrays share one class (so there is no `getComponentType`), there is no reflection of
 generic type arguments, the primitive getters take an exactly matching box rather than

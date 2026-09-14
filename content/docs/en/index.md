@@ -54,7 +54,7 @@ Temurin; produced by `RUNS=5 sh scripts/bench.sh`, best of 5 runs):
 | Metric | Teyru (native) | Java (HotSpot) | Difference |
 |---|---|---|---|
 | 100 startups | **0.065 s** (0.65 ms each) | 2.02 s (20.2 ms each) | **~31x faster** |
-| Executable size | **392.6 KB** | ~346 MB JDK installation | ~903x smaller |
+| Executable size | **445.9 KB** | ~346 MB JDK installation | ~794x smaller |
 | Peak RSS (hello) | **2.2 MB** | 50.7 MB | **~23x less** |
 | `bench_fib` recursion | **0.0060 s** | 0.0269 s | **4.5x faster** |
 | `bench_loop` loops and integer math | **0.0209 s** | 0.0434 s | **2.1x faster** |

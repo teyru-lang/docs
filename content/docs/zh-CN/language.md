@@ -476,7 +476,9 @@ try {
 更具体）。
 `java.lang.reflect`（`lib/26`）提供 `Class`、`Field`、`Method`、`Constructor`、
 `Modifier`、`Array` 与六个反射用异常；它们读的是编译器为每个类生成的静态表，
-查一次数据是走一次数组，运行期不建表。与 Java 的差异：类名是 Teyru 的
+查一次数据是走一次数组，运行期不建表。成员表只在程序真的会用到反射时
+才写进可执行文件（用到时整份都会带上，量到的 hello world 从 445.9 KB 变成约 3 MB；
+没用到的程序一行都不带）。与 Java 的差异：类名是 Teyru 的
 （`String.class.getName()` 是 `teyru.String`，`forName` 两种名字都收）、没有注解
 反射、所有数组共用一个类（所以没有 `getComponentType`）、没有泛型类型参数的
 反射、原生类型取值器只收完全相符的包装类型、不检查访问控制（只有 final 会拦）。
