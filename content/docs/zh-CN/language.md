@@ -474,6 +474,12 @@ try {
 则照 JDK 一样拒绝新增）、`computeIfAbsent`／`merge`／`forEach` 都在。
 `Stream.of(array)` 会把数组展开成元素（与 javac 相同的重载：`of(T...)` 比 `of(T)`
 更具体）。
+`java.lang.reflect`（`lib/26`）提供 `Class`、`Field`、`Method`、`Constructor`、
+`Modifier`、`Array` 与六个反射用异常；它们读的是编译器为每个类生成的静态表，
+查一次数据是走一次数组，运行期不建表。与 Java 的差异：类名是 Teyru 的
+（`String.class.getName()` 是 `teyru.String`，`forName` 两种名字都收）、没有注解
+反射、所有数组共用一个类（所以没有 `getComponentType`）、没有泛型类型参数的
+反射、原生类型取值器只收完全相符的包装类型、不检查访问控制（只有 final 会拦）。
 `java.util.function`（`lib/09`）提供 `Function`／`BiFunction`／`Consumer`／
 `Supplier`／`Predicate`／`Runnable`／`Comparator`。
 
@@ -548,7 +554,7 @@ Teyru 是按**简单名称**找的，前面写什么包都一样，所以 `impor
 5. **原生 property**：字段加 accessor 块；`field` 代表底层存储。
 6. **`val`**：推断类型的不可重新绑定局部变量。
 7. 捕获的局部变量不要求 effectively final。
-8. 没有 annotation processor、没有运行时反射、没有 JNI。
+8. 没有 annotation processor、没有注解（annotation）的运行时反射、没有 JNI。
 9. 泛型与 checked exception 的规则同 Java，但没有 checked 检查。
 10. 类型实参推断比 javac 弱一层，靠目标类型而不是完整的约束求解（没有 JLS 18）：
     - lambda 的类型实参会**从主体反推**：目标是 `Fn<String, ? extends R>` 而主体是
@@ -575,7 +581,10 @@ Teyru 是按**简单名称**找的，前面写什么包都一样，所以 `impor
 - `sealed` 的 `permits` 子句没有被验证：没有 `permits` 的 sealed 类型在
   switch 穷尽性上被视为不可判定而要求 `default`；switch **语句**的穷尽性
   仍从宽
-- 反射、线程（文件与网络 I/O 有，见 `java.io`／`java.net`）
+- 线程（文件与网络 I/O 有，见 `java.io`／`java.net`）
+- 反射缺的部分：注解反射、泛型类型参数的反射、每个元素类型的数组类
+  （所有数组共用一个类）、原生类型取值器的 Java 拓宽（对 `byte` 字段调用
+  `getInt` 在 Java 会过，这里是 `IllegalArgumentException`）
 - 与 Java 生态互通（JAR、JDK 类库、JNI）
 - 标识符中的 Unicode 转义（`\u0041` 不能拼出标识符）
 - 泛型构造函数的显式类型实参 `new <T>Foo(...)`

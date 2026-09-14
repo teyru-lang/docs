@@ -44,7 +44,7 @@ System.out.println(p)                  // Person(name=ada, age=36)
 | `@Data` | ⚠️ 部分 | getter + setter + `@RequiredArgsConstructor` + `@ToString` + `@EqualsAndHashCode`；隱含建構子收 `@NonNull` 欄位並在裡面插檢查 |
 | `@Value` | ⚠️ 部分 | private final 欄位、getter、全參數建構子、`staticConstructor`；繼承會被 `TY-TYP-0007` 擋下 |
 | `@Builder` | ⚠️ 部分 | 類別、建構子與方法；`builderMethodName`／`buildMethodName`／`builderClassName`／`toBuilder`／`@Builder.Default`／`@Builder.ObtainVia`／`setterPrefix`（首字母會大寫：`with` 加 `name` 是 `withName`） |
-| `@NonNull` | ⚠️ 部分 | 欄位與參數都檢查：欄位被收進產生的建構子時插檢查，`@Setter` 產生的 setter 也檢查，手寫方法與建構子的參數（只標在參數上即可）同樣檢查。Teyru 沒有欄位寫入攔截，所以直接指派欄位不檢查（見 §3） |
+| `@NonNull` | ⚠️ 部分 | 欄位與參數都檢查：欄位被收進產生的建構子時插檢查，`@Setter` 產生的 setter 也檢查，手寫方法與建構子的參數（只標在參數上即可）同樣檢查。直接指派欄位不檢查（Lombok 也一樣）；`@Builder` 的檢查位置與 Lombok 不同（見 §3） |
 | `@With` | ⚠️ 部分 | 欄位上的 `@With` 產生 `withX(T)`，以全參數建構子複製；寫在類別上不會替所有欄位產生（Lombok 會） |
 | `@Accessors` | ⚠️ 部分 | `chain`／`fluent`／`prefix`；`fluent = true` 不會像 Lombok 那樣連帶把 setter 變成可鏈式（要另外寫 `chain = true`，見 §3） |
 | `@FieldDefaults` | ✅ 完整 | `level`／`makeFinal` |
@@ -58,10 +58,10 @@ System.out.println(p)                  // Person(name=ada, age=36)
 | `@FieldNameConstants` | ⚠️ 部分 | 產生巢狀 `Fields` 類別；`prefix` 是加在常數的**值**上，不是加在名稱上，與 Lombok（1.18.4 以前）相反 |
 | `@Delegate` | ✅ 完整 | 為欄位型別的公開方法產生委派方法 |
 | `@Helper` | ✅ 完整 | 方法內的區域類別：產生實例，宣告之後同名的未限定呼叫都走它（實例必須有無參數建構子） |
-| `@Tolerate` | ✅ 完整 | 被標的成員對產生器「不存在」：`@Setter private Date date` 加上 `@Tolerate public void setDate(String)` 會同時有兩個多載 |
+| `@Tolerate` | ✅ 完整 | 被標的成員對產生器「不存在」：`@Setter private Instant date` 加上 `@Tolerate public void setDate(String)` 會同時有兩個多載 |
 | `@Locked` | ✅ 完整 | 以具名鎖欄位包住方法本體 |
-| `@NonFinal` | ✅ 完整 | 移除 final |
-| `@PackagePrivate` | ✅ 完整 | 移除存取修飾符 |
+| `@NonFinal` | ⚠️ 部分 | 收得下註解，但沒有任何作用：Lombok 用它讓 `@FieldDefaults(makeFinal = true)`／`@Value` 放過一個欄位，這裡不讀；標在類別上時，繼承檢查在更早的階段就已經跑過了 |
+| `@PackagePrivate` | ⚠️ 部分 | 只有寫在類別上才有效，把該類別欄位與方法的存取修飾符拿掉；寫在欄位或方法上（Lombok 的用法：讓 `@FieldDefaults(level = …)`／`@Value` 放過一個欄位）沒有作用 |
 | `@Var` | ✅ 完整 | 已棄用的 Lombok 別名，無需產生任何東西 |
 | `@SuperBuilder` | ✅ 完整 | 建構子鏈上的所有欄位都在同一個 builder；見 §4 |
 | `@Singular` | ✅ 完整 | 逐項加入、整批加入、清除、`build()` 取得副本；`@Singular("name")` 可改名；見 §4 |
@@ -71,7 +71,8 @@ System.out.println(p)                  // Person(name=ada, age=36)
 | `@CustomLog` | ✅ 完整 | 讀 `lombok.config` 的 `lombok.log.custom.declaration`（見 §3.5） |
 
 「完整」的定義：`tests/programs/t16`–`t19`、`t54` 有對應的測試，`go test ./...` 會驗證輸出；
-`t55_lombok_every.teyru` 在一支程式裡把上表每一個 ✅ 的註解各用一次，輸出逐行比對；
+`t55_lombok_every.teyru` 在一支程式裡把上表每一個 ✅ 的註解各用一次（只有 `@CustomLog`
+與 `@onX` 家族不在裡面，見下一句），輸出逐行比對；
 `t91_lombok_log.teyru` 涵蓋 `@Log`、`@CustomLog`（含 `lombok.config`）與 `@onX` 家族；
 `t144_lombok_parity.teyru` 涵蓋 `@NonNull` 的各條路徑、`@Tolerate`、
 `onlyExplicitlyIncluded`、`setterPrefix`、方法上的 `@Builder`、`@Builder.ObtainVia`、
@@ -171,10 +172,12 @@ class Person {
 ## 3. 與 Lombok 的差異（重要）
 
 1. **沒有 annotation processor。** 展開發生在編譯器內部，`javac` 完全不參與。
-2. **`@NonNull` 沒有欄位寫入攔截。** 欄位標了 `@NonNull`、又被收進產生的建構子時會
-   插檢查，`@Setter` 產生的 setter、手寫方法與建構子的參數（只標在參數上即可）也都
-   會插檢查；Lombok 對「直接指派欄位」也檢查，但 Teyru 的欄位讀寫不經過方法，
-   攔不到。這條限制在 Lombok 也無法用 setter 表達。
+2. **`@NonNull` 檢查的位置。** 欄位標了 `@NonNull`、又被收進產生的建構子時會插檢查，
+   `@Setter` 產生的 setter、手寫方法與建構子的參數（只標在參數上即可）也都會插檢查；
+   直接指派欄位不檢查——Lombok 的說明也只承諾「指派值給這個欄位的**產生**方法」會插
+   檢查，這點兩邊一致。差別在 `@Builder`：Lombok 在 builder 的 setter 上就檢查，
+   `builder().name(null)` 當場丟；這裡的 builder setter 不檢查，檢查落在 `build()`
+   呼叫的建構子裡。
 3. **`@Singular` 傳的是可變副本**，不是 `Collections.unmodifiableList` 包裝（見 §4）。
 4. **`@SuperBuilder` 產生一個攤平的 builder**，不是 builder 繼承鏈（見 §4）。
 5. **`@onX` 註解只會被複製，不會被執行。** 註解字面上會掛到產生出來的成員上，
@@ -193,8 +196,9 @@ class Person {
    （static 的用 `類別.方法(...)`，實例方法用一個新實例）；`@Builder.ObtainVia` 由
    `toBuilder` 讀取，`method`／`isStatic` 兩種形式都支援。
 9. **`@Helper` 只認方法內的區域類別。** 那里會產生一個實例，宣告之後同名的未限定
-   呼叫都走它；寫在成員類別上（Lombok 也一樣）沒有作用，只是把類別標成 static。
-   `@Tolerate` 則是讓產生器「看不到」被標的成員：`@Setter private Date date` 加上
+   呼叫都走它；寫在成員類別上沒有作用，只是把類別標成 static（Lombok 會直接報錯：
+   `@Helper is legal only on method-local classes`）。
+   `@Tolerate` 則是讓產生器「看不到」被標的成員：`@Setter private Instant date` 加上
    `@Tolerate public void setDate(String)` 之後兩個多載都在，與 Lombok 相同。
 10. **`@Accessors(fluent = true)` 不會順便開啟鏈式。** Lombok 的 `fluent` 會連帶把
     setter 的回傳值改成自身，所以 `new F().n(5).n()` 在 Lombok 成立；這裡的 setter

@@ -345,7 +345,7 @@ teyru get example.com/greeting@v0.1.0
 teyru build ./...
 ```
 
-没有反射、没有线程（也没有 `java.util.concurrent`）、没有 `Scanner`、没有时区数据库——这些缺席都是刻意的，理由记在
+没有线程（也没有 `java.util.concurrent`）、没有 `Scanner`、没有时区数据库——这些缺席都是刻意的，理由记在
 [docs/language.md](/zh-CN/docs/language) §11 与 §13。
 
 需要自己的原生库时，声明 `native` 方法并用 C 实现：
@@ -428,7 +428,7 @@ Teyru 不是 Java 的子集，而是“Java 开发者一看就懂”的独立语
    没有 accessor 块的字段就是普通 Java 字段。
 6. **`val`**：推断类型的不可重绑定局部变量（不是深度不可变）。
 7. **没有 checked exception 检查**；`throws` 会被解析但不强制。
-8. **没有运行期反射、没有 annotation processor**。
+8. **没有注解（annotation）的运行期反射、没有 annotation processor**。
 9. **不是 bytecode 平台**：没有 `.class`、没有 `java.lang`、没有 JNI，
    目前也**无法**与既有 Java 库互通——这是刻意的取舍。
 

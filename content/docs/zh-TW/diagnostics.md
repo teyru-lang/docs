@@ -60,11 +60,11 @@ hello.teyru:4:11: error[TY-TYP-0051]: incompatible types: String cannot be conve
 
 | 代碼 | 訊息 | 說明與修法 |
 |---|---|---|
-| TY-TYP-0001 | `duplicate type %s`／`duplicate nested type %s` | 同名型別重複宣告。 |
+| TY-TYP-0001 | `duplicate type %s (also declared at %s)`／`duplicate nested type %s` | 同名型別重複宣告。 |
 | TY-TYP-0002 | `type variable %s cannot have type arguments` | 型別變數不能再帶型別引數。 |
 | TY-TYP-0003 | `cannot find type %s` | 型別名稱找不到；檢查拼字、import 或前導程式庫。 |
 | TY-TYP-0004 | `type %s expects %d type arguments, found %d` | 泛型引數數量不符。 |
-| TY-TYP-0005 | `primitive type %s cannot be a type argument` | 泛型不能用原生型別，請用包裝類別。 |
+| TY-TYP-0005 | `primitive type %s cannot be a type argument; use its box type` | 泛型不能用原生型別，請用包裝類別。 |
 | TY-TYP-0006 | `class cannot extend interface %s` | 類別要用 `implements` 介面。 |
 | TY-TYP-0007 | `cannot extend final class %s` | 被 `final` 的類別不能被繼承。`final` 由 `@Value`／`@UtilityClass` 標上去時，這一條在標註展開之後才報（「擋下繼承」的檢查原本跑在展開之前，所以那兩個標註沒有作用）。 |
 | TY-TYP-0008 | `cyclic inheritance involving %s` | 繼承關係成環。 |
@@ -77,13 +77,13 @@ hello.teyru:4:11: error[TY-TYP-0051]: incompatible types: String cannot be conve
 | TY-TYP-0015 | `abstract or native method %s cannot have a body` | `abstract`／`native` 方法不能有 body。 |
 | TY-TYP-0016 | `abstract method %s in non-abstract class %s` | 有抽象方法的類別必須標 `abstract`。 |
 | TY-TYP-0017 | （已移除） | `native` 方法現在可以宣告在任一類別，並以 `--native` 提供的 C 實作。 |
-| TY-TYP-0018 | `'%s' is only allowed for local variables` | `var`／`val` 不能用在欄位、參數或回傳型別。 |
+| TY-TYP-0018 | `'%s' is only allowed for local variables; fields need an explicit type` | `var`／`val` 不能用在欄位、參數或回傳型別。 |
 | TY-TYP-0019 | `%s must implement %s from %s` | 具體類別沒有實作介面或父類別的抽象方法。 |
 | TY-TYP-0020 | `missing return statement` | 有回傳值的方法在某些路徑沒有 `return`。 |
 | TY-TYP-0021 | `duplicate local variable %s` | 同一個作用域重複宣告區域變數。 |
 | TY-TYP-0022 | `break outside of loop or switch` | `break` 只能出現在迴圈或 switch 內（有標籤者除外）。 |
 | TY-TYP-0023 | `continue outside of loop` | `continue` 只能出現在迴圈內。 |
-| TY-TYP-0024 | `thrown value must be a Throwable` | `throw` 的物件必須繼承 `Throwable`。 |
+| TY-TYP-0024 | `thrown value must be a Throwable, found %s` | `throw` 的物件必須繼承 `Throwable`。 |
 | TY-TYP-0025 | `cannot synchronize on void` | `synchronized` 的鎖不能是 void 運算式。 |
 
 ### 陳述式（0026–0044）
@@ -93,12 +93,12 @@ hello.teyru:4:11: error[TY-TYP-0051]: incompatible types: String cannot be conve
 | TY-TYP-0026 | `local variables cannot be declared final; use 'val'` | 區域變數的不可重綁請用 `val`。 |
 | TY-TYP-0027 | `'%s' requires an initializer` | `var`／`val` 一定要有初始值。 |
 | TY-TYP-0028 | `'%s' cannot infer a type from null` | `null` 無法推斷型別，請寫出明確型別。 |
-| TY-TYP-0029 | `'%s' cannot infer a functional interface type` | lambda 需要目標型別，請明確宣告介面型別。 |
-| TY-TYP-0030 | `for-each requires an array or Iterable` | 增強 `for` 只能用在陣列或 `Iterable`。 |
+| TY-TYP-0029 | `'%s' cannot infer a functional interface type; declare it explicitly` | lambda 需要目標型別，請明確宣告介面型別。 |
+| TY-TYP-0030 | `for-each requires an array or Iterable, found %s` | 增強 `for` 只能用在陣列或 `Iterable`。 |
 | TY-TYP-0031 | `incompatible types: %s is not assignable to %s` | 迴圈變數型別與元素型別不符。 |
 | TY-TYP-0032 | `return value required for %s` | 有回傳值的方法不能空手 `return`。 |
 | TY-TYP-0033 | `cannot return a value from a void method` | void 方法不能回傳值。 |
-| TY-TYP-0034 | `catch type must be a Throwable` | `catch` 的型別必須是 `Throwable` 家族。 |
+| TY-TYP-0034 | `catch type must be a Throwable, found %s` | `catch` 的型別必須是 `Throwable` 家族。 |
 | TY-TYP-0035 | `switch selector must be a char, byte, short, int, Character, Byte, Short, Integer, String or enum type, found %s` | switch 的選擇子型別不合法。 |
 | TY-TYP-0036 | `duplicate default label` | 同一個 switch 只能有一個 `default`。 |
 | TY-TYP-0037 | `incompatible pattern type %s for switch on %s` | `case 型別 名` 與選擇子型別無關。 |
@@ -164,8 +164,8 @@ hello.teyru:4:11: error[TY-TYP-0051]: incompatible types: String cannot be conve
 | TY-TYP-0078 | `cannot invoke %s on %s` | 對這個型別呼叫方法不合法。 |
 | TY-TYP-0079 | `%s has %s access in %s` | 方法可見性不足。 |
 | TY-TYP-0080 | `cannot find symbol %s in %s`／`on array` | 成員不存在於該型別。 |
-| TY-TYP-0081 | `cannot infer the functional interface for this lambda` | lambda／方法參照沒有目標型別，請明確指定。 |
-| TY-TYP-0082 | `lambda target type must be a functional interface` | 目標型別不是介面。 |
+| TY-TYP-0081 | `cannot infer the functional interface for this lambda; declare the target type`／`cannot infer the functional interface for this method reference` | lambda／方法參照沒有目標型別，請明確指定。 |
+| TY-TYP-0082 | `lambda target type must be a functional interface, found %s`／`method reference target type must be a functional interface` | 目標型別不是介面。 |
 | TY-TYP-0083 | `%s is not a functional interface` | 介面有多個抽象方法，不能當 lambda 目標。 |
 | TY-TYP-0084 | `lambda has %d parameters but %s requires %d` | lambda 參數數量不符。 |
 | TY-TYP-0085 | `cannot construct %s` | 建構子參照的目標不能建構。 |
@@ -196,7 +196,7 @@ hello.teyru:4:11: error[TY-TYP-0051]: incompatible types: String cannot be conve
 | TY-TYP-0115 | `cannot resolve import %s` | 匯入路徑指不到任何東西。名字在 Teyru 裡是照**簡單名稱**找的，前面寫什麼套件都一樣，所以 `import java.utli.List` 這種拼錯的套件以前是安靜地被忽略、然後照樣拿到 `List`。現在匯入必須指向：標準程式庫回答的套件（`teyru` 本身，以及相容用的 `java.util`、`com.google.gson`、`lombok`…，見 docs/language.md §11）、本次建置某個檔案宣告的套件、或是一個完整名稱就是這條路徑的型別。 |
 | TY-TYP-0100 | `two beans are named %s: %s and %s` | 兩個 bean 取了同一個名字（`@Component("x")` 或 `@Bean("x")`）。 |
 | TY-TYP-0101 | `%s is declared by the framework and cannot be redefined` | `__TeyruFramework` 是容器註冊用的合成類別，名字被保留。 |
-| TY-TYP-0102 | `@Bean method %s ...` | `@Bean` 方法必須不是 static、且回傳型別是一個類別（基本型別會裝箱）。 |
+| TY-TYP-0102 | `@Bean method %s must not be static`／`@Bean method %s must return the bean's type`／`@Bean method %s does not return a class type` | `@Bean` 方法必須不是 static、且回傳型別是一個類別（基本型別會裝箱）。 |
 | TY-TYP-0103 | `no bean of type %s to inject into %s` | 某個 `@Autowired` 的型別沒有任何 bean。Spring 在啟動時才發現，這裡在編譯期。 |
 | TY-TYP-0104 | `%d beans of type %s: name one with @Qualifier` | 同型別有多個 bean，沒有 `@Primary` 也沒有 `@Qualifier`。 |
 | TY-TYP-0105 | `two constructors of %s are annotated @Autowired` / `%s has %d constructors and none is annotated @Autowired` | 建構子注入的選擇規則：單一建構子、或標了 `@Autowired` 的那一個。 |

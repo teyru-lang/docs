@@ -33,7 +33,7 @@ Teyru 的 JSON 分成两层：`lib/10_json.teyru` 是 Gson 的**树状 API**（�
 
 ## 对象绑定（lib/19 加上编译器）
 
-Gson 用反射把对象绑定到 JSON。Teyru 没有反射，所以**编译器代劳**：
+Gson 用反射把对象绑定到 JSON。这里**编译器代劳**：
 
 ```teyru
 import teyru.*

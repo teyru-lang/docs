@@ -3,7 +3,7 @@ title: "Teyru"
 description: "編譯器完全用 Go 撰寫、直接產生原生執行檔的程式語言——不依賴 JVM、不依賴 javac、不產生任何 bytecode。"
 ---
 
-**繁體中文** · [简体中文](/zh-CN/docs) · [English](/en/docs) · [日本語](https://github.com/teyru-lang/Teyru/blob/main/README.ja.md)
+**繁體中文** · [简体中文](/zh-CN/docs) · [English](/en/docs)
 
 **Teyru 是一門獨立實作的程式語言：編譯器完全用 Go 撰寫，直接產生原生執行檔——不依賴 JVM、不依賴 javac、不產生任何 bytecode。**
 
@@ -249,7 +249,7 @@ Teyru 以 Java SE 25 的最終定案語法為基準（預覽功能不算），�
 | 513 | 彈性建構子本體（`super()` 之前可以有敘述） | ✅ |
 | 440 | Record 模式（含巢狀解構、`instanceof` 版本） | ✅ |
 | 441 | switch 的模式比對與 `when` 守衛 | ✅ |
-| 507 | 原生型別 pattern（`case int i`、`o instanceof int i`，精確轉換語意） | ✅ |
+| 507 | 原生型別 pattern（`case int i`、`o instanceof int i`，精確轉換語意；Java 25 仍為預覽功能） | ✅ |
 | 456 | 未命名變數與模式 `_` | ✅ |
 | 395 | record（含精簡建構子） | ✅ |
 | 394 | `instanceof` 型別模式 | ✅ |
@@ -346,7 +346,7 @@ teyru get example.com/greeting@v0.1.0
 teyru build ./...
 ```
 
-沒有反射、沒有執行緒（也沒有 `java.util.concurrent`）、沒有 `Scanner`、沒有時區資料庫——這些缺席都是刻意的，理由記在
+沒有執行緒（也沒有 `java.util.concurrent`）、沒有 `Scanner`、沒有時區資料庫——這些缺席都是刻意的，理由記在
 [docs/language.md](/docs/language) §11 與 §13。
 
 需要自己的原生程式庫時，宣告 `native` 方法並用 C 實作：
@@ -367,9 +367,9 @@ teyru build --native impl.c program.teyru            # 一起編譯
 
 ## 編輯器與工具
 
-- **VS Code**：`editors/vscode/` 提供 `.teyru` 的 TextMate 語法highlight、語言設定與片段。
+- **VS Code**：[`teyru-lang/editors`](https://github.com/teyru-lang/editors) 倉庫的 `vscode/` 提供 `.teyru` 的 TextMate 語法highlight、語言設定與片段。
   用 `npx @vscode/vsce package` 打包，再以 `code --install-extension teyru-0.1.0.vsix` 安裝。
-- **tree-sitter**：`editors/tree-sitter-teyru/` 是完整文法，附 highlight query、縮排 query
+- **tree-sitter**：同一倉庫的 `tree-sitter-teyru/` 是完整文法，附 highlight query、縮排 query
   與 corpus 測試，Neovim、Helix、Zed 等可直接使用。
 - GitHub 目前仍把 `.teyru` 顯示成 Java：linguist 還沒有 Teyru 的定義，
   `.gitattributes` 先對應到最接近的語法。
@@ -395,8 +395,8 @@ teyru build --native impl.c program.teyru            # 一起編譯
 | `tests/native` | native 方法互通測試：Teyru 宣告 + C 實作 + 期望輸出（`TestNative`） |
 | `examples` | 範例程式與 JVM 對照的 benchmark（`bench_*.teyru` 與 `.java`） |
 | `scripts` | 開發腳本：`bench.sh` 效能量測、`pre-commit` 掛勾 |
-| `docs` | 語言參考、診斷碼、架構 |
-| `editors` | 編輯器支援：VS Code 擴充與 tree-sitter 文法 |
+| [`teyru-lang/docs`](https://github.com/teyru-lang/docs) | 語言參考、診斷碼、架構（另一個倉庫，即本文件站） |
+| [`teyru-lang/editors`](https://github.com/teyru-lang/editors) | 編輯器支援：VS Code 擴充與 tree-sitter 文法（另一個倉庫） |
 
 ---
 
@@ -429,7 +429,7 @@ Teyru 不是 Java 的子集，而是「Java 開發者一看就懂」的獨立語
    沒有 accessor 區塊的欄位就是普通 Java 欄位。
 6. **`val`**：推斷型別的不可重綁區域變數（不是深度不可變）。
 7. **沒有 checked exception 檢查**；`throws` 會被剖析但不強制。
-8. **沒有執行期反射、沒有 annotation processor**。
+8. **沒有註解（annotation）的執行期反射、沒有 annotation processor**。
 9. **不是 bytecode 平台**：沒有 `.class`、沒有 `java.lang`、沒有 JNI，
    目前也**無法**與既有 Java 程式庫互通——這是刻意的取捨。
 

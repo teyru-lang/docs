@@ -36,7 +36,7 @@ Differences from Gson (deliberate):
 
 ## Object binding (lib/19 plus the compiler)
 
-Gson uses reflection to bind objects to JSON. Teyru has no reflection, so the **compiler does it instead**:
+Gson uses reflection to bind objects to JSON. Here the **compiler does it instead**:
 
 ```teyru
 import teyru.*

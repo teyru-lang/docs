@@ -361,7 +361,7 @@ teyru get example.com/greeting@v0.1.0
 teyru build ./...
 ```
 
-There is no reflection, no threading (and no `java.util.concurrent`), no `Scanner`
+There is no threading (and no `java.util.concurrent`), no `Scanner`
 and no time zone database. Each absence is deliberate and argued for in
 [docs/language.md](/en/docs/language) §11 and §13.
 
@@ -455,7 +455,7 @@ familiar to Java developers. The main differences:
    Java field.
 6. **`val`** declares an inferred, non-reassignable local (not deep immutability).
 7. **No checked exception checking**; `throws` is parsed but not enforced.
-8. **No runtime reflection, no annotation processors.**
+8. **No runtime reflection of annotations, no annotation processors.**
 9. **Not a bytecode platform**: no `.class` files, no `java.lang`, no JNI, and no
    interoperability with existing Java libraries — a deliberate trade-off.
 

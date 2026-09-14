@@ -75,8 +75,9 @@ class Main {
 ### 建構子選擇
 
 Spring 4.3 起的規則：只有一個建構子就用它，否則找標了 `@Autowired` 的，否則用無參
-的那個。標了多個 `@Autowired`，或都沒有而有多個又沒有無參建構子時，是
-`TY-TYP-0105`。
+的那個。被選上的建構子，每個參數都要自己標 `@Autowired`（或 `@Value`）才會被注入：
+沒標的參數不會被填，產生的工廠就用少掉的引數呼叫它，編譯以 `TY-TYP-0072` 失敗。
+標了多個 `@Autowired`，或都沒有而有多個又沒有無參建構子時，是 `TY-TYP-0105`。
 
 ### 生命週期
 
@@ -117,7 +118,7 @@ class PetController {
 | `@GetMapping`／`@PostMapping`／`@PutMapping`／`@DeleteMapping`／`@PatchMapping` | 路徑與動詞 |
 | `@PathVariable` | 路徑裡 `{name}` 的值，會轉成參數的型別 |
 | `@RequestParam` | 查詢參數，`defaultValue` 可給預設 |
-| `@RequestHeader` | 請求標頭（名稱不分大小寫）；`defaultValue` 已宣告但沒有作用，缺標頭時是空字串 |
+| `@RequestHeader` | 請求標頭（名稱不分大小寫）；`defaultValue` 是沒有這個標頭時的值，沒給就是空字串 |
 | `@RequestBody` | 請求主體；參數是 `String` 就原樣拿到，是類別（或 record）就以 Gson 綁定解析 |
 | `@ResponseBody` | 已宣告；`@RestController` 本來就隱含，所以有沒有都一樣 |
 

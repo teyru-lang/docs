@@ -498,6 +498,14 @@ into the original collection, outside the range it is
 additions just as the JDK does), and `computeIfAbsent`/`merge`/`forEach` are all there.
 `Stream.of(array)` flattens the array into elements (the same overload resolution as javac:
 `of(T...)` is more specific than `of(T)`).
+`java.lang.reflect` (`lib/26`) provides `Class`, `Field`, `Method`, `Constructor`,
+`Modifier` and `Array`, plus the six reflection exceptions. They read the static tables
+the compiler emits per class, so a lookup is an array walk and nothing is built at run
+time. Where they differ from Java: the class names are Teyru's (`String.class.getName()`
+is `teyru.String`, and `forName` takes either spelling), annotations are not reflectable,
+all arrays share one class (so there is no `getComponentType`), there is no reflection of
+generic type arguments, the primitive getters take an exactly matching box rather than
+widening, and access control is not checked (only `final` is held back).
 `java.util.function` (`lib/09`) provides `Function`/`BiFunction`/`Consumer`/`Supplier`/
 `Predicate`/`Runnable`/`Comparator`.
 
@@ -562,10 +570,16 @@ duplicate declaration `TY-TYP-0001`, because the two fully qualified names are t
 
 ### What is missing
 
-Reflection, threads, `java.util.concurrent`, a timezone database, `Scanner`. These absences are
-deliberate: they either need runtime reflection, or need a data table bigger than the entire
-language (timezones), or need something the language itself does not have (threads), or — as
-with `Scanner` — doing half the job would be worse than not doing it at all.
+Threads, `java.util.concurrent`, a timezone database, `Scanner`. These absences are
+deliberate: they either need a data table bigger than the entire language (timezones), or need
+something the language itself does not have (threads), or — as with `Scanner` — doing half the
+job would be worse than not doing it at all.
+
+Reflection is there (`java.lang.reflect`, §11). What it does not have: annotations (a Teyru
+annotation is read by the compiler, so there is no annotation object at run time), generic type
+arguments, a class per array type (every array value belongs to one class, so there is no
+component type to ask for), and Java's widening in the primitive getters — `Field.getInt` on a
+`byte` field is an `IllegalArgumentException` here and a widening in Java.
 
 When you need your own native library, a `native` method can be implemented in C, see
 [docs/native.md](/en/docs/native).
@@ -579,7 +593,7 @@ When you need your own native library, a `native` method can be implemented in C
 5. **Native properties**: field plus accessor block; `field` denotes the backing storage.
 6. **`val`**: a type-inferred local variable that cannot be rebound.
 7. A captured local variable is not required to be effectively final.
-8. No annotation processors, no runtime reflection, no JNI.
+8. No annotation processors, no runtime reflection *of annotations*, no JNI.
 9. The rules for generics and checked exceptions are the same as Java, but there is no
    checked-exception checking.
 10. Type argument inference is one level weaker than javac, relying on the target type rather

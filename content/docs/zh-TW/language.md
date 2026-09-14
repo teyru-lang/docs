@@ -5,7 +5,7 @@ description: "Teyru 0.2 的語法與語意：原始檔與詞法、型別、宣�
 
 本文件描述 Teyru 0.2 的語法與語意。文件以實作為準：這裡寫的每一項語言特性都在
 `tests/programs/` 有對應的測試，`go test ./...` 會逐項驗證；標準程式庫的 API 則只
-涵蓋一部分（例如 `Map.putAll`、`Map.keys` 還沒有測試用到），測試涵蓋範圍仍不完整。
+涵蓋一部分（例如 `Map.putAll`、`String.getBytes` 還沒有測試用到），測試涵蓋範圍仍不完整。
 
 - [1. 原始檔與詞法](#1-原始檔與詞法)
 - [2. 換行與敘述終止](#2-換行與敘述終止)
@@ -474,6 +474,12 @@ try {
 則照 JDK 一樣拒絕新增）、`computeIfAbsent`／`merge`／`forEach` 都在。
 `Stream.of(array)` 會把陣列攤成元素（與 javac 相同的多載：`of(T...)` 比 `of(T)`
 更特定）。
+`java.lang.reflect`（`lib/26`）提供 `Class`、`Field`、`Method`、`Constructor`、
+`Modifier`、`Array` 與六個反射用例外；它們讀的是編譯器為每個類別產生的靜態表，
+查一次資料是走一次陣列，執行期不建表。與 Java 的差異：類別名是 Teyru 的
+（`String.class.getName()` 是 `teyru.String`，`forName` 兩種名字都收）、沒有註解
+反射、所有陣列共用一個類別（所以沒有 `getComponentType`）、沒有泛型型別參數的
+反射、原生型別取值器只收完全相符的裝箱型別、不檢查存取控制（只有 final 會攔）。
 `java.util.function`（`lib/09`）提供 `Function`／`BiFunction`／`Consumer`／
 `Supplier`／`Predicate`／`Runnable`／`Comparator`。
 
@@ -489,8 +495,8 @@ for (String n : names) {
 
 | 套件 | 檔案 | 內容 |
 |---|---|---|
-| `java.time` | `lib/20` | `LocalDate`／`LocalTime`／`LocalDateTime`／`Instant`／`Duration`／`Period`／`DayOfWeek`／`Month`；曆法算在 epoch day 上，輸出與 JDK 逐位元組相同（沒有時區，`now()` 讀 UTC） |
-| `java.io` | `lib/16` | `File`、`Path`／`Paths`、`Files`（`readString`／`writeString`／`readAllLines`／`exists`／`createDirectories`／`listFiles`） |
+| `java.time` | `lib/20` | `LocalDate`／`LocalTime`／`LocalDateTime`／`Instant`／`Duration`／`Period`／`DayOfWeek`／`Month`；曆法算在 epoch day 上（沒有時區，`now()` 讀 UTC）。`LocalDate`、`Instant`、`Duration`、`DayOfWeek`／`Month` 的輸出與 JDK 逐位元組相同；四處不同：年份不補零也不加正號（`1-01-01`、`10000-01-01`，JDK 是 `0001-01-01`、`+10000-01-01`）、`LocalTime` 的 `plus*`／`minus*` 清掉奈秒（`01:00:00.000000001` 加一小時是 `01:00`）、`LocalDateTime` 的 `plusHours`／`plusMinutes`／`plusSeconds` 不跨日（`1899-01-01T23:00` 加 25 小時是 `1899-01-01T00:00`）、`Period.between` 與 `addTo`／`subtractFrom` 的算法與 JDK 不同（`2000-03-31` 到 `2000-04-30` 是 `P1M`，JDK 是 `P30D`） |
+| `java.io` | `lib/16` | `File`（`listFiles`）、`Path`／`Paths`、`Files`（`readString`／`writeString`／`readAllLines`／`exists`／`createDirectories`） |
 | `java.util.regex` | `lib/21` | `Pattern`／`Matcher`：回溯式比對，支援字面值、`.`、`*`／`+`／`?`／`{n,m}` 與其懶惰形式、字元類別、`\d`／`\w`／`\s`、`^`／`$`、`|`、捕獲與非捕獲群組、`replaceAll`／`replaceFirst`／`split`（含 `limit` 的三種正負號）；不支援的語法（佔有量詞、前後視、反向參考、`\p{...}`）在 `compile` 就被拒絕。`String.matches`／`replaceAll`／`replaceFirst`／`split` 就是這五個方法，不是另一套實作 |
 | `java.net` | `lib/15` | `ServerSocket`、`Socket`、`SocketInputStream`／`SocketOutputStream`；同步阻塞的 POSIX socket，逾時以 `SocketTimeoutException` 回報 |
 | `java.util.stream` | `lib/22` | `Stream`／`IntStream`／`LongStream`／`DoubleStream`、`Collectors`（26 個工廠）、`Collector`、`Spliterator`／`Spliterators`、`StreamSupport`、統計與 `OptionalInt` 家族；中間操作建管線、終端操作才拉，`Collection.stream()` 是入口 |
@@ -548,26 +554,28 @@ Teyru 是照**簡單名稱**找的，前面寫什麼套件都一樣，所以 `im
 5. **原生 property**：欄位加 accessor 區塊；`field` 代表底層儲存。
 6. **`val`**：推斷型別的不可重綁區域變數。
 7. 捕獲的區域變數不要求 effectively final。
-8. 沒有 annotation processor、沒有執行期反射、沒有 JNI。
+8. 沒有 annotation processor、沒有註解（annotation）的執行期反射、沒有 JNI。
 9. 泛型與 checked exception 的規則同 Java，但沒有 checked 檢查。
 10. 型別引數推論比 javac 弱一層，靠目標型別而不是完整的約束求解（沒有 JLS 18）：
     - lambda 的型別引數會**從主體回推**：目標是 `Fn<String, ? extends R>` 而主體是
       `s -> s.length()` 時 `R` 定為 `Integer`。反過來不行——主體本身是一個需要目標
       型別的泛型呼叫時，兩邊互相依賴，單向代入停在那裡：
-      `words.stream().flatMap(w -> Stream.of(w.split(" ")))` 要先把
+      `words.stream().flatMap(w -> Stream.of(w.split(" ")))` 單獨寫得出來，接上
+      `.collect(...)` 之後 `collect` 就拿不到元素型別，要先把
       `Function<String, Stream<String>>` 寫出來。
     - 引數如果只有唯一一個候選方法，會拿該參數的型別當目標——所以巢狀的泛型呼叫
       可以推出來。
     - **有自由型別變數的泛型呼叫，當它是鏈式呼叫的接收者時，拿不到目標型別**：
       `xs.sort(naturalOrder())` 要寫出型別見證（`Comparator.<String>naturalOrder()`）；
-      `comparing(...).thenComparing(...)` 則是連見證都不生效，只能先放進一個有宣告
-      型別的變數（`Comparator<String> c = comparing(...)` 之後 `c.thenComparing(...)`）。
+      `comparing(...).thenComparing(...)` 同樣拿不到目標型別，見證要把該呼叫的型別變數
+      寫齊才生效（`Comparator.<String,Integer>comparing(...)`），否則只能先放進一個有
+      宣告型別的變數（`Comparator<String> c = comparing(...)` 之後 `c.thenComparing(...)`）。
       javac 對這兩種寫法都可以。
     - 顯式見證屬於它自己的呼叫：`pair(f, Builder.<Integer>make())` 的外層見證不會被
       內層覆蓋。
 11. **沒有捕獲轉換**：`List<? extends Number>` 在這裡就是 `List<Number>`。Java 靠捕獲
-    擋下的寫入（對 `? extends` 的容器 `add`）這裡擋不住；反過來說，Java 靠捕獲才
-    能編過的讀取（`list.get(0).doubleValue()`）這裡直接可行。
+    擋下的寫入（對 `? extends` 的容器 `add`）這裡擋不住；讀取則沒有差別
+    （`list.get(0).doubleValue()` javac 也收，不是捕獲轉換擋的）。
 
 ## 13. 尚未實作
 
@@ -575,7 +583,10 @@ Teyru 是照**簡單名稱**找的，前面寫什麼套件都一樣，所以 `im
 - `sealed` 的 `permits` 子句沒有被驗證：沒有 `permits` 的 sealed 型別在
   switch 窮盡性上被視為不可判定而要求 `default`；switch **陳述式**的窮盡性
   仍從寬
-- 反射、執行緒（檔案與網路 I/O 有，見 `java.io`／`java.net`）
+- 執行緒（檔案與網路 I/O 有，見 `java.io`／`java.net`）
+- 反射缺的部分：註解反射、泛型型別參數的反射、每個元素型別的陣列類別
+  （所有陣列共用一個類別）、原生型別取值器的 Java 拓寬（對 `byte` 欄位呼叫
+  `getInt` 在 Java 會過，這裡是 `IllegalArgumentException`）
 - 與 Java 生態互通（JAR、JDK 類別庫、JNI）
 - 識別字中的 Unicode 逸出（`\u0041` 不能拼出識別字）
 - 泛型建構子的顯式型別引數 `new <T>Foo(...)`
