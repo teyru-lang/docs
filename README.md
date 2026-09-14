@@ -70,6 +70,21 @@ build command 是 `npm run build`，輸出目錄交給 Vercel 自動判斷即可
 搜尋索引會在建置時產生（`app/api/search/route.ts` 使用 `staticGET`），
 因此搜尋是純前端的，不需要外部搜尋服務。
 
+實際的設定：
+
+- Vercel 專案 `teyru-docs`（team `langyas-projects`），production 部署就是線上版本。
+- 網域 `docs.teyru.dev` 在 Cloudflare 的 zone 裡是一筆 **DNS-only** 的
+  `CNAME docs.teyru.dev -> cname.vercel-dns.com`：不要開代理，憑證交給 Vercel 簽。
+- **每次 push 自動部署**要把 Vercel 的 GitHub App 授權給 `teyru-lang` 組織
+  （Vercel → Add New → Project，或 <https://github.com/apps/vercel/installations/new>），
+  授權之後 `vercel git connect https://github.com/teyru-lang/docs.git` 就能成功。
+  在那之前用 CLI 手動部署：
+
+  ```sh
+  vercel link            # 選專案 teyru-docs
+  vercel deploy --prod   # 建置並發佈；完成後 docs.teyru.dev 就是它
+  ```
+
 ## 語言
 
 這個站沒有 i18n 層：文件本體是繁體中文，站台的導覽與區塊名稱也使用繁體中文。
