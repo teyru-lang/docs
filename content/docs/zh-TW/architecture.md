@@ -70,6 +70,26 @@ Teyru 沒有分號。詞法分析器不產生 NEWLINE token，而是在每個 to
 | 記錄 `Point(int x,int y)` | struct + 建構子 + `x()`/`y()` + `toString`/`hashCode`/`equals` |
 | enum 常數 | 靜態欄位，於 `<clinit>` 建立並填入 ordinal／name |
 
+### 為什麼每個執行檔都帶著前綴（vtable 與 LTO）
+
+C 後端替每個類別寫出一張完整的 vtable，把「沒人呼叫的東西」留給 clang 的 LTO 刪。
+這條路走不通，原因值得記下來：**LTO 刪不掉位址被取用的函式**，而 vtable 就是一串
+位址（`vt_X[i] = (void*)M_X_i`）。`cls_X` 在每個程式裡都是活著的——`main` 會裝上
+`String`、`Object`、陣列、boxed 型別與例外類別——所以 X 宣告的每一個實例方法都留了
+下來，每一個又指名它配置的類別，這個閉包最後吞掉大半個標準程式庫：一支只印一個字串
+的 hello world 背著 `java.util.stream`，因為 `String.lines()` 就坐在 `String.length()`
+旁邊。在 hello world 裡量到的是 **1,262 個函式存活，其中 951 個是前綴的方法，而真正被
+呼叫到的只有 42 個**；其餘 1,233 個是靠位址活著的。（`--no-lto` 在各個 commit 上只差
+17–54 KB，所以這不是 LTO 的設定變了，是後端寫出來的內容變多了。）
+
+**要修的規則**是 LLVM 後端對自己的表早就寫下的那一條，套用到 C 後端產生的表上：
+*有呼叫點調度那個索引，槽位才留*。它只需要把 `NULL` 寫進槽位的初始值，不重新編號、
+不縮短表（執行期與類別記錄共用的版面因此不變），任何還活著的類別保留 0、1、2 三個
+槽位（執行期按索引呼叫它們），介面表不動（程式自己提供的 native 方法可能用編譯器
+沒看過的 selector 調度）。**這一版還沒進編譯器**：剪枝量到過 95,064 位元組的 hello
+world，但它讓 `t133_arrow_blocks`、`t84_sealed_switch`、`t51_java25_tour` 在一個沒被
+留下的 `NULL` 槽位上 segfault，所以退回修正中。
+
 ## 後端與平台
 
 ### 兩個後端

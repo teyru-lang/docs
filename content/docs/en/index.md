@@ -68,15 +68,24 @@ The `bench_invoke` row is now measured by the same script as every other row. It
 
 `bench_loop` fell from about 2.2x in the previous revision to about 1.8x because every loop back-edge now carries a safepoint check — the deliberate cost of a stop-the-world collector, which is **cooperative** here, as [docs/language.md](/en/docs/language) §11 explains. It is not measurement noise.
 
-**The size row is not a boast right now, it is an open problem.** It is the same hello
-world, built with `-O2` and measured with `wc -c`: 501,072 bytes today (about 489 KB). The
-same program was **48,840 bytes** at `74fa648` (9/13). The regression is bisected to
-`52913a0` ("feat(lib): java.util.function", 74,384 -> 105,328 bytes), with a further step
-for every library added since, and `.text` has gone from 12,693 to 320,664. What is known:
-the generated C is still the same 67,285 lines, and the reflection *member* tables are
-still not emitted for a hello world, so what changed is that link-time optimisation no
-longer drops the prelude. The compiler repository's `AGENTS.md` §10 carries the full
-measurement and it is **being worked on** — when it is fixed this row gets the new number.
+**The size row is not a boast right now, it is an open problem — but the cause is known.**
+It is the same hello world built with `-O2` and measured with `wc -c`: 501,072 bytes today
+(about 489 KB). The same program was **48,840 bytes** at `74fa648` (9/13), and the regression
+starts at `52913a0` ("feat(lib): java.util.function"). The cause is structural rather than a
+program written badly: **a vtable is a list of addresses, and LTO cannot drop a function
+whose address is taken** (`vt_X[i] = (void*)M_X_i`), while `cls_X` is live in every program,
+so every method a class declares stayed live and each of those named the classes it
+allocates — a closure that swallows most of the standard library (a hello world printing one
+string carries `java.util.stream`, because `String.lines()` sits in String's table beside
+`String.length()`). Measured: 1,262 functions survive in a hello world, 951 of them prelude
+methods, and only 42 are reachable by being *called*. The mechanism is written up in
+[docs/architecture.md](/en/docs/architecture), under "Why every binary carries the prelude".
+
+Pruning the slots nothing dispatches was measured at 95,064 bytes, but it made three tests
+(`t133_arrow_blocks`, `t84_sealed_switch`, `t51_java25_tour`) segfault on a `NULL` slot the
+scan failed to keep, so it was reverted and is being corrected; the compiler repository's
+`AGENTS.md` §10 carries the full measurement. This row gets a new number when that pruning is
+actually in the compiler.
 
 **Where the speed comes from:**
 
@@ -107,9 +116,9 @@ small. Every number is reproducible with `sh scripts/bench.sh`, which measures t
 programs, the 100 startups, the executable size and the peak RSS, best of `RUNS=5` on the
 machine above.
 
-The size row measures a hello world, and its current size is the subject of that open
-problem above: what the script measures is what the compiler produced from the tree it ran
-on, so the row moves again when the regression is fixed.
+The size row measures a hello world, and its number is the one that will change when the
+pruning is in the compiler: what the script measures is what the compiler produced from the
+tree it ran on.
 
 ---
 

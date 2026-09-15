@@ -75,6 +75,32 @@ whether a statement ends:
 | record `Point(int x,int y)` | struct + constructor + `x()`/`y()` + `toString`/`hashCode`/`equals` |
 | enum constants | static fields, created in `<clinit>` and filled with the ordinal/name |
 
+### Why every binary carries the prelude (vtables and LTO)
+
+The C back end writes a complete vtable per class and leaves "drop what nobody calls" to
+clang's LTO. That cannot work, and the reason is worth writing down: **LTO cannot drop a
+function whose address is taken**, and a vtable is a list of addresses
+(`vt_X[i] = (void*)M_X_i`). `cls_X` is live in every program — `main` installs `String`,
+`Object`, the arrays, the boxed types and the exception classes — so every instance method X
+declares stayed live, each of those named the classes it allocates, and the closure swallowed
+most of the standard library: a hello world that prints one string carries
+`java.util.stream`, because `String.lines()` sits in String's table beside
+`String.length()`. Measured in a hello world: **1,262 functions survive, 951 of them prelude
+methods, and only 42 are reachable by being called**; the other 1,233 are there by address.
+(`--no-lto` differs by only 17-54 KB at every commit checked, so this is not a change in
+LTO's settings but in what the back end emits.)
+
+**The rule to fix it** is the one the LLVM back end already stated for its own tables,
+applied to the C this back end emits: *a slot is kept because a call site dispatches that
+index*. It only has to write `NULL` into a slot initializer, never renumber or shorten a
+table (so the layout the runtime and the class records share is untouched); it keeps slots 0,
+1 and 2 for any live class, because the runtime calls those by index; and it leaves the
+interface tables alone, because a native method the program supplies may dispatch through one
+with a selector the compiler never saw. **That version is not in the compiler yet**: the
+prune was measured at a 95,064-byte hello world, but it made `t133_arrow_blocks`,
+`t84_sealed_switch` and `t51_java25_tour` segfault on a `NULL` slot the scan failed to keep,
+so it is back out and being corrected.
+
 ## Back Ends and Platforms
 
 ### Two back ends
