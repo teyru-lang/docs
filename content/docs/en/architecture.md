@@ -90,13 +90,17 @@ methods, and only 42 are reachable by being called**; the other 1,233 are there 
 (`--no-lto` differs by only 17-54 KB at every commit checked, so this is not a change in
 LTO's settings but in what the back end emits.)
 
-**The rule** is the one the LLVM back end already stated for its own tables, applied to the C
-this back end emits: *a slot is kept because a call site dispatches that index*. It only
-writes `NULL` into a slot initializer, never renumbers or shortens a table (so the layout the
-runtime and the class records share is untouched); it keeps slots 0, 1 and 2 for any live
-class, because the runtime calls those by index; and it leaves the interface tables alone,
-because a native method the program supplies may dispatch through one with a selector the
-compiler never saw.
+**The rule has two halves**: *a slot is kept because a call site dispatches that index*, and
+*only the classes that can be the receiver of that dispatch need to answer it*. A class can be
+a receiver only if it inherits from the class the dispatch was compiled against, and the
+generated C carries that class (`((RET(*)(OWNER*, ...))((recv)->obj.cls->vtable[N]))`), so the
+second half is an `isSubclass` walk over the class records. Without it one reachable
+`Class.toString` keeps slot 7 of every class that overrides that selector, which is most of
+the library. The rewrite only ever writes `NULL` into a slot initializer, never renumbers or
+shortens a table (so the layout the runtime and the class records share is untouched); a live
+class always answers slots 0, 1 and 2; and the interface tables are left alone, because a
+native method the program supplies may dispatch through one with a selector the compiler
+never saw.
 
 Deciding which indices have a call site means scanning the generated C, and the first version
 scanned it wrongly: it ended a function body at the first line holding a lone `}`, while the
@@ -107,12 +111,20 @@ definition, and the slots it read were filled with `NULL`. That is what broke
 of string literals and comments (the generated C carries JSON in its literals, so `"{}"` is a
 string and `/* */` can span lines), and a body ends when the depth returns to zero.
 
-Measured on one machine with `-O2`, the same compiler before and after: a hello world goes
-from 501,072 to 95,832 bytes; `t84_sealed_switch` 521,456 -> 113,904, `t133_arrow_blocks`
-509,536 -> 105,688 and `t51_java25_tour` 523,696 -> 438,560, each of the three byte-identical
-in output. **A program that reflects is unchanged**: `t146_reflect` 4,712,720 and `t101_gson`
-4,684,584, the same before and after, because reflection attaches every member table from
-`main` — what the prune buys is the size of programs that do not reflect.
+Measured on one machine with `-O2`: a hello world goes 501,072 -> 95,832 (the dispatch test
+alone) -> 55,920 (with the receiver test on top); `t84_sealed_switch` 521,456 -> 113,904 ->
+74,888, `t133_arrow_blocks` 509,536 -> 105,688 -> 61,064 and `t51_java25_tour` 523,696 ->
+438,560 -> 253,328, each byte-identical in output at every step. **A program that reflects is
+unchanged**: `t146_reflect` 4,859,976 and `t101_gson` 4,823,592, the same as before the
+pruning, because reflection attaches every member table from `main`.
+
+**The floor.** The C the pruned hello world emits has 628 vtable arrays; every one still
+answers slots 0, 1 and 2, and exactly one has a filled slot at index 3 or above (`Class`'s
+own, for 7, 12, 13 and 16). Slots 0, 1 and 2 cannot be narrowed the same way: the runtime
+reads them by index on objects it did not create (`print_uncaught` and the string helpers
+take `[0]`, `ty_obj_hash` `[1]`, `ty_obj_equal` `[2]`), so their owner is the hierarchy root,
+and going further would need the fact that a class is never instantiated, which the emitted C
+does not decide — and a wrong answer there is a jump to `NULL` rather than a wasted byte.
 
 ## Back Ends and Platforms
 

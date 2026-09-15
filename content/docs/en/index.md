@@ -55,7 +55,7 @@ Temurin; produced by `RUNS=5 sh scripts/bench.sh`, best of 5 runs per row. The n
 | Metric | Teyru (native) | Java (HotSpot) | Difference |
 |---|---|---|---|
 | 100 startups | **0.0769 s** (0.77 ms each) | 1.9982 s (20.0 ms each) | **~26x faster** |
-| Executable size | **93.6 KB** | — | — |
+| Executable size | **54.6 KB** | — | — |
 | Peak RSS (hello) | **4232 kB** | 51124 kB | **~12.1x less** |
 | `bench_fib` recursion | **0.0062 s** | 0.0266 s | **~4.3x faster** |
 | `bench_loop` loops and integer math | **0.0243 s** | 0.0435 s | **~1.8x faster** |
@@ -69,31 +69,35 @@ The `bench_invoke` row is now measured by the same script as every other row. It
 `bench_loop` fell from about 2.2x in the previous revision to about 1.8x because every loop back-edge now carries a safepoint check — the deliberate cost of a stop-the-world collector, which is **cooperative** here, as [docs/language.md](/en/docs/language) §11 explains. It is not measurement noise.
 
 **The size row is a strength again, and the reason for the number is specific.** It is the
-same hello world built with `-O2` and measured with `wc -c`: 95,832 bytes today (about
-93.6 KB). The number comes from the compiler **pruning the vtable slots nothing
-dispatches** — the mechanism is written up in
-[docs/architecture.md](/en/docs/architecture), under "Why every binary carries the prelude".
-Two days ago it was not this: 48,840 bytes at `74fa648` (9/13), growing to 501,072, because
-the C back end wrote every method out and left "drop what nobody calls" to clang's LTO — and
-LTO cannot drop a function whose address is taken, while a vtable is a list of addresses. So
-a hello world was carrying most of the standard library (1,262 functions surviving, 951 of
-them prelude methods, only 42 reachable by being called).
+same hello world built with `-O2` and measured with `wc -c`: 55,920 bytes today (about
+54.6 KB). The number comes from the compiler **pruning the vtable slots nothing dispatches**
+— the mechanism is written up in [docs/architecture.md](/en/docs/architecture), under "Why
+every binary carries the prelude". The number's history: 48,840 bytes at `74fa648` (9/13),
+501,072 before any pruning, 95,832 with the first version (which only asked whether a slot
+was dispatched at all), and 55,920 now, which also asks whether the class could be the
+receiver of that dispatch. The 501,072 build had 1,262 functions surviving in a hello world,
+951 of them prelude methods, only 42 reachable by being called — the rest were alive by
+address through a vtable.
 
-After the prune: a hello world goes from 501,072 to 95,832 bytes, and the three most
-dispatch-heavy programs shrink with it (`t84_sealed_switch` 521,456 -> 113,904,
-`t133_arrow_blocks` 509,536 -> 105,688, `t51_java25_tour` 523,696 -> 438,560) while their
-output stays byte-identical. **A program that reflects is unchanged**: `t146_reflect` is
-4,712,720 bytes, the same as before the prune, because reflection attaches every member table
-from `main` — which is why the "reflection carries about 3 MB" note below still holds, and
-what the prune buys is the size of programs that do not reflect. Speed did not measurably
-change: six benchmarks, interleaved over twenty runs, every difference inside the noise with
-all checksums identical.
+Before and after, on one machine with `-O2`: a hello world goes 501,072 -> 95,832 -> 55,920;
+`t84_sealed_switch` 521,456 -> 113,904 -> 74,888, `t133_arrow_blocks` 509,536 -> 105,688 ->
+61,064 and `t51_java25_tour` 523,696 -> 438,560 -> 253,328, with their output byte-identical
+throughout. **A program that reflects is unaffected**: `t146_reflect` is 4,859,976 bytes and
+`t101_gson` 4,823,592, the same before and after the pruning, because reflection attaches
+every member table from `main` — which is why "reflection carries about 3 MB" still holds
+below, and what the pruning buys is the size of programs that do not reflect. Speed did not
+measurably change: six benchmarks, interleaved over twenty runs, every difference inside the
+noise with all checksums identical.
 
-One piece of headroom is left: 95,832 bytes against the floor a build with every slot `NULL`
-would have, because slots 0, 1 and 2 and four indices (7, 12, 13 and 16, for
-`Class.toString`/`isArray`/`isInterface`/`isPrimitive`) are filled for every live class rather
-than only for subclasses of the dispatch's owner — the emitted dispatch does carry the owner,
-so an `isSubclass` walk could tighten those too.
+**Where the floor is, and why it is not lower.** The C the pruned hello world emits has 628
+vtable arrays; every one of them still answers slots 0, 1 and 2, and exactly **one** has a
+filled slot at index 3 or above — `Class`'s own, for indices 7, 12, 13 and 16, because it is
+the only class that can be a receiver of that dispatch. Slots 0, 1 and 2 stay filled for every
+class and **cannot** be narrowed the same way: the runtime reads them by index on whatever it
+is handed as `void *`/`tyobj *` (`print_uncaught` and the string helpers take `[0]`,
+`ty_obj_hash` `[1]`, `ty_obj_equal` `[2]`), so their owner is the hierarchy root, and going
+further would need the fact that a class is never instantiated, which the emitted C does not
+decide — and a wrong answer there is a jump to `NULL` rather than a wasted byte.
 
 
 
