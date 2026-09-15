@@ -53,7 +53,7 @@ Teyru 原始碼 (.teyru)
 | 指標 | Teyru（原生） | Java（HotSpot） | 差距 |
 |---|---|---|---|
 | 啟動 100 次總時間 | **0.0769 s**（0.77 ms/次） | 1.9982 s（20.0 ms/次） | **約 26 倍快** |
-| 執行檔大小 | **483.2 KB** | — | — |
+| 執行檔大小 | **489 KB**（目前是未解的問題，見下面註記） | — | — |
 | 尖峰記憶體（hello） | **4232 kB** | 51124 kB | **約 12.1 倍省** |
 | `bench_fib` 遞迴 | **0.0062 s** | 0.0266 s | **約 4.3 倍快** |
 | `bench_loop` 迴圈與整數運算 | **0.0243 s** | 0.0435 s | **約 1.8 倍快** |
@@ -65,6 +65,14 @@ Teyru 原始碼 (.teyru)
 `bench_invoke` 這一列現在與其他每一列一樣，由同一支腳本量測。它先前不是：Java 檔案的類別名稱與檔名不符，harness 因此安靜地跳過那支程式、在 Java 欄印出 `-`。那是腳本真正的缺陷，已經修好（commit `1ad9b8c`），而且 Java 檔案產不出可執行的類別時，harness 現在印 `!no-class` 而不是 `-`。這一列顯示 `Method.invoke` 這條路徑仍比 HotSpot 慢約 2.4 倍。
 
 `bench_loop` 由上一個版本的約 2.2 倍落到約 1.8 倍，原因是每個迴圈回邊現在都帶一次安全點檢查——那是停止世界（stop-the-world）收集器刻意的代價，GC 是**合作式**的，說明見 [docs/language.md](/docs/language) §11。這不是量測誤差。
+
+**大小那一列現在不是成績，是一個未解的問題。** 它是同一個 hello world 在 `-O2` 下
+以 `wc -c` 量的，今天是 501,072 位元組（約 489 KB）；同一個程式在 `74fa648`（9/13）
+是 **48,840 位元組**。退步已二分到 `52913a0`「feat(lib): java.util.function」
+（74,384 → 105,328 位元組），之後每加一個函式庫就再往上跳一階，`.text` 從 12,693
+漲到 320,664。已經知道的事：產生的 C 還是 67,285 行，反射的成員表也沒有寫進這支
+程式，所以變的是連結期最佳化不再把前綴整個丟掉。編譯器倉庫的 `AGENTS.md` §10 記著
+這件事的完整量測，**處理中**——修好之後這一列會換回新的數字。
 
 **為什麼會快：**
 
@@ -89,10 +97,8 @@ process 啟動，絕對值都很小；重現方式見 `sh scripts/bench.sh`，�
 啟動 100 次、執行檔大小與尖峰記憶體都由這支腳本量測（`RUNS=5` 取最佳，於上面那台
 機器上執行）。
 
-大小那一列量的是 hello world，它約 483 KB 而不是幾十 KB：程式用到 `String`，`String`
-的 vtable 就必須收進它的每一個方法，於是 `matches` 把整支規則表達式引擎拉了進來、
-`Collection` 的預設方法把四個 Stream 也拉了進來。連結期最佳化刪得掉到不了的類別，
-刪不掉「用到的類別碰得到」的類別。
+大小那一列量的是 hello world，而它現在的大小是上面那個未解問題的主體：腳本量到的
+是編譯器在當時那棵樹上產生什麼，所以那一列會跟著修好而變。
 
 ---
 
@@ -334,6 +340,7 @@ class Main {
 | `java.util.HexFormat` | `of`／`ofDelimiter`、`with*`、`formatHex`／`parseHex`、`toHexDigits` 與位數分類 |
 | `java.util.Scanner` | 讀一個 `String`：`hasNext`／`next` 與整數、長整數、浮點的形式，加上 `nextLine` |
 | `java.security` | `MessageDigest`（MD5、SHA-1／224／256／384／512，以 Teyru 實作），加上 `java.util.zip` 形狀的 `Checksum` 與 `CRC32` |
+| `java.util.zip` | `Deflater`／`Inflater`（level 0–9、zlib 包裝或 raw）、`Adler32`、`GZIPOutputStream`／`GZIPInputStream`；RFC 1951 的 deflate 以 Teyru 撰寫，web 層用它壓縮回應 |
 | `java.util.concurrent` | 執行器（`Executors`／`Future`／`ThreadPool`）與同步器（`CountDownLatch`、`AtomicInteger`／`AtomicLong`、`ConcurrentHashMap`）；全部是監視器，不是 lock-free |
 | `com.google.gson` | Gson 的樹狀 API，以及執行期讀取類別欄位的物件綁定（[docs/json.md](/docs/json)） |
 | 執行緒 | `Thread`／`Runnable`、真正的 `synchronized`（含方法修飾子）與 `Object.wait`／`notify`／`notifyAll`（[docs/language.md](/docs/language) §11） |
@@ -400,9 +407,9 @@ teyru build --native impl.c program.teyru            # 一起編譯
 | `internal/parser` | 遞迴下降剖析器，以顯著性與前綴完整性判斷敘述是否結束 |
 | `internal/ast` | 語法樹、符號（類別／方法／欄位／變數）、型別 |
 | `internal/sema` | 名稱解析、型別檢查、泛型抹除與推斷、多載解析、vtable／selector 配置、property 降階 |
-| `internal/codegen` | 產生 C：類別→struct、虛擬呼叫→vtable、介面呼叫→itable、switch 降階、GC 根資訊 |
+| `internal/codegen` | 兩個後端：C（預設；類別→struct、虛擬呼叫→vtable、介面呼叫→itable、GC 根資訊）與 LLVM（`--backend=llvm`；產生程式自己的 IR 模組） |
 | `internal/util` | 前後端共用的工具：名稱修飾、型別描述、C 版面配置 |
-| `internal/runtime/src` | C 執行期：GC、字串、陣列、例外、boxing、Math／System／StringBuilder |
+| `internal/runtime/src` | C 執行期：GC、字串、陣列、例外、boxing、執行緒與監視器、socket；作業系統那一層在 `tyrt_plat.h`，實作分成 POSIX 與 Windows 兩半 |
 | `lib` | 以 Teyru 撰寫的標準程式庫 |
 | `tests/programs` | 端到端測試程式與期望輸出（`go test` 會逐一編譯並比對） |
 | `tests/native` | native 方法互通測試：Teyru 宣告 + C 實作 + 期望輸出（`TestNative`） |
@@ -478,7 +485,43 @@ teyru help                                     說明
 | `--native-header <path>` | 產生 native 方法的宣告（見 [docs/native.md](/docs/native)） |
 | `--link <arg>` | 傳給連結步驟的參數，例如 `--link -lm` |
 | `--no-lto` | 關閉 LTO（工具鏈不支援時會自動退回） |
+| `--target <os>/<arch>` | 編譯給哪個平台（預設是這台機器）；未知的目標會以名字被拒絕 |
+| `--backend <c\|llvm>` | 用哪個後端編譯程式（預設 `c`，見下面〈後端與平台〉） |
 | `-v` | 顯示實際執行的編譯命令 |
+
+---
+
+## 後端與平台
+
+**兩個後端，預設是 C。** 預設的 C 後端替整個程式產生 C（見
+[docs/architecture.md](/docs/architecture)）。`--backend=llvm` 換成後端直接產生**這個
+程式自己的 LLVM IR**：執行期仍然是 C，clang 只負責組譯與連結。它拒絕它降不下去的
+東西，不會安靜地退回 C 後端——拒絕是一個 `TY-INT-0100` 診斷，指出是哪個建構。
+
+那條界線是量出來的，不是猜的：`tests/programs` 掃過一輪的結果是
+**76 支逐位元組相同、0 支輸出錯誤、119 支被 emitter 以診斷拒絕、0 個模組 clang 不收**。
+被拒絕的那些按順序是：閉包（lambda 與方法參照，以及區域類別與匿名類別）、
+record／enum／註解合成出來的成員、型別 pattern 與帶守衛的 switch、內部類別，然後是
+其餘。它目前只編 linux/amd64，其他目標以 `TY-INT-0101` 拒絕。
+
+**平台層。** 執行期對作業系統的呼叫都走 `internal/runtime/src/tyrt_plat.h`：
+時間與 CPU、mutex 與 condition variable、執行緒、啟動、socket、檔案，共四十個
+`typlat_*` 函式，實作分成 `tyrt_plat_posix.c` 與 `tyrt_plat_win.c` 兩半，
+只有 `tyrt.c`／`tyrt2.c`／`tyrt_thread.c`／`tyrt_net.c` 會呼叫它們。
+
+`teyru build --target <os>/<arch>` 選的是編譯器、旗標、要編哪一半的平台層與輸出檔名；
+沒有給就編給這台機器。目標表有五列，每列的證據不一樣：
+
+| 目標 | 驗證到什麼程度 |
+|---|---|
+| `linux/amd64` | 完整套件：`go test ./...` 與 `sh tests/run.sh`（221 項）都在 CI 上跑 |
+| `windows/amd64` | 原生 CI 跑 `go test ./...`；在作者的機器上以 Wine 跑測試程式，195 支裡 179 支逐位元組相同（16 支不符裡 14 支在改動前的編譯器上用 gcc 編 Linux 也一樣失敗，2 支是 Windows 的路徑與檔名事實） |
+| `linux/arm64` | CI 建得出來，並真的跑一支程式（`ubuntu-24.04-arm`）；沒有跑整套 |
+| `darwin/amd64`、`darwin/arm64` | CI 在 macOS runner 上跑 `go test ./...`；**作者的機器上沒有驗證過**（沒有 macOS 可用） |
+
+這張表**不是「每一列都跑過」的承諾**：`linux/amd64` 是整套測試的那一個，其他目標如果
+需要這台機器沒有的交叉工具鏈，會在編譯器那裡以編譯器自己的錯誤失敗，而不是安靜地
+成功。macOS 沒有可命名的交叉編譯器，所以從別的宿主要求它是明確的錯誤。
 
 ---
 

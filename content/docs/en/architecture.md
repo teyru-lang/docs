@@ -1,6 +1,6 @@
 ---
 title: "The Teyru Compiler Architecture"
-description: "The complete pipeline from source file to native executable: lexing, parsing, semantic analysis, C code generation, and the runtime."
+description: "The complete pipeline from source file to native executable: lexing, parsing, semantic analysis, code generation (C or LLVM IR), the platform layer, and the runtime."
 ---
 
 ## Pipeline
@@ -19,11 +19,13 @@ AST
 Checked program model
    │  internal/sema        — symbol table, types, generic erasure, overloads, layout
    ▼
-C source
-   │  internal/codegen    — class→struct, vtable/itable, GC root info
+Generated code
+   │  internal/codegen    — C back end (default): class→struct, vtable/itable, GC root info
+   │                        LLVM back end (--backend=llvm): the program's own LLVM IR
    ▼
 Native executable
       clang/LLVM or gcc + internal/runtime/src (GC, strings, arrays, exceptions)
+                                    └ platform layer tyrt_plat.h → tyrt_plat_posix.c or tyrt_plat_win.c
 ```
 
 ## Newlines as Statement Terminators
@@ -73,9 +75,51 @@ whether a statement ends:
 | record `Point(int x,int y)` | struct + constructor + `x()`/`y()` + `toString`/`hashCode`/`equals` |
 | enum constants | static fields, created in `<clinit>` and filled with the ordinal/name |
 
+## Back Ends and Platforms
+
+### Two back ends
+
+**The C back end is the default**: it generates C for the whole program, and the mapping
+table above is its rules. `--backend=llvm` switches to the **LLVM back end**, which emits
+**the program's own LLVM IR module** (`EmitLLVM` in `internal/codegen/llvm.go`): the runtime
+is still C, and clang only assembles the module and links it against the runtime. The module
+carries a target triple and calls this platform's C library directly, so it is right for the
+platform it was written for and no other — linux/amd64 today, with every other target refused
+by `TY-INT-0101`.
+
+What cannot be lowered is a `TY-INT-0100` diagnostic naming the construct, and there is **no
+fallback to the C back end**: a program either builds with this back end or gets a diagnostic
+that says why. The boundary is measured: a sweep over `tests/programs` comes out at **76
+byte-identical, 0 producing wrong output, 119 refused by the emitter, 0 modules clang
+rejects** (that last number exits the sweep non-zero when it is not zero, because a module
+clang will not accept is a bug and must not hide among the refusals). The refusals, in
+milestone order, are: closures (lambdas and method references, plus local and anonymous
+classes), the members that records, enums and annotations synthesize (constructors,
+accessors, `equals`/`hashCode`/`toString`), type patterns and guarded switch cases, inner
+classes, and the rest (`synchronized`, interface dispatch, try-with-resources,
+`Class.forName`, and so on).
+
+This is the state of the back end, not "Teyru does not use C": the runtime is C and so is the
+default back end.
+
+### The platform layer
+
+Everything the runtime asks of the operating system is collected in
+`internal/runtime/src/tyrt_plat.h`: forty `typlat_*` functions grouped into time and CPU,
+mutexes, condition variables, threads, startup, sockets and files, implemented in two halves,
+`tyrt_plat_posix.c` and `tyrt_plat_win.c`. Only `tyrt.c`, `tyrt2.c`, `tyrt_thread.c` and
+`tyrt_net.c` call them (`tyrt_reflect.c` calls none). What is deliberately **not** abstracted
+is written in that header too: mingw's C library is POSIX-shaped, so `open`/`read`/`write`/
+`stat` are called straight from `tyrt_net.c`, and only the four things whose shape differs
+(open flags, `mkdir`'s arity, `mkdtemp`, the temporary directory) sit behind the layer.
+
+`teyru build --target <os>/<arch>` decides which compiler, which flags, which half of the
+platform layer and which output suffix; the target table has five rows, with evidence of
+different strength (see [docs/index.md](/en/docs) and "Back ends and platforms").
+
 ## Performance Design
 
-The generated C is compiled by clang/LLVM with `-O2` plus LTO (`--no-lto` turns it off; toolchains
+The C the default back end generates is compiled by clang/LLVM with `-O2` plus LTO (`--no-lto` turns it off; toolchains
 that do not support LTO fall back automatically), and cross-function inlining, constant propagation
 and loop vectorisation are all left to LLVM. On top of that, the compiler and the runtime deliberately
 keep hot paths at the level of a single instruction:

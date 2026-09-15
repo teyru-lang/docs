@@ -1,6 +1,6 @@
 ---
 title: "Teyru 編譯器架構"
-description: "從來源檔到原生執行檔的完整流程：詞法、語法、語意分析、C 程式碼產生與執行期。"
+description: "從來源檔到原生執行檔的完整流程：詞法、語法、語意分析、程式碼產生（C 或 LLVM IR）、平台層與執行期。"
 ---
 
 ## 流程
@@ -19,11 +19,13 @@ AST
 已檢查的程式模型
    │  internal/sema        — 符號表、型別、泛型抹除、多載、佈局
    ▼
-C 原始碼
-   │  internal/codegen    — 類別→struct、vtable／itable、GC 根資訊
+產生的程式碼
+   │  internal/codegen    — C 後端（預設）：類別→struct、vtable／itable、GC 根資訊
+   │                        LLVM 後端（--backend=llvm）：程式自己的 LLVM IR
    ▼
 原生執行檔
       clang/LLVM 或 gcc + internal/runtime/src（GC、字串、陣列、例外）
+                                    └ 平台層 tyrt_plat.h → tyrt_plat_posix.c 或 tyrt_plat_win.c
 ```
 
 ## 換行當敘述終止符
@@ -68,9 +70,43 @@ Teyru 沒有分號。詞法分析器不產生 NEWLINE token，而是在每個 to
 | 記錄 `Point(int x,int y)` | struct + 建構子 + `x()`/`y()` + `toString`/`hashCode`/`equals` |
 | enum 常數 | 靜態欄位，於 `<clinit>` 建立並填入 ordinal／name |
 
+## 後端與平台
+
+### 兩個後端
+
+**C 後端是預設**：它替整個程式產生 C，上面那張對應表就是它的規則。`--backend=llvm`
+改用 **LLVM 後端**，直接產生**這個程式自己的 LLVM IR 模組**（`internal/codegen/llvm.go`
+的 `EmitLLVM`）：執行期仍然是 C，clang 只負責把模組組譯並與執行期連結。模組帶著
+目標 triple，也直接呼叫這個平台的 C 函式庫，所以它只對它被寫出來的那個平台是對的
+——現在只有 linux/amd64，其他目標以 `TY-INT-0101` 拒絕。
+
+降不下去的建構是 `TY-INT-0100` 診斷，指名那個建構，**不會退回 C 後端**：一個程式
+不是用它編得過，就是拿到一個說得出為什麼的診斷。界線是量出來的：`tests/programs`
+掃過一輪得到 **76 支逐位元組相同、0 支輸出錯誤、119 支被 emitter 拒絕、0 個模組
+clang 不收**（最後一項不為零就讓掃描以非零結束，因為 clang 不收的模組是 bug，不該
+混在拒絕裡）。被拒絕的那些按里程碑排序：閉包（lambda 與方法參照、區域類別與匿名
+類別）、record／enum／註解被合成出來的成員（建構子、accessor、`equals`／`hashCode`／
+`toString`）、型別 pattern 與帶守衛的 switch、內部類別，然後是其餘（`synchronized`、
+介面調度、try-with-resources、`Class.forName` 等）。
+
+這是後端的現況，不是「Teyru 不用 C」：執行期是 C，預設後端也是 C。
+
+### 平台層
+
+執行期對作業系統的每一項需求都收在 `internal/runtime/src/tyrt_plat.h` 裡，四十個
+`typlat_*` 函式，分成時間與 CPU、mutex、condition variable、執行緒、啟動、socket
+與檔案幾組；實作有兩半，`tyrt_plat_posix.c` 與 `tyrt_plat_win.c`。呼叫它們的只有
+`tyrt.c`、`tyrt2.c`、`tyrt_thread.c` 與 `tyrt_net.c`（`tyrt_reflect.c` 一個都不用）。
+刻意**不**抽象化的東西也寫在標頭檔裡：mingw 的 C 函式庫長得跟 POSIX 一樣，所以
+`open`／`read`／`write`／`stat` 這一組由 `tyrt_net.c` 直接呼叫，只有形狀不同的四件事
+（開啟旗標、`mkdir` 的參數個數、`mkdtemp`、暫存目錄）放在這一層後面。
+
+`teyru build --target <os>/<arch>` 決定用哪個編譯器、哪些旗標、編哪一半平台層與輸出
+檔名；目標表有五列，證據強度不同（見 [docs/index.md](/docs) 的〈後端與平台〉）。
+
 ## 效能設計
 
-產生的 C 由 clang/LLVM 以 `-O2` 加 LTO 編譯（`--no-lto` 可關閉；不支援 LTO 的
+預設後端產生的 C 由 clang/LLVM 以 `-O2` 加 LTO 編譯（`--no-lto` 可關閉；不支援 LTO 的
 工具鏈會自動退回），跨函式 inline、常數傳播與迴圈向量化都由 LLVM 負責。在此之上，
 編譯器與執行期刻意讓熱路徑保持單一指令層級：
 

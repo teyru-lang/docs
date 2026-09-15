@@ -55,7 +55,7 @@ Temurin; produced by `RUNS=5 sh scripts/bench.sh`, best of 5 runs per row. The n
 | Metric | Teyru (native) | Java (HotSpot) | Difference |
 |---|---|---|---|
 | 100 startups | **0.0769 s** (0.77 ms each) | 1.9982 s (20.0 ms each) | **~26x faster** |
-| Executable size | **483.2 KB** | — | — |
+| Executable size | **489 KB** (an open problem right now; see the note below) | — | — |
 | Peak RSS (hello) | **4232 kB** | 51124 kB | **~12.1x less** |
 | `bench_fib` recursion | **0.0062 s** | 0.0266 s | **~4.3x faster** |
 | `bench_loop` loops and integer math | **0.0243 s** | 0.0435 s | **~1.8x faster** |
@@ -67,6 +67,16 @@ Temurin; produced by `RUNS=5 sh scripts/bench.sh`, best of 5 runs per row. The n
 The `bench_invoke` row is now measured by the same script as every other row. It was not before: the Java file's class name did not match its filename, so the harness silently skipped the run and printed `-` in the Java column. That was a real defect in the script, and it is fixed (commit `1ad9b8c`); the harness now also prints `!no-class` instead of `-` when a Java file produces no runnable class. The row shows that the `Method.invoke` path is still about 2.4x slower than HotSpot's.
 
 `bench_loop` fell from about 2.2x in the previous revision to about 1.8x because every loop back-edge now carries a safepoint check — the deliberate cost of a stop-the-world collector, which is **cooperative** here, as [docs/language.md](/en/docs/language) §11 explains. It is not measurement noise.
+
+**The size row is not a boast right now, it is an open problem.** It is the same hello
+world, built with `-O2` and measured with `wc -c`: 501,072 bytes today (about 489 KB). The
+same program was **48,840 bytes** at `74fa648` (9/13). The regression is bisected to
+`52913a0` ("feat(lib): java.util.function", 74,384 -> 105,328 bytes), with a further step
+for every library added since, and `.text` has gone from 12,693 to 320,664. What is known:
+the generated C is still the same 67,285 lines, and the reflection *member* tables are
+still not emitted for a hello world, so what changed is that link-time optimisation no
+longer drops the prelude. The compiler repository's `AGENTS.md` §10 carries the full
+measurement and it is **being worked on** — when it is fixed this row gets the new number.
 
 **Where the speed comes from:**
 
@@ -97,11 +107,9 @@ small. Every number is reproducible with `sh scripts/bench.sh`, which measures t
 programs, the 100 startups, the executable size and the peak RSS, best of `RUNS=5` on the
 machine above.
 
-The size row measures a hello world, and it is 483 KB rather than tens of KB: the program
-uses `String`, so `String`'s vtable has to carry every one of its methods, which pulls in
-the whole regular-expression engine through `matches` and all four streams through
-`Collection`'s default methods. Link-time optimisation removes what nothing can reach; it
-cannot remove what a class the program does use can reach.
+The size row measures a hello world, and its current size is the subject of that open
+problem above: what the script measures is what the compiler produced from the tree it ran
+on, so the row moves again when the regression is fixed.
 
 ---
 
@@ -347,6 +355,7 @@ compiles unchanged:
 | `java.util.HexFormat` | `of`/`ofDelimiter`, the `with*` mutators, `formatHex`/`parseHex`, `toHexDigits` and the digit classifications |
 | `java.util.Scanner` | Reads one `String`: `hasNext`/`next` with the int, long and double forms, plus `nextLine` |
 | `java.security` | `MessageDigest` (MD5, SHA-1/224/256/384/512, implemented in Teyru), plus `java.util.zip`'s `Checksum` and `CRC32` |
+| `java.util.zip` | `Deflater`/`Inflater` (levels 0-9, zlib-wrapped or raw), `Adler32`, `GZIPOutputStream`/`GZIPInputStream`; RFC 1951 deflate is written in Teyru, and the web layer compresses responses with it |
 | `java.util.concurrent` | The executors (`Executors`/`Future`/`ThreadPool`) and the synchronizers (`CountDownLatch`, `AtomicInteger`/`AtomicLong`, `ConcurrentHashMap`); all monitors, nothing lock-free |
 | `com.google.gson` | Gson's tree API plus an object binding that reads the class's fields at run time ([docs/json.md](/en/docs/json)) |
 | threads | `Thread`/`Runnable`, real `synchronized` (including the method modifier) and `Object.wait`/`notify`/`notifyAll` ([docs/language.md](/en/docs/language) §11) |
@@ -418,9 +427,9 @@ See [`docs/native.md`](/en/docs/native).
 | `internal/parser` | Recursive descent; statement termination uses newline significance plus prefix completeness |
 | `internal/ast` | Syntax tree, symbols (class/method/field/variable), types |
 | `internal/sema` | Name resolution, type checking, erasure and inference, overload resolution, vtable/selector layout, property lowering |
-| `internal/codegen` | C generation: classes to structs, virtual calls to vtables, interface calls to itables, switch lowering, GC root info |
+| `internal/codegen` | Two back ends: C (the default; classes to structs, virtual calls to vtables, interface calls to itables, GC root info) and LLVM (`--backend=llvm`; emits the program's own IR module) |
 | `internal/util` | Shared helpers: name mangling, type descriptors, C layout |
-| `internal/runtime/src` | C runtime: GC, strings, arrays, exceptions, boxing, Math/System/StringBuilder |
+| `internal/runtime/src` | C runtime: GC, strings, arrays, exceptions, boxing, threads and monitors, sockets; its operating-system half is `tyrt_plat.h`, implemented for POSIX and Windows |
 | `lib` | Standard library, written in Teyru |
 | `tests/programs` | End-to-end programs plus expected output (`go test` compiles and diffs each one) |
 | `tests/native` | Native-method interop test: Teyru declarations, a C implementation and the expected output (`TestNative`) |
@@ -504,7 +513,48 @@ teyru help                                     print usage
 | `--native-header <path>` | Write the declarations of the native methods (see [docs/native.md](/en/docs/native)) |
 | `--link <arg>` | Extra argument for the link step, such as `--link -lm` |
 | `--no-lto` | Disable LTO (the build retries without it when the toolchain lacks support) |
+| `--target <os>/<arch>` | Which platform to build for (the default is this machine); an unknown target is refused by name |
+| `--backend <c\|llvm>` | Which back end compiles the program (the default is `c`, see "Back ends and platforms" below) |
 | `-v` | Print the compiler command being run |
+
+---
+
+## Back ends and platforms
+
+**Two back ends, and C is the default.** The C back end generates C for the whole program
+(see [docs/architecture.md](/en/docs/architecture)). `--backend=llvm` switches to the
+back end that emits **the program's own LLVM IR module**: the runtime is still C and clang
+only assembles and links. It refuses what it cannot lower rather than quietly falling back
+to the C back end — a refusal is a `TY-INT-0100` diagnostic naming the construct.
+
+That boundary is measured, not guessed: a sweep over `tests/programs` comes out at **76
+byte-identical, 0 producing wrong output, 119 refused by the emitter, and 0 modules clang
+rejects**. The refused ones, in the order the milestone lists them: closures (lambdas and
+method references, plus local and anonymous classes), the members records, enums and
+annotations synthesize, type patterns and guarded switch cases, inner classes, and the
+rest. It compiles for linux/amd64 only, and refuses every other target with `TY-INT-0101`.
+
+**The platform layer.** Everything the runtime asks of the operating system goes through
+`internal/runtime/src/tyrt_plat.h`: time and CPU, mutexes and condition variables, threads,
+startup, sockets and files — forty `typlat_*` functions, implemented in two halves,
+`tyrt_plat_posix.c` and `tyrt_plat_win.c`. Only `tyrt.c`, `tyrt2.c`, `tyrt_thread.c` and
+`tyrt_net.c` call them.
+
+`teyru build --target <os>/<arch>` picks the compiler, the flags, which half of the
+platform layer to compile and the output suffix; without it, the build targets this
+machine. The target table has five rows, and the evidence behind them is not the same:
+
+| Target | How far it is verified |
+|---|---|
+| `linux/amd64` | The full suite: `go test ./...` and `sh tests/run.sh` (221 cases) both run in CI |
+| `windows/amd64` | Native CI runs `go test ./...`; on the maintainer's machine the test programs run under Wine and 179 of 195 are byte-identical (14 of the 16 that are not also fail on Linux with gcc under the pre-change compiler, and 2 are Windows path and filename facts) |
+| `linux/arm64` | CI builds it and runs one program on it (`ubuntu-24.04-arm`); the suite does not run there |
+| `darwin/amd64`, `darwin/arm64` | CI runs `go test ./...` on macOS runners; **not verified on the maintainer's machine** (there is no macOS to run) |
+
+The table is **not a promise that every row has been run**: `linux/amd64` is the suite's,
+and a target that needs a cross toolchain this machine does not have fails at the compiler
+with the compiler's own error rather than silently. There is no cross compiler for macOS
+to name, so asking for one from another host is an explicit error.
 
 ---
 

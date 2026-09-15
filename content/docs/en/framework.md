@@ -241,6 +241,25 @@ nothing and the next request gets a fresh session. `attributeNames()` keeps the
 order attributes were first set in. `Sessions.count()` and `clear()` are for
 tests.
 
+**Expiry.** `setMaxInactiveInterval(seconds)` gives one session an idle limit and
+`Sessions.setTimeout(seconds)` gives the whole store a default; `0` (or anything negative)
+means **no limit**, a session's own interval wins when it has one, and otherwise the store
+default applies. The setting file takes Boot's `server.servlet.session.timeout`, whose value
+is a duration — `30m`, `2h`, `1d`, `45s` — or a bare number of seconds;
+`spring.web.session.timeout` is the shorter spelling of the same thing, and Boot's key wins.
+A value that cannot be read becomes `0` (no limit) rather than a guess.
+
+An expired session is not a session: `find(req)` drops it and answers `null`, so the cookie
+the client is still holding names nothing and the next request that wants a session is given
+a new one (`tests/programs/t181_session_timeout.teyru`).
+
+**There is deliberately no background reaper.** This runtime joins every thread when the
+program ends, so a reaper looping forever would stop a program from finishing; instead every
+request checks a few sessions — a cursor advances, eight per call — so the cost is spread
+over the traffic rather than handed to a reaper, and `Sessions.prune()` walks the whole store
+at once for a test or a quiet moment. Worth knowing: **with no store default set, that cursor
+does nothing** — a session that set only its own interval is found by `find()` or by `prune()`.
+
 ### Validation
 
 `lib/36_validation.teyru` is the piece of bean validation a web layer needs: a
@@ -286,6 +305,30 @@ names no boundary, or when its body is not the multipart it claims to be — not
 an exception, because whether that is a 400 is the handler's decision. The
 urlencoded form is untouched and still binds through `@RequestParam` (see
 `tests/programs/t161_multipart.teyru`).
+
+### Compressed responses
+
+Whether a response is compressed is **the handler's decision**: set `HttpResponse.gzipBody`
+to `true`, and the connection loop reads `Accept-Encoding` on the way out and compresses
+only when every one of these holds:
+
+- the request accepts gzip (`gzip` or `*`; `gzip;q=0` is a refusal, not an offer);
+- the body is at least 1024 bytes — gzip's own header and trailer are 18 bytes, and a body
+  that is already one packet is not made better by being one packet and a header;
+- the compressed body is **actually shorter**.
+
+The compression itself is `lib/44_zip.teyru` (see [docs/language.md](/en/docs/language) §11).
+`Content-Encoding: gzip` is written only when the body really was compressed; whenever the
+handler asked for compression the response carries `Vary: Accept-Encoding`, **whether or not
+this particular request got the compressed form** — a cache must not hand a compressed body
+to a client that never said it could decode one. `Content-Length` is recomputed by the server
+from the (compressed) body as it sends it.
+
+The client half is opt-in: `HttpClientRequest.acceptGzip()` is what sends
+`Accept-Encoding: gzip`, and an answer that says `Content-Encoding: gzip` is decoded for the
+caller while the headers — `Content-Length` among them — keep the numbers that were on the
+wire. A malformed gzip is not swallowed: `ZipException`/`EOFException` come out of `send`
+(`tests/programs/t180_http_gzip.teyru`).
 
 ### Testing
 
@@ -335,8 +378,9 @@ thread, the main thread as the client, a round trip inside one program.
    the program: a client and a server fit in one program. Serving several
    connections at once needs thread-per-connection, which is not there; the
    shape is already the shape it needs.
-2. **No content negotiation.** Only the method's declared type is looked at, not
-   `Accept`.
+2. **Almost no content negotiation.** Only the method's declared type is looked at, not
+   `Accept`; the one exception is `Accept-Encoding` and gzip — and that needs the handler to
+   turn `gzipBody` on first. brotli, deflate and the other codings are not there.
 3. **Sessions live in the process.** With two processes behind one address a
    request has to come back to the one that made the session, and the id is 128
    bits of `java.util.Random` — enough for one server, not a cryptographic

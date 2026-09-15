@@ -1,6 +1,6 @@
 ---
 title: "Teyru 编译器架构"
-description: "从源文件到原生可执行文件的完整流程：词法、语法、语义分析、C 代码生成与运行时。"
+description: "从源文件到原生可执行文件的完整流程：词法、语法、语义分析、代码生成（C 或 LLVM IR）、平台层与运行时。"
 ---
 
 ## 流程
@@ -19,11 +19,13 @@ AST
 已检查的程序模型
    │  internal/sema        — 符号表、类型、泛型擦除、重载、布局
    ▼
-C 源码
-   │  internal/codegen    — 类→struct、vtable／itable、GC 根信息
+生成的代码
+   │  internal/codegen    — C 后端（默认）：类→struct、vtable／itable、GC 根信息
+   │                        LLVM 后端（--backend=llvm）：程序自己的 LLVM IR
    ▼
 原生可执行文件
       clang/LLVM 或 gcc + internal/runtime/src（GC、字符串、数组、异常）
+                                    └ 平台层 tyrt_plat.h → tyrt_plat_posix.c 或 tyrt_plat_win.c
 ```
 
 ## 换行作为语句终止符
@@ -68,9 +70,43 @@ Teyru 没有分号。词法分析器不产生 NEWLINE token，而是在每个 to
 | 记录 `Point(int x,int y)` | struct + 构造函数 + `x()`/`y()` + `toString`/`hashCode`/`equals` |
 | enum 常量 | 静态字段，于 `<clinit>` 中创建并填入 ordinal／name |
 
+## 后端与平台
+
+### 两个后端
+
+**C 后端是默认**：它替整个程序生成 C，上面那张对应表就是它的规则。`--backend=llvm`
+改用 **LLVM 后端**，直接生成**这个程序自己的 LLVM IR 模块**（`internal/codegen/llvm.go`
+的 `EmitLLVM`）：运行期仍然是 C，clang 只负责把模块汇编并与运行期链接。模块带着
+目标 triple，也直接调用这个平台的 C 函数库，所以它只对它被写出来的那个平台是对的
+——现在只有 linux/amd64，其他目标以 `TY-INT-0101` 拒绝。
+
+降不下去的构造是 `TY-INT-0100` 诊断，指名那个构造，**不会退回 C 后端**：一个程序
+不是用它编得过，就是拿到一个说得出为什么的诊断。界线是量出来的：`tests/programs`
+扫过一轮得到 **76 支逐字节相同、0 支输出错误、119 支被 emitter 拒绝、0 个模块
+clang 不收**（最后一项不为零就让扫描以非零结束，因为 clang 不收的模块是 bug，不该
+混在拒绝里）。被拒绝的那些按里程碑排序：闭包（lambda 与方法引用、局部类与匿名
+类）、record／enum／注解被合成出来的成员（构造函数、accessor、`equals`／`hashCode`／
+`toString`）、类型 pattern 与带守卫的 switch、内部类，然后是其余（`synchronized`、
+接口调度、try-with-resources、`Class.forName` 等）。
+
+这是后端的现况，不是「Teyru 不用 C」：运行期是 C，默认后端也是 C。
+
+### 平台层
+
+运行期对操作系统的每一项需求都收在 `internal/runtime/src/tyrt_plat.h` 里，四十个
+`typlat_*` 函数，分成时间与 CPU、mutex、condition variable、线程、启动、socket
+与文件几组；实现有两半，`tyrt_plat_posix.c` 与 `tyrt_plat_win.c`。调用它们的只有
+`tyrt.c`、`tyrt2.c`、`tyrt_thread.c` 与 `tyrt_net.c`（`tyrt_reflect.c` 一个都不用）。
+刻意**不**抽象化的东西也写在头文件里：mingw 的 C 函数库长得跟 POSIX 一样，所以
+`open`／`read`／`write`／`stat` 这一组由 `tyrt_net.c` 直接调用，只有形状不同的四件事
+（打开旗标、`mkdir` 的参数个数、`mkdtemp`、临时目录）放在这一层后面。
+
+`teyru build --target <os>/<arch>` 决定用哪个编译器、哪些旗标、编哪一半平台层与输出
+文件名；目标表有五列，证据强度不同（见 [docs/index.md](/zh-CN/docs) 的〈后端与平台〉）。
+
 ## 性能设计
 
-生成的 C 由 clang/LLVM 以 `-O2` 加 LTO 编译（`--no-lto` 可关闭；不支持 LTO 的
+默认后端生成的 C 由 clang/LLVM 以 `-O2` 加 LTO 编译（`--no-lto` 可关闭；不支持 LTO 的
 工具链会自动回退），跨函数 inline、常量传播与循环向量化都由 LLVM 负责。在此之上，
 编译器与运行时刻意让热路径保持单一指令层级：
 

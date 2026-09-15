@@ -216,6 +216,21 @@ cookie 的地方：路由的回應是處理函式回傳後才產生的，這也�
 cookie 就指不到東西，下一個請求會拿到新的會話；`attributeNames()` 保持首次設定的
 順序；`Sessions.count()`／`clear()` 是給測試用的。
 
+**逾時。** `setMaxInactiveInterval(秒)` 給單一會話一個閒置上限，`Sessions.setTimeout(秒)`
+給整個 store 一個預設；`0`（或負數）是**沒有限制**，會話自己設了就以自己的為準，否則
+用 store 的預設。設定檔寫 Boot 的 `server.servlet.session.timeout`，值是 `30m`、`2h`、
+`1d`、`45s` 這種長度或直接寫秒數；`spring.web.session.timeout` 是同一件事的短寫法，
+Boot 的那個鍵優先。讀不出來的值當成 `0`（沒有限制）而不是猜一個數字。
+
+逾時的會話等於不存在：`find(req)` 把它從 store 拿掉並回答 `null`，客戶端手上的 cookie
+就指不到東西，下一個想要會話的請求會拿到新的（`tests/programs/t181_session_timeout.teyru`）。
+
+**刻意沒有背景清理執行緒。** 這個執行期在行程結束時會 join 每一條執行緒，一條無限迴圈
+的清理執行緒會讓程式結束不了；改成每個請求順手檢查幾個會話（游標前進，一次八個），
+所以成本攤在流量上而不是交給一條 reaper；`Sessions.prune()` 一次掃完整個 store，給
+測試或空閒的時候用。要注意的是：**沒有設 store 預設值時那個游標不做事**——只有自己設
+了區間的會話，是靠 `find()` 或 `prune()` 才會被發現。
+
 ### 驗證
 
 `lib/36_validation.teyru` 是 Bean Validation 的那一小塊：類別在自己的欄位上宣告約束，
@@ -252,6 +267,26 @@ web 層對**綁定產生的每一個物件**都呼叫它，所以請求主體違
 不是 multipart、`Content-Type` 沒有 boundary、或主體不是它宣稱的那個 multipart 時，
 答案也是 `null`，不是例外——要不要回 400 是處理函式的決定。urlencoded 表單不受影響，
 照舊由 `@RequestParam` 綁定（見 `tests/programs/t161_multipart.teyru`）。
+
+### 壓縮的回應
+
+回應要壓縮是**處理函式說了算**：把 `HttpResponse.gzipBody` 設成 `true`，連線迴圈在
+送出前讀 `Accept-Encoding`，只有下面每一項都成立才真的壓：
+
+- 請求的 `Accept-Encoding` 收 gzip（`gzip`、`*`；`gzip;q=0` 是拒絕，不是接受）；
+- 主體至少 1024 位元組——gzip 自己的標頭與結尾就 18 位元組，已經是一個封包的主體不會
+  因為多一個標頭而更好；
+- 壓完**真的比較短**。
+
+壓縮的來源是 `lib/44_zip.teyru`（見 [docs/language.md](/docs/language) §11），
+`Content-Encoding: gzip` 只在真的壓了才寫；只要處理函式要過壓縮，回應就會帶
+`Vary: Accept-Encoding`，**無論這一個請求最後有沒有壓**——快取不能把壓過的答案交給
+一個沒說自己能解壓的客戶端。`Content-Length` 由伺服器在送出時依（壓完的）主體重算。
+
+客戶端那一半是 opt-in：`HttpClientRequest.acceptGzip()` 才會送 `Accept-Encoding: gzip`，
+而答案寫了 `Content-Encoding: gzip` 時客戶端會自己解開，標頭（含 `Content-Length`）
+保持連線上原樣的數字。壓壞的 gzip 不會被吞掉：`ZipException`／`EOFException` 會從
+`send` 傳出來（`tests/programs/t180_http_gzip.teyru`）。
 
 ### 測試
 
@@ -295,7 +330,9 @@ serving.join()
    （上面的 `ServerTask`），所以「第二個連線等第一個」是迴圈的形狀，不是程式的形狀：
    客戶端與伺服器可以並存在同一個程式裡。要同時服務多個連線，需要的是
    thread-per-connection，這一層還沒有；形狀已經是它需要的形狀。
-2. **沒有內容協商。** 只看方法的宣告型別，不看 `Accept`。
+2. **幾乎沒有內容協商。** 只看方法的宣告型別，不看 `Accept`；唯一的例外是
+   `Accept-Encoding` 與 gzip——而且那要處理函式先把 `gzipBody` 打開。brotli、deflate
+   等其他人編碼沒有。
 3. **會話活在行程裡。** 兩個行程後面接同一個服務時，請求要回到產生會話的那一個；
    會話 id 是 `java.util.Random` 的 128 位元，對單一伺服器夠用，不是密碼學來源。
 4. **沒有 SSE。** multipart 上傳與驗證註解都有了，見上面兩節；伺服器推送沒有。
