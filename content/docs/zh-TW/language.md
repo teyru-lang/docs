@@ -478,7 +478,7 @@ try {
 `Modifier`、`Array` 與六個反射用例外；它們讀的是編譯器為每個類別產生的靜態表，
 查一次資料是走一次陣列，執行期不建表。成員表只在程式真的會用到反射時
 才寫進執行檔（用到時整份都會帶上：同一支 hello world 多一次 `Class.forName` 與
-`getDeclaredFields()` 的呼叫，執行檔就從 54.6 KB 變成約 4.6 MB；沒用到的一行都不帶）。與 Java 的差異：類別名是 Teyru 的
+`getDeclaredFields()` 的呼叫，同一支在 `-O2` 下的執行檔就從 54.6 KB 變成約 4.6 MB；沒用到的一行都不帶）。與 Java 的差異：類別名是 Teyru 的
 （`String.class.getName()` 是 `teyru.String`，`forName` 兩種名字都收）、註解可以反射，但元素是**按名字讀**（`ann.stringValue("value")`，不是 Java 的 `ann.value()`）；所有陣列共用一個類別（所以沒有 `getComponentType`）、沒有泛型型別參數的
 反射、原生型別取值器只收完全相符的裝箱型別、不檢查存取控制（只有 final 會攔）。
 `java.util.function`（`lib/09`）提供 `Function`／`BiFunction`／`Consumer`／

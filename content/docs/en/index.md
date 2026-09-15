@@ -55,7 +55,7 @@ Temurin; produced by `RUNS=5 sh scripts/bench.sh`, best of 5 runs per row. The n
 | Metric | Teyru (native) | Java (HotSpot) | Difference |
 |---|---|---|---|
 | 100 startups | **0.0769 s** (0.77 ms each) | 1.9982 s (20.0 ms each) | **~26x faster** |
-| Executable size | **54.6 KB** | — | — |
+| Executable size (`-O2`) | **54.6 KB** | — | — |
 | Peak RSS (hello) | **4232 kB** | 51124 kB | **~12.1x less** |
 | `bench_fib` recursion | **0.0062 s** | 0.0266 s | **~4.3x faster** |
 | `bench_loop` loops and integer math | **0.0243 s** | 0.0435 s | **~1.8x faster** |
@@ -78,6 +78,10 @@ was dispatched at all), and 55,920 now, which also asks whether the class could 
 receiver of that dispatch. The 501,072 build had 1,262 functions surviving in a hello world,
 951 of them prelude methods, only 42 reachable by being called — the rest were alive by
 address through a vtable.
+
+**The number only means anything with its optimisation level.** The same hello world is
+75,232 bytes at `-O1`, 55,920 at `-O2` and 59,408 at `-O3`; this row and `scripts/bench.sh`
+both use `-O2`, which is the default.
 
 Before and after, on one machine with `-O2`: a hello world goes 501,072 -> 95,832 -> 55,920;
 `t84_sealed_switch` 521,456 -> 113,904 -> 74,888, `t133_arrow_blocks` 509,536 -> 105,688 ->

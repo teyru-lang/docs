@@ -478,7 +478,7 @@ try {
 `Modifier`、`Array` 与六个反射用异常；它们读的是编译器为每个类生成的静态表，
 查一次数据是走一次数组，运行期不建表。成员表只在程序真的会用到反射时
 才写进可执行文件（用到时整份都会带上：同一支 hello world 多一次 `Class.forName` 与
-`getDeclaredFields()` 的调用，可执行文件就从 54.6 KB 变成约 4.6 MB；没用到的程序一行都不带）。与 Java 的差异：类名是 Teyru 的
+`getDeclaredFields()` 的调用，同一支在 `-O2` 下的可执行文件就从 54.6 KB 变成约 4.6 MB；没用到的程序一行都不带）。与 Java 的差异：类名是 Teyru 的
 （`String.class.getName()` 是 `teyru.String`，`forName` 两种名字都收）、注解可以
 反射，但元素是**按名字读**（`ann.stringValue("value")`，不是 Java 的
 `ann.value()`）、所有数组共用一个类（所以没有 `getComponentType`）、没有泛型类型参数的
