@@ -49,21 +49,24 @@ into `opt`, `llc` or a custom pass; `./teyru emit` prints the generated C.
 ## Why it is faster than the JVM
 
 Measured on one machine (AMD Ryzen 7 5700X, Linux x86-64, clang 22.1.8, OpenJDK 21.0.11
-Temurin; produced by `RUNS=5 sh scripts/bench.sh`, best of 5 runs):
+Temurin; produced by `RUNS=5 sh scripts/bench.sh`, best of 5 runs per row. The numbers are
+**wall-clock whole-program times, including process startup**):
 
 | Metric | Teyru (native) | Java (HotSpot) | Difference |
 |---|---|---|---|
-| 100 startups | **0.0755 s** (0.76 ms each) | 2.06 s (20.6 ms each) | **~27x faster** |
-| Executable size | **450.9 KB** | ~346 MB JDK installation | ~786x smaller |
-| Peak RSS (hello) | **4.1 MB** | 49.8 MB | **~12x less** |
-| `bench_fib` recursion | **0.0053 s** | 0.0266 s | **5.0x faster** |
-| `bench_loop` loops and integer math | **0.0203 s** | 0.0438 s | **2.2x faster** |
-| `bench_oop` objects and virtual calls | **0.0046 s** | 0.0259 s | **5.6x faster** |
-| `bench_string` string handling | **0.0149 s** | 0.0534 s | **3.6x faster** |
-| `bench_alloc` short-lived allocation | **0.0234 s** | 0.0306 s | **1.3x faster** |
-| `bench_invoke` 20M reflective calls (see `examples/bench_invoke.teyru`) | **0.5002 s** | 0.246 s | **about 2x slower** |
+| 100 startups | **0.0769 s** (0.77 ms each) | 1.9982 s (20.0 ms each) | **~26x faster** |
+| Executable size | **483.2 KB** | — | — |
+| Peak RSS (hello) | **4232 kB** | 51124 kB | **~12.1x less** |
+| `bench_fib` recursion | **0.0062 s** | 0.0266 s | **~4.3x faster** |
+| `bench_loop` loops and integer math | **0.0243 s** | 0.0435 s | **~1.8x faster** |
+| `bench_oop` objects and virtual calls | **0.0051 s** | 0.0260 s | **~5.1x faster** |
+| `bench_string` string handling | **0.0153 s** | 0.0632 s | **~4.1x faster** |
+| `bench_alloc` short-lived allocation | **0.0278 s** | 0.0304 s | **~1.09x faster** |
+| `bench_invoke` 20M reflective calls (see `examples/bench_invoke.teyru`) | **0.6019 s** | 0.2543 s | **~2.4x slower** |
 
-The Java figure on the `bench_invoke` row was measured by hand with javac, since the script does not run that program under the JVM. It is a microbenchmark, unlike the whole-program rows above; it is here because "reflection did not slow ordinary calls down" needs a number, and it also shows that `Method.invoke` is still twice as slow as HotSpot's.
+The `bench_invoke` row is now measured by the same script as every other row. It was not before: the Java file's class name did not match its filename, so the harness silently skipped the run and printed `-` in the Java column. That was a real defect in the script, and it is fixed (commit `1ad9b8c`); the harness now also prints `!no-class` instead of `-` when a Java file produces no runnable class. The row shows that the `Method.invoke` path is still about 2.4x slower than HotSpot's.
+
+`bench_loop` fell from about 2.2x in the previous revision to about 1.8x because every loop back-edge now carries a safepoint check — the deliberate cost of a stop-the-world collector, which is **cooperative** here, as [docs/language.md](/en/docs/language) §11 explains. It is not measurement noise.
 
 **Where the speed comes from:**
 
@@ -90,12 +93,11 @@ method that creates them. An object stored into a field, an array, a return valu
 another object still goes to the heap and the mark-and-sweep collector, and HotSpot's
 generational assumption wins on workloads where objects live long and are collected
 repeatedly. Every number above includes process startup, so the absolute values are
-small. Every number is reproducible with `sh scripts/bench.sh`, which measures the five
-programs, the 100 startups, the executable size and the peak RSS; the JDK-runtime figure
-in the size row is the runtime installed on the measuring machine, which the script does
-not measure.
+small. Every number is reproducible with `sh scripts/bench.sh`, which measures the six
+programs, the 100 startups, the executable size and the peak RSS, best of `RUNS=5` on the
+machine above.
 
-The size row measures a hello world, and it is 390 KB rather than tens of KB: the program
+The size row measures a hello world, and it is 483 KB rather than tens of KB: the program
 uses `String`, so `String`'s vtable has to carry every one of its methods, which pulls in
 the whole regular-expression engine through `matches` and all four streams through
 `Collection`'s default methods. Link-time optimisation removes what nothing can reach; it
