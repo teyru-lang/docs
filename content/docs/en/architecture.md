@@ -122,7 +122,9 @@ for how to reproduce them.
   is not guaranteed to be an object, so every candidate address must pass `valid_obj`: it must be 16-byte
   aligned, must be the start of some block in some chunk (the `starts` bitmap is rebuilt before each
   collection, and an address landing inside a block never counts), and must not be a block that has already
-  been freed.
+  been freed. A word outside the address range the slabs cover is rejected **before** the slab walk:
+  a word outside that range cannot be in any slab, so the walk would have answered 0 for it anyway.
+  It is a filter and nothing more -- it can only drop work, never change an answer.
 - Marking: `tyclass.refoffs` lists the reference field offsets that need to be traced for each class; arrays use the `refs` flag.
 - **Threads**: the runtime keeps one registry entry per thread (`internal/runtime/src/tyrt_thread.c`),
   and a collection stops every thread first and then scans each stack, so the stop is world-wide.
