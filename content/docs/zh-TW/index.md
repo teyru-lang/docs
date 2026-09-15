@@ -537,14 +537,18 @@ record／enum／註解合成出來的成員、型別 pattern 與帶守衛的 swi
 
 | 目標 | 驗證到什麼程度 |
 |---|---|
-| `linux/amd64` | 完整套件：`go test ./...` 與 `sh tests/run.sh`（221 項）都在 CI 上跑 |
-| `windows/amd64` | 原生 CI 跑 `go test ./...`；在作者的機器上以 Wine 跑測試程式，195 支裡 179 支逐位元組相同（16 支不符裡 14 支在改動前的編譯器上用 gcc 編 Linux 也一樣失敗，2 支是 Windows 的路徑與檔名事實） |
-| `linux/arm64` | CI 建得出來，並真的跑一支程式（`ubuntu-24.04-arm`）；沒有跑整套 |
-| `darwin/amd64`、`darwin/arm64` | CI 在 macOS runner 上跑 `go test ./...`；**作者的機器上沒有驗證過**（沒有 macOS 可用） |
+| `linux/amd64` | 這台機器上原生跑完整套件：`go test ./...` 與 `TEYRU=<compiler> sh tests/run.sh`（221 項） |
+| `windows/amd64` | 以 mingw-w64 建置、在 Wine 下跑：當時 195 支測試程式有 179 支逐位元組相同（16 支不符裡 14 支在改動前的編譯器上用 gcc 編 Linux 也一樣失敗，2 支是 Windows 的路徑與檔名事實） |
+| `linux/arm64` | **有實作，沒有驗證過**：這裡裝不了 aarch64 sysroot |
+| `darwin/amd64`、`darwin/arm64` | **有實作，沒有驗證過**：這裡沒有 macOS 可以跑 |
 
 這張表**不是「每一列都跑過」的承諾**：`linux/amd64` 是整套測試的那一個，其他目標如果
 需要這台機器沒有的交叉工具鏈，會在編譯器那裡以編譯器自己的錯誤失敗，而不是安靜地
 成功。macOS 沒有可命名的交叉編譯器，所以從別的宿主要求它是明確的錯誤。
+
+這個專案**沒有 CI**：每次改動的關卡就是上面那兩道指令，在這台機器上跑，所以文件裡的
+數字都寫著它是怎麼量、在哪裡量的。
+
 
 ---
 

@@ -574,15 +574,19 @@ machine. The target table has five rows, and the evidence behind them is not the
 
 | Target | How far it is verified |
 |---|---|
-| `linux/amd64` | The full suite: `go test ./...` and `sh tests/run.sh` (221 cases) both run in CI |
-| `windows/amd64` | Native CI runs `go test ./...`; on the maintainer's machine the test programs run under Wine and 179 of 195 are byte-identical (14 of the 16 that are not also fail on Linux with gcc under the pre-change compiler, and 2 are Windows path and filename facts) |
-| `linux/arm64` | CI builds it and runs one program on it (`ubuntu-24.04-arm`); the suite does not run there |
-| `darwin/amd64`, `darwin/arm64` | CI runs `go test ./...` on macOS runners; **not verified on the maintainer's machine** (there is no macOS to run) |
+| `linux/amd64` | The full suite, natively on the maintainer's machine: `go test ./...` and `TEYRU=<compiler> sh tests/run.sh` (221 cases) |
+| `windows/amd64` | Built with mingw-w64 and run under Wine: 179 of the 195 test programs of the time were byte-identical (14 of the 16 that were not also failed on Linux with gcc under the pre-change compiler, and 2 were Windows path and filename facts) |
+| `linux/arm64` | **Implemented, not verified**: no aarch64 sysroot can be installed here |
+| `darwin/amd64`, `darwin/arm64` | **Implemented, not verified**: there is no macOS to run here |
 
 The table is **not a promise that every row has been run**: `linux/amd64` is the suite's,
 and a target that needs a cross toolchain this machine does not have fails at the compiler
 with the compiler's own error rather than silently. There is no cross compiler for macOS
 to name, so asking for one from another host is an explicit error.
+
+This project has **no CI**: the gate for every change is those two commands, run on this
+machine, which is why the numbers in these pages say how and where they were measured.
+
 
 ---
 
