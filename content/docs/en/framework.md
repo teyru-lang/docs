@@ -241,6 +241,52 @@ nothing and the next request gets a fresh session. `attributeNames()` keeps the
 order attributes were first set in. `Sessions.count()` and `clear()` are for
 tests.
 
+### Validation
+
+`lib/36_validation.teyru` is the piece of bean validation a web layer needs: a
+class declares constraints on its own fields, and one call checks them.
+
+| annotation | meaning |
+|---|---|
+| `@NotNull` | the field has to hold something |
+| `@Size(min = …, max = …)` | a `String` field's length has to be within `[min, max]`, both ends included |
+| `@Min(value = …)` / `@Max(value = …)` | the lower / upper bound of a numeric field |
+
+All four declare `String message() default …`, so an unwritten message has a
+default. `Validation.check(bean)` reads the object's own declared fields
+(through the same reflection the JSON binding reads), and the **first** field
+that violates a constraint throws `ValidationException` with the message
+`field: message` — Spring reports every violation at once, this reports the
+first, and a caller that wants the rest can ask again.
+
+The web layer calls it on **every object the binding built**, so a request body
+that breaks a constraint of its own type is answered with a 400 whose body is
+`bad request: field: message`: the client made the mistake, and the answer says
+which field. A `@Min`/`@Max` on a field that is not a number, or a `@Size` on a
+field that is not a `String`, is a violation too, whose message says the
+constraint cannot read that field — the class is written wrong, but that must
+not crash the server. `tests/programs/t160_validation.teyru` covers this.
+
+**Those four names are taken.** Teyru's simple names live in one flat
+namespace, so `NotNull`, `Size`, `Min` and `Max` are already the names of the
+constraint annotations and a program cannot use them for a type of its own:
+declare a `class Size` and `@Size` means that class instead, so the constraint
+stops being checked (silently).
+
+### Uploads (multipart)
+
+`HttpRequest.multipart(String name)` answers the part a `multipart/form-data`
+request sent under that field name, as a `MultipartFile`: `name`,
+`originalFilename`, `contentType`, `content` (a request body is a String
+already, so a file arrives as the characters that were sent), plus `isEmpty()`
+and `size()`; it is `null` when the request carries no such part.
+
+It is also `null` when the request is not multipart, when its `Content-Type`
+names no boundary, or when its body is not the multipart it claims to be — not
+an exception, because whether that is a 400 is the handler's decision. The
+urlencoded form is untouched and still binds through `@RequestParam` (see
+`tests/programs/t161_multipart.teyru`).
+
 ### Testing
 
 `MockServer` asks the server without opening a socket:
@@ -253,24 +299,50 @@ server.handle(req)                                   // a request you built, for
 ```
 
 The reason is the same one Spring has MockMvc: testing a route should not need a
-port, a client, or a second thread (and this language has no threads yet).
-`server.handle(req)` takes a request that is already prepared — call
-`readCookies()` yourself if it carries a cookie.
+port, a client, or a second thread. `server.handle(req)` takes a request that is
+already prepared — call `readCookies()` yourself if it carries a cookie.
+
+### The server on a thread of its own
+
+The accept loop is a `Runnable` too (`ServerTask`, in `lib/18_web.teyru`), so a
+client and a server fit in one program:
+
+```teyru
+HttpServer server = new HttpServer(0, Application.routerFrom(ctx), ctx)
+server.bind()                                  // bind first, so the port is known
+ServerTask task = new ServerTask(server)
+Thread serving = new Thread(task, "server")
+serving.start()
+// … send requests …
+task.stop()
+serving.join()
+```
+
+`server.bind()` has to come before the thread starts: the port
+(`server.getPort()`) is what the URLs are built from, and a listener that is
+already bound answers a connection that arrives while the serving thread is
+still on its way to accept. `stop()` asks the loop to finish between two
+connections and does not interrupt the one being answered, and `isRunning()`
+answers whether it is still going. A port of 0 asks the kernel for a free one.
+`tests/programs/t162_http_roundtrip.teyru` is exactly this: the server on a
+thread, the main thread as the client, a round trip inside one program.
 
 ## Known limitations
 
-1. **One connection at a time.** The language has no threads
-   (`docs/language.md` §13), so a second connection waits for the first to
-   finish. This is enough for "a program that answers requests", but not for
-   "serving a crowd"; the shape is already the shape thread-per-connection
-   needs.
+1. **One connection at a time.** The loop still answers one connection at a
+   time, but it can run on a thread of its own now (the `ServerTask` above), so
+   "a second connection waits for the first" is the shape of the loop, not of
+   the program: a client and a server fit in one program. Serving several
+   connections at once needs thread-per-connection, which is not there; the
+   shape is already the shape it needs.
 2. **No content negotiation.** Only the method's declared type is looked at, not
    `Accept`.
 3. **Sessions live in the process.** With two processes behind one address a
    request has to come back to the one that made the session, and the id is 128
    bits of `java.util.Random` — enough for one server, not a cryptographic
    source.
-4. **No multipart uploads, no validation annotations, no SSE.**
+4. **No SSE.** Multipart uploads and validation annotations are both there, in
+   the two sections above; server push is not.
 5. **No `@Conditional`, `@Import`, `@Lazy`, AOP or transactions**, and no scope
    control for `@ComponentScan`: the whole program is in scan scope, because the
    compiler sees everything — if you want to exclude something, just don't

@@ -124,6 +124,12 @@ for how to reproduce them.
   collection, and an address landing inside a block never counts), and must not be a block that has already
   been freed.
 - Marking: `tyclass.refoffs` lists the reference field offsets that need to be traced for each class; arrays use the `refs` flag.
+- **Threads**: the runtime keeps one registry entry per thread (`internal/runtime/src/tyrt_thread.c`),
+  and a collection stops every thread first and then scans each stack, so the stop is world-wide.
+  The protocol is **cooperative**: the stop points are the top of a loop body, the allocation slow
+  path, the wait for the heap lock, sleep/join/monitor waits, and the start of a thread; a thread
+  that neither loops nor allocates nor blocks (one stuck in a native `read()`) reaches no stop
+  point, and a collection waits for it to come back.
 - Sweep: unmarked blocks enter size-classed free lists (`TY_NCLASS` classes; oversized ones go to `bigfree`)
   and are reused first by the next allocation; the highest bit of the block size word (the first word of the
   header) is `TY_FREE_BIT`, meaning already freed, and the free list link sits in the second word. A chunk that

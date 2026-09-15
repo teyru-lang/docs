@@ -179,8 +179,8 @@ record Point(int x, int y) {
 - A `record` automatically gets private final fields, accessors, `toString`, `hashCode`,
   `equals` and the canonical constructor; you can also write a compact constructor to add
   validation.
-- Annotation types (`@interface`) can be declared and used, but there is no runtime
-  reflection; `annotation` is not a keyword.
+- Annotation types (`@interface`) can be declared and used, and they are reflectable
+  (see §11); `annotation` is not a keyword.
 
 ### 4.2 Fields and methods
 
@@ -504,7 +504,8 @@ the compiler emits per class, so a lookup is an array walk and nothing is built 
 time. The member tables ship only when a program can reach reflection: one that can carries
 all of them (a measured hello world goes from 445.9 KB to about 3 MB), and one that cannot
 carries none. Where they differ from Java: the class names are Teyru's (`String.class.getName()`
-is `teyru.String`, and `forName` takes either spelling), annotations are not reflectable,
+is `teyru.String`, and `forName` takes either spelling), annotations are reflectable but
+their elements are read **by name** (`ann.stringValue("value")`, not Java's `ann.value()`),
 all arrays share one class (so there is no `getComponentType`), there is no reflection of
 generic type arguments, the primitive getters take an exactly matching box rather than
 widening, and access control is not checked (only `final` is held back).
@@ -518,6 +519,33 @@ for (String n : names) {
   System.out.println(n)
 }
 ```
+
+### Threads and synchronization (`lib/35`)
+
+A thread is a **real operating system thread**: the runtime keeps one registry entry per
+thread in `internal/runtime/src/tyrt_thread.c`, and the collector stops every one of them
+and walks each stack before it traces the heap.
+
+What is there is `Thread` (`Thread()`, `Thread(Runnable)`, `Thread(String)`,
+`Thread(Runnable, String)`; `start`, `run`, `join`, `isAlive`, `getId`, `getName`,
+`setName`, and `Thread.sleep(long)`, `Thread.yield()`, `Thread.currentThread()`) and the
+`Runnable` interface, plus real `synchronized` (both the block and the **method modifier**,
+where the method holds the monitor for its whole body, and the monitor is reentrant) and
+`Object.wait(long)`/`notify`/`notifyAll`. An id is given to the `Thread` object when it is
+built and never changes, and the main thread is 1.
+
+**What is not there** (declared nowhere, so writing it is a missing symbol): `interrupt`,
+daemon threads, thread priorities, `ThreadGroup`, `ThreadLocal`, `join(long)` with a
+timeout, `Thread.State`, and an uncaught-exception handler — the runtime prints the line
+Java's default handler prints, then the thread ends and the process carries on.
+
+The collector is a **cooperative** stop-the-world, and that is the limitation worth
+knowing: safepoints are the top of every loop body (which the generator emits), the
+allocation slow path, waiting on the heap lock, and every call that blocks. So a thread
+that neither loops nor allocates nor blocks (one stuck in a native `read()`, say) makes a
+collection wait for it to come back. Allocation in a single-threaded program is
+unchanged (every thread has its own allocation area). The end-to-end test is
+`tests/programs/t159_threads.teyru`.
 
 ### Other packages
 
@@ -533,7 +561,7 @@ for (String n : names) {
 | `java.text` | `lib/24` | `NumberFormat`/`DecimalFormat`/`DecimalFormatSymbols` (the full pattern language), `DateFormat`/`SimpleDateFormat` (four styles and parsing), `DateTimeFormatter`, `MessageFormat`, `ChoiceFormat`, `ParseException`/`ParsePosition`. **There is no `Locale`** (only ROOT/en-US), **there is no `java.util.Date`** (`format`/`parse` go through `Instant`), and `format` has no `FieldPosition` overload |
 | Rest of `java.util` | `lib/25` | `Properties`, `Random` (byte-for-byte like java.util.Random), `UUID`, `BitSet`, `StringTokenizer`, `Enumeration`, `ArrayOps` (the range form of arrays) |
 | `com.google.gson` | `lib/10`, `lib/19` | Gson's tree API, plus an object binding that reads the class's fields at run time (see [docs/json.md](/en/docs/json)) |
-| framework | `lib/17`, `lib/18` | A Spring-shaped container and web layer; HTTP/1.1 keep-alive, chunked, cookies, HEAD and OPTIONS, and WebSocket (`WebSocketHandler` + `server.addWebSocket`) — see [docs/framework.md](/en/docs/framework) |
+| framework | `lib/17`, `lib/18`, `lib/30`, `lib/33`, `lib/34`, `lib/36` | A Spring-shaped container and web layer: `SpringApplication.run`, `application.properties` with `@ConfigurationProperties`/`@Profile`, `@ControllerAdvice`/`@ExceptionHandler`, `HandlerInterceptor`, static files, CORS, `ResponseEntity`, `MockServer`, HTTP/1.1 keep-alive, chunked, cookies, HEAD and OPTIONS, WebSocket (`WebSocketHandler`/`WebSocketSession` + `server.addWebSocket`), sessions (`HttpSession`/`Sessions`), uploads (`MultipartFile`), validation (`Validation`/`ValidationException`), and an accept loop that runs on a thread (`ServerTask`) — see [docs/framework.md](/en/docs/framework) |
 
 ### How names are found
 
@@ -573,13 +601,11 @@ duplicate declaration `TY-TYP-0001`, because the two fully qualified names are t
 
 ### What is missing
 
-Threads, `java.util.concurrent`, a timezone database, `Scanner`. These absences are
-deliberate: they either need a data table bigger than the entire language (timezones), or need
-something the language itself does not have (threads), or — as with `Scanner` — doing half the
-job would be worse than not doing it at all.
+`java.util.concurrent`, a timezone database, `Scanner`. These absences are deliberate: they
+either need a data table bigger than the entire language (timezones), or — as with
+`Scanner` — doing half the job would be worse than not doing it at all.
 
-Reflection is there (`java.lang.reflect`, §11). What it does not have: annotations (a Teyru
-annotation is read by the compiler, so there is no annotation object at run time), generic type
+Reflection is there (`java.lang.reflect`, §11). What it does not have: generic type
 arguments, a class per array type (every array value belongs to one class, so there is no
 component type to ask for), and Java's widening in the primitive getters — `Field.getInt` on a
 `byte` field is an `IllegalArgumentException` here and a widening in Java.
@@ -630,19 +656,22 @@ When you need your own native library, a `native` method can be implemented in C
 - A `sealed` type's `permits` clause is not verified: a sealed type without `permits` is
   treated as undecidable for switch exhaustiveness and requires a `default`; the
   exhaustiveness of a switch **statement** is still lenient
-- Threads (file and network I/O exist, see `java.io`/`java.net`)
-- What reflection is missing: annotation reflection, reflection of generic type parameters, an
-  array class per element type (all arrays share one class), and Java's widening in the
-  primitive getters (`getInt` on a `byte` field compiles in Java and is an
-  `IllegalArgumentException` here)
+- Threads only in part (`Thread`, `Runnable`, `synchronized` and `wait`/`notify` are there,
+  see §11's "Threads and synchronization"): `interrupt`, daemon threads, priorities,
+  `ThreadGroup`, `ThreadLocal`, `join(long)` and `Thread.State` are not, and the collector is
+  a cooperative stop-the-world, so a thread that never loops, allocates or blocks makes a
+  collection wait for it
+- What reflection is missing: reflection of generic type parameters, an array class per
+  element type (all arrays share one class), and Java's widening in the primitive getters
+  (`getInt` on a `byte` field compiles in Java and is an `IllegalArgumentException` here)
 - Interoperating with the Java ecosystem (JARs, the JDK class library, JNI)
 - Unicode escapes in identifiers (`\u0041` cannot spell out an identifier)
 - Explicit type arguments on a generic constructor `new <T>Foo(...)`
 - The indentation rules for text blocks (currently the implementation strips the minimal
   indentation)
-- Runtime retention and reading of annotations (`java.lang.annotation` does not exist; Lombok's
-  `@onX` only copies the annotation onto the generated members and has no runtime effect
-  whatsoever)
+- The `java.lang.annotation` package (annotation reflection itself is there, see §11):
+  `@Retention` is accepted and has no effect, and Lombok's `@onX` only copies the annotation
+  onto the generated members and has no runtime effect whatsoever
 - The semantics of the module system (`import module X` is parsed and then ignored, there is no
   module system at runtime; `module-info` is not supported)
 - An array's runtime element type is always `teyru.Array`, so `String[].class` and

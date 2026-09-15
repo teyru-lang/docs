@@ -163,7 +163,7 @@ Notes on the differences:
 - `@Getter(lazy = true)` moves the field's initial value into the getter: the constructor no
   longer computes it, and it is computed once on the first read and cached after that (the
   same as Lombok). The held value is boxed, so primitive types work too. The difference is
-  that there is no locking: this language has no threads.
+  that the generated getter does not lock (Lombok's does); it keeps only a holder field.
 - The `hashCode` of `@EqualsAndHashCode` uses 31 and 0 (Lombok uses 59 and 43), the field
   order follows declaration order (Lombok sorts), and no `canEqual` is generated — so a
   parent class and a child class are equal as long as their fields are the same, whereas

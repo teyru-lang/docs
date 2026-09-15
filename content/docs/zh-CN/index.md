@@ -327,7 +327,8 @@ class Main {
 | `java.math` | `BigInteger`、`BigDecimal`、`MathContext`、`RoundingMode` |
 | `java.text` | `NumberFormat`／`DecimalFormat`（完整 pattern 语言）、`DateFormat`／`SimpleDateFormat`、`DateTimeFormatter`、`MessageFormat`；只做 ROOT／en-US，`format` 用 `Instant` |
 | `com.google.gson` | Gson 的树状 API，以及运行期读取类字段的对象绑定（[docs/json.md](/zh-CN/docs/json)） |
-| 框架 | Spring 形状的容器与 web 层（[docs/framework.md](/zh-CN/docs/framework)） |
+| 线程 | `Thread`／`Runnable`、真正的 `synchronized`（含方法修饰符）与 `Object.wait`／`notify`／`notifyAll`（[docs/language.md](/zh-CN/docs/language) §11） |
+| 框架 | Spring 形状的容器与 web 层：配置与 profile、`@ControllerAdvice`、拦截器、静态文件、CORS、`ResponseEntity`、`MockServer`、WebSocket、会话、multipart 上传、验证注解，以及可以放到线程上的接收循环（[docs/framework.md](/zh-CN/docs/framework)） |
 
 集合以 Teyru 编写，所以 `for` 循环直接支持：
 
@@ -348,8 +349,9 @@ teyru get example.com/greeting@v0.1.0
 teyru build ./...
 ```
 
-没有线程（也没有 `java.util.concurrent`）、没有 `Scanner`、没有时区数据库——这些缺席都是刻意的，理由记在
-[docs/language.md](/zh-CN/docs/language) §11 与 §13。
+没有 `java.util.concurrent`、没有 `Scanner`、没有时区数据库——这些缺席都是刻意的，
+理由记在 [docs/language.md](/zh-CN/docs/language) §11 与 §13。线程本身有了，见 §11
+的〈线程与同步〉。
 
 需要自己的原生库时，声明 `native` 方法并用 C 实现：
 
@@ -412,7 +414,9 @@ teyru build --native impl.c program.teyru            # 一起编译
 - **异常**：以 `setjmp`／`longjmp` 实现的 handler 链；`finally` 以嵌套 handler
   保证在任何路径（含 catch 内再抛出）都执行。
 - **GC**：保守式标记清除。根包含原生栈（保守扫描）、静态字段注册表与寄存器
-  （`setjmp` 溢出）。对象不移动，所以 C 端的临时指针永远有效。
+  （`setjmp` 溢出）。对象不移动，所以 C 端的临时指针永远有效。收集前会先停住每一条
+  线程，再扫各自的栈（停止是世界性的，且是**合作式**的，见
+  [docs/language.md](/zh-CN/docs/language) §11）。
 - **字符串**：UTF-8 `tystr { tyobj obj; int64 len; char* data }`；字面量是静态对象，
   不经过 GC。
 - **数组**：`tyarr { tyobj; len; data; esize; refs }`，元素内嵌在对象后方。
@@ -431,7 +435,8 @@ Teyru 不是 Java 的子集，而是“Java 开发者一看就懂”的独立语
    没有 accessor 块的字段就是普通 Java 字段。
 6. **`val`**：推断类型的不可重绑定局部变量（不是深度不可变）。
 7. **没有 checked exception 检查**；`throws` 会被解析但不强制。
-8. **没有注解（annotation）的运行期反射、没有 annotation processor**。
+8. **没有 annotation processor**；注解可以反射，但元素是**按名字读**
+   （`ann.stringValue("value")`），不是 Java 的 `ann.value()`。
 9. **不是 bytecode 平台**：没有 `.class`、没有 `java.lang`、没有 JNI，
    目前也**无法**与既有 Java 库互通——这是刻意的取舍。
 

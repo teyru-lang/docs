@@ -215,6 +215,43 @@ cookie 的地方：路由的响应是处理函数返回后才产生的，这也�
 cookie 就指不到东西，下一个请求会拿到新的会话；`attributeNames()` 保持首次设定的
 顺序；`Sessions.count()`／`clear()` 是给测试用的。
 
+### 验证
+
+`lib/36_validation.teyru` 是 Bean Validation 的那一小块：类在自己的字段上声明约束，
+一个调用检查它们。
+
+| 注解 | 意思 |
+|---|---|
+| `@NotNull` | 字段不能是 `null` |
+| `@Size(min = …, max = …)` | `String` 字段的长度落在 `[min, max]` 内，两端都含 |
+| `@Min(value = …)`／`@Max(value = …)` | 数值字段的下界／上界 |
+
+四个都有 `String message() default …`，没写就用默认消息。`Validation.check(bean)` 读
+对象自己声明的字段（走的是 JSON 绑定也在读的那套反射），碰到**第一个**违反约束的字段
+就抛 `ValidationException`，消息是 `字段: 消息`——Spring 会一次报完所有违反，这里只报
+第一个，要看其余的可以再问一次。
+
+web 层对**绑定产生的每一个对象**都调用它，所以请求体违反自己类型的约束时，响应是
+400，主体是 `bad request: 字段: 消息`：客户端做错的事，说得出是哪个字段。`@Min`／
+`@Max` 标在非数值字段、`@Size` 标在非 `String` 字段时也是 violation，消息说明那个约束
+读不了这个字段——那是类写错了，但不该让服务器崩溃。`tests/programs/t160_validation.teyru`
+覆盖了这些。
+
+**这四个名字是被占走的。** Teyru 的简单名称在同一个平坦命名空间里，所以 `NotNull`、
+`Size`、`Min`、`Max` 已经是约束注解的名字，程序不能拿它们当自己类型的名字：自己声明
+一个 `class Size` 之后，`@Size` 就指向那个类，约束不再被检查（安静地不检查）。
+
+### 上传（multipart）
+
+`HttpRequest.multipart(String name)` 回应 `multipart/form-data` 请求里以该字段名送出的
+那个部分，类型是 `MultipartFile`：`name`、`originalFilename`、`contentType`、`content`
+（请求体本来就是字符串，所以文件的内容是以送出的那些字符到达的），加上 `isEmpty()` 与
+`size()`；没有这个字段时是 `null`。
+
+不是 multipart、`Content-Type` 没有 boundary、或主体不是它声明的那个 multipart 时，
+答案也是 `null`，不是异常——要不要回 400 是处理函数的决定。urlencoded 表单不受影响，
+照旧由 `@RequestParam` 绑定（见 `tests/programs/t161_multipart.teyru`）。
+
 ### 测试
 
 `MockServer` 不开 socket，直接问 `HttpServer.handle`：
@@ -226,19 +263,41 @@ server.request("POST", "/pets", body, "application/json")
 server.handle(req)                                   // 自己组的请求，看标头
 ```
 
-理由与 Spring 的 MockMvc 相同：测路由不该需要一个端口、一个客户端或第二条线程
-（本语言现在还没有线程）。`server.handle(req)` 收的是**已经准备好**的请求，
-cookie 要自己 `readCookies()`。
+理由与 Spring 的 MockMvc 相同：测路由不该需要一个端口、一个客户端或第二条线程。
+`server.handle(req)` 收的是**已经准备好**的请求，cookie 要自己 `readCookies()`。
+
+### 服务器跑在自己的线程上
+
+接收循环也做成了 `Runnable`（`lib/18_web.teyru` 的 `ServerTask`），所以客户端与服务器
+可以活在同一个程序里：
+
+```teyru
+HttpServer server = new HttpServer(0, Application.routerFrom(ctx), ctx)
+server.bind()                                  // 先绑，端口才是已知的
+ServerTask task = new ServerTask(server)
+Thread serving = new Thread(task, "server")
+serving.start()
+// …发请求…
+task.stop()
+serving.join()
+```
+
+`server.bind()` 要在启动线程之前做：端口（`server.getPort()`）是拼 URL 要用的，而已经
+绑好的 listener 也答得掉在线程走到 accept 之前到达的连接。`stop()` 要求循环在两个
+连接之间停下来，不会打断正在回应的那个连接，`isRunning()` 回应它还在不在跑。端口传 0
+是请内核挑一个空闲端口，`tests/programs/t162_http_roundtrip.teyru` 就是让服务器跑在一条
+线程上、主线程当客户端，在同一个程序里往返。
 
 ## 已知限制
 
-1. **一次处理一个连接。** 语言没有线程（`docs/language.md` §13），所以第二个连接
-   要等第一个处理完。这对“会响应请求的程序”够用，对“服务一群人”不够；形状已经
-   是 thread-per-connection 需要的形状。
+1. **一次处理一个连接。** 循环仍然一次只回应一个连接，但它现在可以跑在自己的线程上
+   （上面的 `ServerTask`），所以“第二个连接等第一个”是循环的形状，不是程序的形状：
+   客户端与服务器可以并存于同一个程序里。要同时服务多个连接，需要的是
+   thread-per-connection，这一层还没有；形状已经是它需要的形状。
 2. **没有内容协商。** 只看方法的声明类型，不看 `Accept`。
 3. **会话活在进程里。** 两个进程后面接同一个服务时，请求要回到产生会话的那一个；
    会话 id 是 `java.util.Random` 的 128 位，对单一服务器够用，不是密码学来源。
-4. **没有 multipart 上传、没有验证注解、没有 SSE。**
+4. **没有 SSE。** multipart 上传与验证注解都有了，见上面两节；服务器推送没有。
 5. **没有 `@Conditional`、`@Import`、`@Lazy`、AOP、事务**，也没有
    `@ComponentScan` 的范围控制：整个程序都是扫描范围，因为编译器看得见全部——要
    排除什么，就不要标注它。

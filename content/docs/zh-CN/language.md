@@ -165,7 +165,7 @@ record Point(int x, int y) {
   没有常量但有成员时以冒号开头。
 - `record` 自动生成私有 final 字段、accessor、`toString`、`hashCode`、`equals`
   与规范构造函数；也可以写紧凑构造函数（compact constructor）补充验证。
-- 注解类型（`@interface`）可以声明并使用，但没有运行时反射；`annotation`
+- 注解类型（`@interface`）可以声明并使用，也可以反射（见 §11）；`annotation`
   不是关键字。
 
 ### 4.2 字段与方法
@@ -479,8 +479,9 @@ try {
 查一次数据是走一次数组，运行期不建表。成员表只在程序真的会用到反射时
 才写进可执行文件（用到时整份都会带上，量到的 hello world 从 445.9 KB 变成约 3 MB；
 没用到的程序一行都不带）。与 Java 的差异：类名是 Teyru 的
-（`String.class.getName()` 是 `teyru.String`，`forName` 两种名字都收）、没有注解
-反射、所有数组共用一个类（所以没有 `getComponentType`）、没有泛型类型参数的
+（`String.class.getName()` 是 `teyru.String`，`forName` 两种名字都收）、注解可以
+反射，但元素是**按名字读**（`ann.stringValue("value")`，不是 Java 的
+`ann.value()`）、所有数组共用一个类（所以没有 `getComponentType`）、没有泛型类型参数的
 反射、原生类型取值器只收完全相符的包装类型、不检查访问控制（只有 final 会拦）。
 `java.util.function`（`lib/09`）提供 `Function`／`BiFunction`／`Consumer`／
 `Supplier`／`Predicate`／`Runnable`／`Comparator`。
@@ -492,6 +493,27 @@ for (String n : names) {
   System.out.println(n)
 }
 ```
+
+### 线程与同步（`lib/35`）
+
+线程是**真的操作系统线程**：运行期在 `internal/runtime/src/tyrt_thread.c` 为每条线程
+留一条注册记录，收集器在扫描 heap 之前会先停住每一条，再扫各自的栈。
+
+有的东西是 `Thread`（`Thread()`、`Thread(Runnable)`、`Thread(String)`、
+`Thread(Runnable, String)`；`start`、`run`、`join`、`isAlive`、`getId`、`getName`、
+`setName`，以及 `Thread.sleep(long)`、`Thread.yield()`、`Thread.currentThread()`）与
+`Runnable` 接口，还有真正的 `synchronized`（块与**方法修饰符**都有，方法整段持有监视器，
+监视器可重入）与 `Object.wait(long)`／`notify`／`notifyAll`。id 在 `Thread` 对象
+创建时给定、之后不变，main 线程是 1。
+
+**没有的东西**（没有声明，写了就是找不到符号）：`interrupt`、daemon 线程、线程
+优先级、`ThreadGroup`、`ThreadLocal`、超时版的 `join(long)`、`Thread.State`，以及
+未处理异常的 handler——运行期打印 Java 默认处理程序那一行，然后结束那条线程，进程继续。
+
+GC 是**合作式**停止世界，这才是真正要知道的限制：安全点在每个循环回边（生成器会放）、
+分配慢路径、等 heap 锁，以及每个会阻塞的调用。所以一条既不循环、不分配也不阻塞的
+线程（例如卡在原生 `read()` 里）会让收集等它，直到它回来。单线程程序的分配速度不变
+（每条线程有自己的分配区）。端到端测试是 `tests/programs/t159_threads.teyru`。
 
 ### 其他包
 
@@ -507,7 +529,7 @@ for (String n : names) {
 | `java.text` | `lib/24` | `NumberFormat`／`DecimalFormat`／`DecimalFormatSymbols`（完整的 pattern 语言）、`DateFormat`／`SimpleDateFormat`（四种 style 与 parse）、`DateTimeFormatter`、`MessageFormat`、`ChoiceFormat`、`ParseException`／`ParsePosition`。**没有 `Locale`**（只做 ROOT／en-US），**没有 `java.util.Date`**（`format`／`parse` 经由 `Instant`），`format` 没有 `FieldPosition` 重载 |
 | `java.util` 其余 | `lib/25` | `Properties`、`Random`（逐字节照 java.util.Random）、`UUID`、`BitSet`、`StringTokenizer`、`Enumeration`、`ArrayOps`（数组的范围形式） |
 | `com.google.gson` | `lib/10`、`lib/19` | Gson 的树形 API，以及运行期读取类字段的对象绑定（见 [docs/json.md](/zh-CN/docs/json)） |
-| 框架 | `lib/17`、`lib/18` | Spring 形状的容器与 web 层；HTTP/1.1 的 keep-alive、chunked、Cookie、HEAD／OPTIONS，以及 WebSocket（`WebSocketHandler` + `server.addWebSocket`）——见 [docs/framework.md](/zh-CN/docs/framework) |
+| 框架 | `lib/17`、`lib/18`、`lib/30`、`lib/33`、`lib/34`、`lib/36` | Spring 形状的容器与 web 层：`SpringApplication.run`、`application.properties` 与 `@ConfigurationProperties`／`@Profile`、`@ControllerAdvice`／`@ExceptionHandler`、`HandlerInterceptor`、静态文件、CORS、`ResponseEntity`、`MockServer`，HTTP/1.1 的 keep-alive、chunked、Cookie、HEAD／OPTIONS，WebSocket（`WebSocketHandler`／`WebSocketSession` + `server.addWebSocket`），会话（`HttpSession`／`Sessions`），上传（`MultipartFile`），验证（`Validation`／`ValidationException`），以及可以放到线程上的接收循环（`ServerTask`）——见 [docs/framework.md](/zh-CN/docs/framework) |
 
 ### 名称怎么找
 
@@ -541,9 +563,8 @@ Teyru 是按**简单名称**找的，前面写什么包都一样，所以 `impor
 
 ### 没有的东西
 
-线程、`java.util.concurrent`、时区数据库、`Scanner`。这些缺失都是刻意的：它们要么需要一份比整个语言还大
-的数据表（时区），要么需要语言本身没有的东西（线程），要么——`Scanner` 就是——
-只做一半会比不做更糟。
+`java.util.concurrent`、时区数据库、`Scanner`。这些缺失都是刻意的：它们要么需要一份
+比整个语言还大的数据表（时区），要么——`Scanner` 就是——只做一半会比不做更糟。
 
 需要自己的原生库时，`native` 方法可以用 C 实现，见
 [docs/native.md](/zh-CN/docs/native)。
@@ -557,7 +578,9 @@ Teyru 是按**简单名称**找的，前面写什么包都一样，所以 `impor
 5. **原生 property**：字段加 accessor 块；`field` 代表底层存储。
 6. **`val`**：推断类型的不可重新绑定局部变量。
 7. 捕获的局部变量不要求 effectively final。
-8. 没有 annotation processor、没有注解（annotation）的运行时反射、没有 JNI。
+8. 没有 annotation processor、没有 JNI。注解可以反射，但有一个差别：元素是
+   **按名字读**（`ann.stringValue("value")`），不是 Java 的 `ann.value()`；值为
+   数组的元素不携带。
 9. 泛型与 checked exception 的规则同 Java，但没有 checked 检查。
 10. 类型实参推断比 javac 弱一层，靠目标类型而不是完整的约束求解（没有 JLS 18）：
     - lambda 的类型实参会**从主体反推**：目标是 `Fn<String, ? extends R>` 而主体是
@@ -586,16 +609,19 @@ Teyru 是按**简单名称**找的，前面写什么包都一样，所以 `impor
 - `sealed` 的 `permits` 子句没有被验证：没有 `permits` 的 sealed 类型在
   switch 穷尽性上被视为不可判定而要求 `default`；switch **语句**的穷尽性
   仍从宽
-- 线程（文件与网络 I/O 有，见 `java.io`／`java.net`）
-- 反射缺的部分：注解反射、泛型类型参数的反射、每个元素类型的数组类
+- 线程只有一部分（`Thread`、`Runnable`、`synchronized` 与 `wait`／`notify` 已有，
+  见 §11 的〈线程与同步〉）：`interrupt`、daemon、优先级、`ThreadGroup`、
+  `ThreadLocal`、`join(long)`、`Thread.State` 没有；GC 是合作式停止世界，一条既不
+  循环、不分配也不阻塞的线程会让收集等它
+- 反射缺的部分：泛型类型参数的反射、每个元素类型的数组类
   （所有数组共用一个类）、原生类型取值器的 Java 拓宽（对 `byte` 字段调用
   `getInt` 在 Java 会过，这里是 `IllegalArgumentException`）
 - 与 Java 生态互通（JAR、JDK 类库、JNI）
 - 标识符中的 Unicode 转义（`\u0041` 不能拼出标识符）
 - 泛型构造函数的显式类型实参 `new <T>Foo(...)`
 - 文本块的缩进细则（目前实现最小缩进去除）
-- 注解的运行时保留与读取（`java.lang.annotation` 不存在；Lombok 的 `@onX`
-  只把注解复制到生成的成员上，不会有任何运行时效果）
+- `java.lang.annotation` 包（注解反射本身有，见 §11）：`@Retention` 收得下但没有
+  作用；Lombok 的 `@onX` 只把注解复制到生成的成员上，不会有任何运行时效果
 - 模块系统的语义（`import module X` 会被解析后忽略，运行时没有模块系统；`module-info` 不支持）
 - 数组的运行时元素类型一律是 `teyru.Array`，所以 `String[].class` 与
   `int[].class` 是同一个对象（Java 是两个）

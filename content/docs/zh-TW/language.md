@@ -165,7 +165,7 @@ record Point(int x, int y) {
   沒有常數但有成員時以冒號開頭。
 - `record` 自動產生私有 final 欄位、accessor、`toString`、`hashCode`、`equals`
   與標準建構子；也可寫精簡建構子（compact constructor）補驗證。
-- annotation 型別（`@interface`）可以宣告並使用，但沒有執行期反射；`annotation`
+- annotation 型別（`@interface`）可以宣告並使用，也可以反射（見 §11）；`annotation`
   不是關鍵字。
 
 ### 4.2 欄位與方法
@@ -492,6 +492,27 @@ for (String n : names) {
 }
 ```
 
+### 執行緒與同步（`lib/35`）
+
+執行緒是**真的作業系統執行緒**：執行期在 `internal/runtime/src/tyrt_thread.c` 為每一條
+執行緒留一筆註冊資料，收集器在掃 heap 之前會先停住每一條，再掃各自的堆疊。
+
+有的東西是 `Thread`（`Thread()`、`Thread(Runnable)`、`Thread(String)`、
+`Thread(Runnable, String)`；`start`、`run`、`join`、`isAlive`、`getId`、`getName`、
+`setName`，以及 `Thread.sleep(long)`、`Thread.yield()`、`Thread.currentThread()`）與
+`Runnable` 介面，還有真正的 `synchronized`（區塊與**方法修飾子**都有，方法整段持有
+監視器，監視器可重入）與 `Object.wait(long)`／`notify`／`notifyAll`。id 在 `Thread`
+物件建立時就給定、之後不變，main 執行緒是 1。
+
+**沒有的東西**（沒有宣告，寫了就是找不到符號）：`interrupt`、daemon 執行緒、執行緒
+優先權、`ThreadGroup`、`ThreadLocal`、逾時版的 `join(long)`、`Thread.State`，以及未
+處理例外的 handler——執行期印出 Java 預設處理常式那一行，然後結束那條執行緒，行程繼續。
+
+GC 是**合作式**停止世界，這是真正要知道的限制：安全點在每個迴圈回邊（產生器會放）、
+配置慢路徑、等 heap 鎖，以及每個會阻塞的呼叫。所以一條既不迴圈、不配置也不阻塞的
+執行緒（例如卡在原生 `read()` 裡）會讓收集等它，直到它回來。單執行緒程式的配置速度
+不變（每條執行緒有自己的配置區）。端到端測試是 `tests/programs/t159_threads.teyru`。
+
 ### 其他套件
 
 | 套件 | 檔案 | 內容 |
@@ -506,7 +527,7 @@ for (String n : names) {
 | `java.text` | `lib/24` | `NumberFormat`／`DecimalFormat`／`DecimalFormatSymbols`（完整 pattern 語言）、`DateFormat`／`SimpleDateFormat`（四種 style 與 parse）、`DateTimeFormatter`、`MessageFormat`、`ChoiceFormat`、`ParseException`／`ParsePosition`。**沒有 `Locale`**（只做 ROOT／en-US），**沒有 `java.util.Date`**（`format`／`parse` 走 `Instant`），`format` 沒有 `FieldPosition` 多載 |
 | `java.util` 其餘 | `lib/25` | `Properties`、`Random`（逐位元組照 java.util.Random）、`UUID`、`BitSet`、`StringTokenizer`、`Enumeration`、`ArrayOps`（陣列的範圍形式） |
 | `com.google.gson` | `lib/10`、`lib/19` | Gson 的樹狀 API，以及執行期讀取類別欄位的物件綁定（見 [docs/json.md](/docs/json)） |
-| 框架 | `lib/17`、`lib/18` | Spring 形狀的容器與 web 層；HTTP/1.1 的 keep-alive、chunked、Cookie、HEAD／OPTIONS，以及 WebSocket（`WebSocketHandler` + `server.addWebSocket`）——見 [docs/framework.md](/docs/framework) |
+| 框架 | `lib/17`、`lib/18`、`lib/30`、`lib/33`、`lib/34`、`lib/36` | Spring 形狀的容器與 web 層：`SpringApplication.run`、`application.properties` 與 `@ConfigurationProperties`／`@Profile`、`@ControllerAdvice`／`@ExceptionHandler`、`HandlerInterceptor`、靜態檔案、CORS、`ResponseEntity`、`MockServer`，HTTP/1.1 的 keep-alive、chunked、Cookie、HEAD／OPTIONS，WebSocket（`WebSocketHandler`／`WebSocketSession` + `server.addWebSocket`），會話（`HttpSession`／`Sessions`），上傳（`MultipartFile`），驗證（`Validation`／`ValidationException`），以及可以放上執行緒的接收迴圈（`ServerTask`）——見 [docs/framework.md](/docs/framework) |
 
 ### 名稱怎麼找
 
@@ -540,9 +561,8 @@ Teyru 是照**簡單名稱**找的，前面寫什麼套件都一樣，所以 `im
 
 ### 沒有的東西
 
-執行緒、`java.util.concurrent`、時區資料庫、`Scanner`。這些缺席都是刻意的：它們要嘛需要一份比整個語言還大
-的資料表（時區），要嘛需要語言本身沒有的東西（執行緒），要嘛——`Scanner` 就是——
-做半套會比不做更糟。
+`java.util.concurrent`、時區資料庫、`Scanner`。這些缺席都是刻意的：它們要嘛需要一份
+比整個語言還大的資料表（時區），要嘛——`Scanner` 就是——做半套會比不做更糟。
 
 需要自己的原生程式庫時，`native` 方法可以實作在 C 裡，見
 [docs/native.md](/docs/native)。
@@ -585,7 +605,10 @@ Teyru 是照**簡單名稱**找的，前面寫什麼套件都一樣，所以 `im
 - `sealed` 的 `permits` 子句沒有被驗證：沒有 `permits` 的 sealed 型別在
   switch 窮盡性上被視為不可判定而要求 `default`；switch **陳述式**的窮盡性
   仍從寬
-- 執行緒（檔案與網路 I/O 有，見 `java.io`／`java.net`）
+- 執行緒只有一部分（`Thread`、`Runnable`、`synchronized` 與 `wait`／`notify` 已有，
+  見 §11 的〈執行緒與同步〉）：`interrupt`、daemon、優先權、`ThreadGroup`、
+  `ThreadLocal`、`join(long)`、`Thread.State` 沒有；GC 是合作式停止世界，一條既不
+  迴圈、不配置也不阻塞的執行緒會讓收集等它
 - 反射缺的部分：泛型型別參數的反射、每個元素型別的陣列類別
   （所有陣列共用一個類別）、原生型別取值器的 Java 拓寬（對 `byte` 欄位呼叫
   `getInt` 在 Java 會過，這裡是 `IllegalArgumentException`）
@@ -593,8 +616,8 @@ Teyru 是照**簡單名稱**找的，前面寫什麼套件都一樣，所以 `im
 - 識別字中的 Unicode 逸出（`\u0041` 不能拼出識別字）
 - 泛型建構子的顯式型別引數 `new <T>Foo(...)`
 - 文字區塊的縮排細則（目前實作最小縮排去除）
-- 註解的執行期保留與讀取（`java.lang.annotation` 不存在；Lombok 的 `@onX`
-  只把註解複製到產生的成員上，不會有任何執行期效果）
+- `java.lang.annotation` 套件（註解反射本身有，見 §11）：`@Retention` 收得下但沒有
+  作用；Lombok 的 `@onX` 只把註解複製到產生的成員上，不會有任何執行期效果
 - 模組系統的語意（`import module X` 會被剖析後忽略，執行期沒有模組系統；`module-info` 不支援）
 - 陣列的執行期元素型別一律是 `teyru.Array`，所以 `String[].class` 與
   `int[].class` 是同一個物件（Java 是兩個）

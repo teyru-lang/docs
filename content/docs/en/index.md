@@ -342,7 +342,8 @@ compiles unchanged:
 | `java.math` | `BigInteger`, `BigDecimal`, `MathContext`, `RoundingMode` |
 | `java.text` | `NumberFormat`/`DecimalFormat` (the full pattern language), `DateFormat`/`SimpleDateFormat`, `DateTimeFormatter`, `MessageFormat`; ROOT/en-US only, `format` takes an `Instant` |
 | `com.google.gson` | Gson's tree API plus an object binding that reads the class's fields at run time ([docs/json.md](/en/docs/json)) |
-| framework | A Spring-shaped container and web layer ([docs/framework.md](/en/docs/framework)) |
+| threads | `Thread`/`Runnable`, real `synchronized` (including the method modifier) and `Object.wait`/`notify`/`notifyAll` ([docs/language.md](/en/docs/language) §11) |
+| framework | A Spring-shaped container and web layer: settings and profiles, `@ControllerAdvice`, interceptors, static files, CORS, `ResponseEntity`, `MockServer`, WebSocket, sessions, multipart uploads, validation annotations, and an accept loop that runs on a thread ([docs/framework.md](/en/docs/framework)) |
 
 Collections are written in Teyru, so `for` works on them directly:
 
@@ -364,9 +365,9 @@ teyru get example.com/greeting@v0.1.0
 teyru build ./...
 ```
 
-There is no threading (and no `java.util.concurrent`), no `Scanner`
-and no time zone database. Each absence is deliberate and argued for in
-[docs/language.md](/en/docs/language) §11 and §13.
+There is no `java.util.concurrent`, no `Scanner` and no time zone database. Each
+absence is deliberate and argued for in [docs/language.md](/en/docs/language) §11
+and §13. Threads themselves are there, see §11's "Threads and synchronization".
 
 For your own native library, declare a `native` method and implement it in C:
 
@@ -438,6 +439,8 @@ See [`docs/native.md`](/en/docs/native).
 - **GC** is conservative mark-and-sweep. Roots are the native stack (scanned
   conservatively), a registry of static field addresses, and registers spilled by
   `setjmp`. Objects never move, so C-level temporaries stay valid across a collection.
+  A collection stops every thread first and walks each stack (the stop is
+  world-wide and **cooperative**, see [docs/language.md](/en/docs/language) §11).
 - **Strings** are UTF-8 `tystr { tyobj obj; int64 len; char* data }`; literals are static
   objects that never enter the heap.
 - **Arrays** are `tyarr { tyobj; len; data; esize; refs }` with the elements stored inline.
@@ -459,7 +462,9 @@ familiar to Java developers. The main differences:
    Java field.
 6. **`val`** declares an inferred, non-reassignable local (not deep immutability).
 7. **No checked exception checking**; `throws` is parsed but not enforced.
-8. **No runtime reflection of annotations, no annotation processors.**
+8. **No annotation processors**; annotations are reflectable, but their elements
+   are read **by name** (`ann.stringValue("value")`) rather than through Java's
+   `ann.value()`.
 9. **Not a bytecode platform**: no `.class` files, no `java.lang`, no JNI, and no
    interoperability with existing Java libraries — a deliberate trade-off.
 

@@ -216,6 +216,43 @@ cookie 的地方：路由的回應是處理函式回傳後才產生的，這也�
 cookie 就指不到東西，下一個請求會拿到新的會話；`attributeNames()` 保持首次設定的
 順序；`Sessions.count()`／`clear()` 是給測試用的。
 
+### 驗證
+
+`lib/36_validation.teyru` 是 Bean Validation 的那一小塊：類別在自己的欄位上宣告約束，
+一個呼叫檢查它們。
+
+| 註解 | 意思 |
+|---|---|
+| `@NotNull` | 欄位不能是 `null` |
+| `@Size(min = …, max = …)` | `String` 欄位的長度落在 `[min, max]` 內，兩端都含 |
+| `@Min(value = …)`／`@Max(value = …)` | 數值欄位的下界／上界 |
+
+四個都有 `String message() default …`，沒寫就用預設訊息。`Validation.check(bean)` 讀
+物件自己宣告的欄位（走的是 JSON 綁定也在讀的那套反射），碰到**第一個**違反約束的欄位
+就丟 `ValidationException`，訊息是 `欄位: 訊息`——Spring 會一次報完所有違反，這裡只報
+第一個，要看到其餘的可以再問一次。
+
+web 層對**綁定產生的每一個物件**都呼叫它，所以請求主體違反自己型別的約束時，回應是
+400，主體是 `bad request: 欄位: 訊息`：客戶端做錯的事，說得出是哪個欄位。`@Min`／
+`@Max` 標在非數值欄位、`@Size` 標在非 `String` 欄位時也是 violation，訊息說明那個約束
+讀不了這個欄位——那是類別寫錯，但不該讓伺服器崩潰。`tests/programs/t160_validation.teyru`
+涵蓋了這些。
+
+**這四個名字是佔走的。** Teyru 的簡單名稱在同一個平坦命名空間裡，所以 `NotNull`、
+`Size`、`Min`、`Max` 已經是約束註解的名字，程式不能拿它們當自己型別的名字：自己宣告
+一個 `class Size` 之後，`@Size` 就指到那個類別，約束不再被檢查（安靜地不檢查）。
+
+### 上傳（multipart）
+
+`HttpRequest.multipart(String name)` 回答 `multipart/form-data` 請求裡以該欄位名送出的
+那個部分，型別是 `MultipartFile`：`name`、`originalFilename`、`contentType`、`content`
+（請求主體本來就是字串，所以檔案的內容是以送出的那些字元抵達），加上 `isEmpty()` 與
+`size()`；沒有這個欄位時是 `null`。
+
+不是 multipart、`Content-Type` 沒有 boundary、或主體不是它宣稱的那個 multipart 時，
+答案也是 `null`，不是例外——要不要回 400 是處理函式的決定。urlencoded 表單不受影響，
+照舊由 `@RequestParam` 綁定（見 `tests/programs/t161_multipart.teyru`）。
+
 ### 測試
 
 `MockServer` 不開 socket，直接問 `HttpServer.handle`：
@@ -227,19 +264,41 @@ server.request("POST", "/pets", body, "application/json")
 server.handle(req)                                   // 自己組的請求，看標頭
 ```
 
-理由與 Spring 的 MockMvc 相同：測路由不該需要一個埠、一個客戶端或第二條執行緒
-（本語言現在還沒有執行緒）。`server.handle(req)` 收的是**已經準備好**的請求，
-cookie 要自己 `readCookies()`。
+理由與 Spring 的 MockMvc 相同：測路由不該需要一個埠、一個客戶端或第二條執行緒。
+`server.handle(req)` 收的是**已經準備好**的請求，cookie 要自己 `readCookies()`。
+
+### 伺服器跑在自己的執行緒上
+
+接收迴圈也做成了 `Runnable`（`lib/18_web.teyru` 的 `ServerTask`），所以客戶端與伺服器
+可以活在同一個程式裡：
+
+```teyru
+HttpServer server = new HttpServer(0, Application.routerFrom(ctx), ctx)
+server.bind()                                  // 先綁，埠才是已知的
+ServerTask task = new ServerTask(server)
+Thread serving = new Thread(task, "server")
+serving.start()
+// …送請求…
+task.stop()
+serving.join()
+```
+
+`server.bind()` 要在執行緒啟動前做：埠（`server.getPort()`）是組 URL 要用的，而已經綁好
+的 listener 也答得掉在執行緒走到 accept 之前抵達的連線。`stop()` 要求迴圈在兩個連線
+之間停下來，不會打斷正在回答的那個連線，`isRunning()` 回答它還在不在跑。`port` 傳 0
+是請核心挑一個空埠，`tests/programs/t162_http_roundtrip.teyru` 就是讓伺服器跑在一條
+執行緒上、主執行緒當客戶端，在同一個程式裡往返。
 
 ## 已知限制
 
-1. **一次處理一個連線。** 語言沒有執行緒（`docs/language.md` §13），所以第二個連線
-   要等第一個處理完。這對「會回應請求的程式」夠用，對「服務一群人」不夠；形狀已經
-   是 thread-per-connection 需要的形狀。
+1. **一次處理一個連線。** 迴圈仍然一次只回答一個連線，但它現在可以跑在自己的執行緒上
+   （上面的 `ServerTask`），所以「第二個連線等第一個」是迴圈的形狀，不是程式的形狀：
+   客戶端與伺服器可以並存在同一個程式裡。要同時服務多個連線，需要的是
+   thread-per-connection，這一層還沒有；形狀已經是它需要的形狀。
 2. **沒有內容協商。** 只看方法的宣告型別，不看 `Accept`。
 3. **會話活在行程裡。** 兩個行程後面接同一個服務時，請求要回到產生會話的那一個；
    會話 id 是 `java.util.Random` 的 128 位元，對單一伺服器夠用，不是密碼學來源。
-4. **沒有 multipart 上傳、沒有驗證註解、沒有 SSE。**
+4. **沒有 SSE。** multipart 上傳與驗證註解都有了，見上面兩節；伺服器推送沒有。
 5. **沒有 `@Conditional`、`@Import`、`@Lazy`、AOP、交易**，也沒有
    `@ComponentScan` 的範圍控制：整個程式都是掃描範圍，因為編譯器看得見全部——要
    排除什麼，就不要標註它。

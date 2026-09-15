@@ -154,8 +154,8 @@ class Person {
   要全參數建構子請同時加 `@AllArgsConstructor`。
 - `@Builder` **不會**產生 getter，與 Lombok 相同。
 - `@Getter(lazy = true)` 把欄位的初始值搬進 getter：建構子不再算它，第一次讀取算一次
-  之後快取（與 Lombok 相同）。持有值是 boxed 的，所以原生型別也可以。差別是沒有
-  加鎖：這個語言沒有執行緒。
+  之後快取（與 Lombok 相同）。持有值是 boxed 的，所以原生型別也可以。差別是產生的
+  getter 沒有加鎖（Lombok 的會同步），它只有一個持有欄位。
 - `@EqualsAndHashCode` 的 `hashCode` 用 31 與 0（Lombok 用 59 與 43），欄位順序照宣告
   順序（Lombok 會排序），而且不產生 `canEqual`——所以父類別與子類別只要欄位相同就相等，
   Lombok 會說不相等。

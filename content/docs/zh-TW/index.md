@@ -328,7 +328,8 @@ class Main {
 | `java.math` | `BigInteger`、`BigDecimal`、`MathContext`、`RoundingMode` |
 | `java.text` | `NumberFormat`／`DecimalFormat`（完整 pattern 語言）、`DateFormat`／`SimpleDateFormat`、`DateTimeFormatter`、`MessageFormat`；只做 ROOT／en-US，`format` 走 `Instant` |
 | `com.google.gson` | Gson 的樹狀 API，以及執行期讀取類別欄位的物件綁定（[docs/json.md](/docs/json)） |
-| 框架 | Spring 形狀的容器與 web 層（[docs/framework.md](/docs/framework)） |
+| 執行緒 | `Thread`／`Runnable`、真正的 `synchronized`（含方法修飾子）與 `Object.wait`／`notify`／`notifyAll`（[docs/language.md](/docs/language) §11） |
+| 框架 | Spring 形狀的容器與 web 層：設定與 profile、`@ControllerAdvice`、攔截器、靜態檔案、CORS、`ResponseEntity`、`MockServer`、WebSocket、會話、multipart 上傳、驗證註解，以及可放上執行緒的接收迴圈（[docs/framework.md](/docs/framework)） |
 
 集合以 Teyru 撰寫，所以 `for` 迴圈直接支援：
 
@@ -349,8 +350,9 @@ teyru get example.com/greeting@v0.1.0
 teyru build ./...
 ```
 
-沒有執行緒（也沒有 `java.util.concurrent`）、沒有 `Scanner`、沒有時區資料庫——這些缺席都是刻意的，理由記在
-[docs/language.md](/docs/language) §11 與 §13。
+沒有 `java.util.concurrent`、沒有 `Scanner`、沒有時區資料庫——這些缺席都是刻意的，
+理由記在 [docs/language.md](/docs/language) §11 與 §13。執行緒本身有了，見 §11
+的〈執行緒與同步〉。
 
 需要自己的原生程式庫時，宣告 `native` 方法並用 C 實作：
 
@@ -413,7 +415,9 @@ teyru build --native impl.c program.teyru            # 一起編譯
 - **例外**：以 `setjmp`／`longjmp` 實作的 handler 鏈；`finally` 以巢狀 handler
   保證在任何路徑（含 catch 內再拋出）都執行。
 - **GC**：保守式標記清除。根包含原生堆疊（保守掃描）、靜態欄位註冊表與暫存器
-  （`setjmp` 溢出）。物件不搬移，所以 C 端的暫存指標永遠有效。
+  （`setjmp` 溢出）。物件不搬移，所以 C 端的暫存指標永遠有效。收集前會先停住每一條
+  執行緒，再掃各自的堆疊（停止是世界性的，且是**合作式**的，見
+  [docs/language.md](/docs/language) §11）。
 - **字串**：UTF-8 `tystr { tyobj obj; int64 len; char* data }`；字面值是靜態物件，
   不經 GC。
 - **陣列**：`tyarr { tyobj; len; data; esize; refs }`，元素內嵌在物件後方。
@@ -432,7 +436,8 @@ Teyru 不是 Java 的子集，而是「Java 開發者一看就懂」的獨立語
    沒有 accessor 區塊的欄位就是普通 Java 欄位。
 6. **`val`**：推斷型別的不可重綁區域變數（不是深度不可變）。
 7. **沒有 checked exception 檢查**；`throws` 會被剖析但不強制。
-8. **沒有註解（annotation）的執行期反射、沒有 annotation processor**。
+8. **沒有 annotation processor**；註解可以反射，但元素是**按名字讀**
+   （`ann.stringValue("value")`），不是 Java 的 `ann.value()`。
 9. **不是 bytecode 平台**：沒有 `.class`、沒有 `java.lang`、沒有 JNI，
    目前也**無法**與既有 Java 程式庫互通——這是刻意的取捨。
 

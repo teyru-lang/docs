@@ -155,7 +155,7 @@ class Person {
 - `@Builder` **不会**生成 getter，与 Lombok 相同。
 - `@Getter(lazy = true)` 把字段的初始值搬进 getter：构造函数不再计算它，第一次读取时
   计算一次之后缓存（与 Lombok 相同）。持有的值是 boxed 的，所以原生类型也可以。差别是
-  没有加锁：这门语言没有线程。
+  生成的 getter 没有加锁（Lombok 的会同步），它只有一个持有字段。
 - `@EqualsAndHashCode` 的 `hashCode` 用 31 与 0（Lombok 用 59 与 43），字段顺序按声明
   顺序（Lombok 会排序），而且不生成 `canEqual`——所以父类和子类只要字段相同就相等，
   Lombok 会说它们不相等。
