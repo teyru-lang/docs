@@ -115,7 +115,7 @@ is written in that header too: mingw's C library is POSIX-shaped, so `open`/`rea
 
 `teyru build --target <os>/<arch>` decides which compiler, which flags, which half of the
 platform layer and which output suffix; the target table has five rows, with evidence of
-different strength (see [docs/index.md](/en/docs) and "Back ends and platforms").
+different strength, listed in "Back ends and platforms" on the index page ([docs/index.md](/en/docs)).
 
 ## Performance Design
 
