@@ -349,7 +349,7 @@ class Main {
 |---|---|
 | `java.lang` | `Object`、`Class`、`String`（`format`／`join`／`valueOf` 等）、`StringBuilder`、`Math`、`System`、`PrintStream`、八个包装类和 `Number`、`Throwable` 家族、`Enum`、`Record` |
 | `java.util` | `List`／`ArrayList`／`LinkedList`、`Set`／`HashSet`／`LinkedHashSet`／`TreeSet`、`Map`／`HashMap`／`LinkedHashMap`／`TreeMap`、`Deque`／`ArrayDeque`、`Arrays`、`Collections`、`Objects`、`Optional`、`StringJoiner`、`Properties`、`Random`、`UUID`、`BitSet`、`StringTokenizer` |
-| `java.time` | `LocalDate`／`LocalTime`／`LocalDateTime`／`Instant`／`Duration`／`Period` |
+| `java.time` | `LocalDate`／`LocalTime`／`LocalDateTime`／`Instant`／`Duration`／`Period`；时区是 `ZoneId`／`ZoneOffset`／`ZoneRules`／`ZonedDateTime`，读主机自己的 tzdata |
 | `java.io` | `File`、`Path`／`Paths`、`Files` |
 | `java.util.regex` | `Pattern`／`Matcher` |
 | `java.net` | `ServerSocket`、`Socket` 及其输入输出流 |
@@ -386,9 +386,9 @@ teyru get example.com/greeting@v0.1.0
 teyru build ./...
 ```
 
-时区数据库仍然没有，理由记在 [docs/language.md](/zh-CN/docs/language) §11 与 §13。
-线程、`java.util.concurrent` 的执行器与同步器、`Scanner` 都有了，见 §11 的〈线程与
-同步〉与〈并发工具〉。
+标准库没有清单式的一条「少了什么」：每个缺口都写在它自己所属于的包那一行或那一节
+（见 [docs/language.md](/zh-CN/docs/language) §11），而且每条都是决定——`MessageDigest`
+没有 SHA-3、`Scanner` 只读 `String`、闰秒被拒绝、没有 tzdata 的主机上时区是具名拒绝。
 
 需要自己的原生库时，声明 `native` 方法并用 C 实现：
 

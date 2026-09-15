@@ -546,11 +546,57 @@ fork/join、`CompletionService`、`ThreadFactory`、`CyclicBarrier`／`Semaphore
 `InterruptedException`）。`ConcurrentHashMap` 不是 `Map`：没有 `clear`／`putAll`／
 `keySet`／`values`／`entrySet`，`keys()` 返回的是一份快照 `Enumeration`。
 
+### 时区（`lib/46`）
+
+`java.time.zone` 的那一半，读**主机自己的 IANA 数据库**（TZif 格式）：纯 Teyru，在
+`byte[]` 上操作，没有 native、没有新的 C，只用到既有的文件、环境与字符串辅助函数。
+`ZoneId`、`ZoneOffset`、`ZoneRules`、`ZoneOffsetTransition`、`ZonedDateTime`，以及
+`ZoneRulesException`（`DateTimeException` 的子类）；`ZoneId.getAvailableZoneIds()` 与
+`getAvailableIDs()`（后者是排序过的 `String[]`，`java.util.TimeZone` 的形状）、
+`systemDefault()`、`ZoneRules.getOffset(instant)`、`ZonedDateTime` 的算术（跨 DST 边界的
+`plusDays` 是重点）与 `withZoneSameInstant`／`withZoneSameLocal`，还有重叠与缺口那两组
+（`withEarlierOffsetAtOverlap`／`withLaterOffsetAtOverlap`）——少了它们，程序最常弄错的
+就是这种日期。
+
+**格式的决定**，每一条都是「对」与「差不多对」的差别：版本字节决定读哪一段，版本 2
+以上用头算出第一段的长度并**跳过**它（不是把同样的转换时刻用 32 位再读一次）；
+查表是对转换时刻做二分查找；第一个转换之前用第一个非 DST 的类型（RFC 8536 说类型 0、
+`tzfile(5)` 说第一个非 DST 类型——这台主机上的文件两者一致，代码写明跟的是后者，因为
+那是 C 函数库的读法）；**最后一个转换之后由 footer 的 POSIX 规则字符串决定**——这一段才是
+「现在」对的原因，因为多数时区的最后一次转换都在过去（`Asia/Taipei` 是 1979、
+`Europe/Moscow` 是 2014、New York 是 2037），停在表格上的读者会永远回答该时区最后一次
+改规则之前的规则。footer 那个 POSIX TZ 字符串自己是一个小语法：`Jn`／`n`／`Mm.w.d` 三种
+规则、`/time` 是转换前那个偏移下的墙上时间、offset 是 POSIX 的反向（`CST-8` 是
++08:00 以东）；读不下去的会抛 `ZoneRulesException`，消息指名来源（文件路径或 `TZ=...`）
+与读不下去的地方。
+
+**刻意没有的东西**：`java.util.TimeZone` 是**决定不做**——这个标准库的日期时间层
+整套是 java.time 的，没有 `Date`／`Calendar` 给它服务，而它会被要的三件事
+`getAvailableZoneIds`／`systemDefault`／`getOffset` 都在；规则的**对象**那一面
+（`ZoneOffsetTransitionRule` 与 `ZoneRules.getTransitionRules`）不需要，因为解析下来的
+POSIX 字符串回答同样的问题；`getDisplayName` 需要这个标准库没有的 CLDR 地区数据；
+闰秒是**拒绝而不是近似**（`right/` 那类文件的转换时刻是闰秒，忽略校正会在 1972 之后差
+27 秒，一个差 27 秒的答案比没有答案糟）；而且**没有内置数据库**，所以没有 tzdata 的主机
+（Windows，或没装的容器）拿到的是具名拒绝——`ZoneRulesException`，消息说哪个目录不在、
+要装 tzdata 或设 `TZDIR`——而不是一个偏移。只有 UTC／GMT／UT 与 `+08:00` 这类数值 id 是
+内置的，因为只需要 UTC 的程序不该需要 tzdata。
+
+**与 Java 不同的地方**：`ZoneId` 实现 `Comparable`（Java 的没有，所以在那一边排时区要自己
+给 `Comparator`）；`setSystemDefault`／`setZoneInfoDir`／`getZoneInfoDir`／
+`getAbbreviation` 是这个标准库自己的 additions（`getAbbreviation` 回答文件里的
+designation，JVM 是通过 formatter 给 CLDR 的名字）；规则**按 id 缓存**而不是共用，所以
+`Europe/Kiev` 与 `Europe/Kyiv` 会读两次文件、持有两个相等的对象，而 JVM 的 provider 会
+共用一个；id 也照调用者写的原样保留，不做 canonicalize。
+
+`tests/programs/t188_timezone.teyru` 与 javac 21 的输出逐字节相同，
+`t189_timezone_lookup.teyru` 是政策那一面（id 清单、各种拒绝、`TZDIR`／`TZ`、默认时区），
+`t190_timezone_tzif.teyru` 用自己写的合成文件把「读哪一段」证明出来，而不是宣称。
+
 ### 其他包
 
 | 包 | 文件 | 内容 |
 |---|---|---|
-| `java.time` | `lib/20` | `LocalDate`／`LocalTime`／`LocalDateTime`／`Instant`／`Duration`／`Period`／`DayOfWeek`／`Month`；历法算在 epoch day 上（没有时区，`now()` 读 UTC）。`LocalDate`、`Instant`、`Duration`、`DayOfWeek`／`Month` 的输出与 JDK 逐字节相同；四处不同：年份不补零也不加正号（`1-01-01`、`10000-01-01`，JDK 是 `0001-01-01`、`+10000-01-01`）、`LocalTime` 的 `plus*`／`minus*` 清掉纳秒（`00:00:00.000000001` 加一小时是 `01:00`）、`LocalDateTime` 的 `plusHours`／`plusMinutes`／`plusSeconds` 不跨日（`1899-01-01T23:00` 加 25 小时是 `1899-01-01T00:00`）、`Period.between` 与 `addTo`／`subtractFrom` 的算法与 JDK 不同（`2000-03-31` 到 `2000-04-30` 是 `P1M`，JDK 是 `P30D`） |
+| `java.time` | `lib/20` | `LocalDate`／`LocalTime`／`LocalDateTime`／`Instant`／`Duration`／`Period`／`DayOfWeek`／`Month`；历法算在 epoch day 上；时区在 `lib/46`（见上面〈时区〉），而 `LocalDate.now()`／`LocalTime.now()`／`LocalDateTime.now()` 仍然把系统时钟读成 UTC——那是这个文件剩下的一处偏差，分区的「现在」是 `ZonedDateTime.now()`。`LocalDate`、`Instant`、`Duration`、`DayOfWeek`／`Month` 的输出与 JDK 逐字节相同；四处不同：年份不补零也不加正号（`1-01-01`、`10000-01-01`，JDK 是 `0001-01-01`、`+10000-01-01`）、`LocalTime` 的 `plus*`／`minus*` 清掉纳秒（`00:00:00.000000001` 加一小时是 `01:00`）、`LocalDateTime` 的 `plusHours`／`plusMinutes`／`plusSeconds` 不跨日（`1899-01-01T23:00` 加 25 小时是 `1899-01-01T00:00`）、`Period.between` 与 `addTo`／`subtractFrom` 的算法与 JDK 不同（`2000-03-31` 到 `2000-04-30` 是 `P1M`，JDK 是 `P30D`） |
 | `java.io` | `lib/16` | `File`（`listFiles`）、`Path`／`Paths`、`Files`（`readString`／`writeString`／`readAllLines`／`exists`／`createDirectories`） |
 | `java.util.regex` | `lib/21` | `Pattern`／`Matcher`：回溯式匹配，支持字面量、`.`、`*`／`+`／`?`／`{n,m}` 及其惰性形式、字符类、`\d`／`\w`／`\s`、`^`／`$`、`|`、捕获与非捕获组、`replaceAll`／`replaceFirst`／`split`（含 `limit` 的三种正负号）；不支持的语法（占有量词、环视、反向引用、`\p{...}`）在 `compile` 就被拒绝。`String.matches`／`replaceAll`／`replaceFirst`／`split` 就是这五个方法，不是另一套实现 |
 | `java.net` | `lib/15` | `ServerSocket`、`Socket`、`SocketInputStream`／`SocketOutputStream`；同步阻塞的 POSIX socket，超时通过 `SocketTimeoutException` 报告 |
@@ -601,13 +647,12 @@ Teyru 是按**简单名称**找的，前面写什么包都一样，所以 `impor
 
 ### 没有的东西
 
-时区数据库。这个缺失是刻意的：它需要一份比整个语言还大的数据表，所以 `java.time`
-的其他部分都算在 epoch day 上（`now()` 读 UTC）。
-
-这份清单不长，因为缺口现在分散在各个包里说明：上面每个包那一行自己写出它少了什么，
-而且每个「没有」都是决定，不是还没做——`MessageDigest` 没有 SHA-3 是因为
-`getInstance` 宁可抛 `NoSuchAlgorithmException` 也不要给出一个不是调用者指名的那种
-哈希，`shutdownNow` 不能打断任务是因为这门语言没有 `interrupt`。
+**这份清单现在是空的。** 标准库的缺口都写在它们所属的地方——上面每个包那一行或
+那一节自己写出它少了什么——而且每个「没有」都是决定，不是还没做：`MessageDigest` 没有
+SHA-3 是因为 `getInstance` 宁可抛 `NoSuchAlgorithmException`，也不要给出一个不是调用者
+指名的那种哈希；`shutdownNow` 不能打断任务是因为这门语言没有 `interrupt`；闰秒被拒绝
+是因为差 27 秒的答案比没有答案糟；`java.util.TimeZone` 没做是因为这个标准库没有
+`Date` 与 `Calendar` 给它服务。
 
 需要自己的原生库时，`native` 方法可以用 C 实现，见
 [docs/native.md](/zh-CN/docs/native)。
@@ -671,6 +716,6 @@ Teyru 是按**简单名称**找的，前面写什么包都一样，所以 `impor
 - 标准库缺失：`String.format` 的 `%t`／`%T`（日期时间转换）未实现，遇到会以
   `ty_unimplemented` 停止而不是打印出看起来合理的东西；其余缺口写在 §11 的包表与
   〈并发工具〉（`Scanner` 只读一个 `String`、`MessageDigest` 没有 SHA-3 与
-  SHA-512/256、没有时区数据库、`java.util.concurrent` 只有执行器与四个同步器）
+  SHA-512/256、`java.util.concurrent` 只有执行器与四个同步器、闰秒没有、没有 tzdata 的主机上时区是具名拒绝）
 - 无法解析的全限定名（例如 `com.example.Baz.qux(x)`）会报告
   `cannot find symbol com`——消息指向链的第一段而不是整条路径

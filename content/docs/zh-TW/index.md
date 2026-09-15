@@ -351,7 +351,7 @@ class Main {
 |---|---|
 | `java.lang` | `Object`、`Class`、`String`（`format`／`join`／`valueOf`…）、`StringBuilder`、`Math`、`System`、`PrintStream`、八個包裝類別與 `Number`、`Throwable` 家族、`Enum`、`Record` |
 | `java.util` | `List`／`ArrayList`／`LinkedList`、`Set`／`HashSet`／`LinkedHashSet`／`TreeSet`、`Map`／`HashMap`／`LinkedHashMap`／`TreeMap`、`Deque`／`ArrayDeque`、`Arrays`、`Collections`、`Objects`、`Optional`、`StringJoiner`、`Properties`、`Random`、`UUID`、`BitSet`、`StringTokenizer` |
-| `java.time` | `LocalDate`／`LocalTime`／`LocalDateTime`／`Instant`／`Duration`／`Period` |
+| `java.time` | `LocalDate`／`LocalTime`／`LocalDateTime`／`Instant`／`Duration`／`Period`；時區是 `ZoneId`／`ZoneOffset`／`ZoneRules`／`ZonedDateTime`，讀主機自己的 tzdata |
 | `java.io` | `File`、`Path`／`Paths`、`Files` |
 | `java.util.regex` | `Pattern`／`Matcher` |
 | `java.net` | `ServerSocket`、`Socket` 與其輸入輸出串流 |
@@ -388,9 +388,9 @@ teyru get example.com/greeting@v0.1.0
 teyru build ./...
 ```
 
-時區資料庫仍然沒有，理由記在 [docs/language.md](/docs/language) §11 與 §13。執行緒、
-`java.util.concurrent` 的執行器與同步器、`Scanner` 都有了，見 §11 的〈執行緒與同步〉
-與〈並行工具〉。
+標準程式庫沒有清單式的一條「少了什麼」：每個缺口都寫在它自己所屬的套件那一列或那一節
+（見 [docs/language.md](/docs/language) §11），而且每條都是決定——`MessageDigest` 沒有
+SHA-3、`Scanner` 只讀 `String`、閏秒被拒絕、沒有 tzdata 的主機上時區是具名拒絕。
 
 需要自己的原生程式庫時，宣告 `native` 方法並用 C 實作：
 

@@ -371,7 +371,7 @@ compiles unchanged:
 |---|---|
 | `java.lang` | `Object`, `Class`, `String` (`format`/`join`/`valueOf`/…), `StringBuilder`, `Math`, `System`, `PrintStream`, the eight wrappers and `Number`, the `Throwable` family, `Enum`, `Record` |
 | `java.util` | `List`/`ArrayList`/`LinkedList`, `Set`/`HashSet`/`LinkedHashSet`/`TreeSet`, `Map`/`HashMap`/`LinkedHashMap`/`TreeMap`, `Deque`/`ArrayDeque`, `Arrays`, `Collections`, `Objects`, `Optional`, `StringJoiner`, `Properties`, `Random`, `UUID`, `BitSet`, `StringTokenizer` |
-| `java.time` | `LocalDate`/`LocalTime`/`LocalDateTime`/`Instant`/`Duration`/`Period` |
+| `java.time` | `LocalDate`/`LocalTime`/`LocalDateTime`/`Instant`/`Duration`/`Period`; time zones are `ZoneId`/`ZoneOffset`/`ZoneRules`/`ZonedDateTime`, reading the host's own tzdata |
 | `java.io` | `File`, `Path`/`Paths`, `Files` |
 | `java.util.regex` | `Pattern`/`Matcher` |
 | `java.net` | `ServerSocket`, `Socket` and their streams |
@@ -409,9 +409,10 @@ teyru get example.com/greeting@v0.1.0
 teyru build ./...
 ```
 
-The time zone database is still missing, argued for in [docs/language.md](/en/docs/language)
-§11 and §13. Threads, the `java.util.concurrent` executors and synchronizers, and `Scanner`
-are all there now, in §11's "Threads and synchronization" and "Concurrency tools".
+There is no single list of what the standard library is missing: every gap is stated where
+it belongs, in the package row or section about it ([docs/language.md](/en/docs/language)
+§11), and each one is a decision — `MessageDigest` has no SHA-3, `Scanner` reads a `String`
+only, a leap-second file is refused, and a host without tzdata gets a named refusal.
 
 For your own native library, declare a `native` method and implement it in C:
 

@@ -584,11 +584,68 @@ interruptible waits (there is no `InterruptedException`). `ConcurrentHashMap` is
 `Map`: no `clear`/`putAll`/`keySet`/`values`/`entrySet`, and `keys()` answers a snapshot
 `Enumeration`.
 
+### Time zones (`lib/46`)
+
+The other half of `java.time.zone`, reading **the host's own IANA database** (the TZif
+format): pure Teyru over `byte[]`, no natives and no new C, using only the file,
+environment and string helpers that already existed. `ZoneId`, `ZoneOffset`, `ZoneRules`,
+`ZoneOffsetTransition` and `ZonedDateTime`, plus `ZoneRulesException` (a subclass of
+`DateTimeException`); `ZoneId.getAvailableZoneIds()` and `getAvailableIDs()` (the latter a
+sorted `String[]`, the shape `java.util.TimeZone` has), `systemDefault()`,
+`ZoneRules.getOffset(instant)`, `ZonedDateTime`'s arithmetic (a `plusDays` across a DST
+boundary is the interesting one) with `withZoneSameInstant`/`withZoneSameLocal`, and the
+overlap and gap pair (`withEarlierOffsetAtOverlap`/`withLaterOffsetAtOverlap`) — the ones a
+program gets wrong when the layer does not have them.
+
+**The format decisions**, each of them the difference between right and approximately right:
+the version octet decides which block is read, and for version 2 and later the first block is
+skipped by calculating its length from its header rather than parsed (reading it would be the
+same transitions at 32 bits); the lookup is a binary search over the transitions; before the
+first transition it uses the first type that is not DST (RFC 8536 says type 0 and
+`tzfile(5)` says the first non-DST type — on the host this was written against every file
+agrees, and the code says it follows the second, because that is what the C library does);
+and **at or after the last transition the footer's POSIX rule string decides** — which is
+what makes the *present* right, since most zones' last transition is in the past
+(`Asia/Taipei`'s is 1979, `Europe/Moscow`'s 2014, New York's 2037), so a reader that stops at
+the table answers the last rule the zone ever changed under, for ever. That POSIX TZ string
+is a grammar of its own: the `Jn`, `n` and `Mm.w.d` rule forms, a `/time` in the wall time of
+the offset in force before the transition, and offsets in POSIX's inverted sense (`CST-8` is
++08:00 east of UT); one it cannot read raises `ZoneRulesException` naming the source (a file
+path, or `TZ=...`) and the part it could not read.
+
+**What is deliberately absent**: `java.util.TimeZone` is not implemented *by decision* — this
+library's whole date and time layer is java.time's, there is no `Date` and no `Calendar` for
+it to serve, and the three things it would be asked for (`getAvailableZoneIds`,
+`systemDefault`, `getOffset`) are here; the rule-*object* view (`ZoneOffsetTransitionRule`
+and `ZoneRules.getTransitionRules`) is not here either, because the parsed POSIX string
+answers the same questions; `getDisplayName` needs the CLDR locale data this library does not
+have; a leap-second file is **refused rather than approximated** (the transition times in a
+`right/` file are leap seconds, so a reader that ignored the corrections would be 27 seconds
+wrong after 1972 — an answer that is wrong by 27 seconds is worse than no answer); and there
+is **no compiled-in database**, so a host without tzdata (Windows, or a container that did
+not install it) gets a named refusal — a `ZoneRulesException` whose message says which
+directory was not there and what to install or set — rather than an offset. Only UTC, GMT, UT
+and the numeric ids like `+08:00` are built in, because a program that needs only UTC should
+not need tzdata.
+
+**Where it differs from Java**: `ZoneId` implements `Comparable` (Java's does not, which is
+why sorting zones there needs a `Comparator`); `setSystemDefault`, `setZoneInfoDir`,
+`getZoneInfoDir` and `getAbbreviation` are this library's own additions (`getAbbreviation`
+answers the file's designation, where a JVM reaches a CLDR name through a formatter); rules
+are cached per id rather than shared, so `Europe/Kiev` and `Europe/Kyiv` read the file twice
+and hold two equal objects where a JVM's provider shares one; and an id comes back from
+`getId` exactly as the caller wrote it, not canonicalised.
+
+`tests/programs/t188_timezone.teyru` is javac 21's output byte for byte,
+`t189_timezone_lookup.teyru` is the policy side (the id list, the refusals, `TZDIR`/`TZ`, the
+default zone), and `t190_timezone_tzif.teyru` proves which block is read with synthetic files
+it writes itself rather than asserting it.
+
 ### Other packages
 
 | Package | Files | Contents |
 |---|---|---|
-| `java.time` | `lib/20` | `LocalDate`/`LocalTime`/`LocalDateTime`/`Instant`/`Duration`/`Period`/`DayOfWeek`/`Month`; the calendar arithmetic is done on epoch days (no time zones, `now()` reads UTC). `LocalDate`, `Instant`, `Duration` and `DayOfWeek`/`Month` output byte-for-byte identically to the JDK; four places differ: the year is neither zero-padded nor given a plus sign (`1-01-01`, `10000-01-01`, where the JDK has `0001-01-01`, `+10000-01-01`), `LocalTime`'s `plus*`/`minus*` clear the nanoseconds (`00:00:00.000000001` plus one hour is `01:00`), `LocalDateTime`'s `plusHours`/`plusMinutes`/`plusSeconds` do not cross the day (`1899-01-01T23:00` plus 25 hours is `1899-01-01T00:00`), and `Period.between` and `addTo`/`subtractFrom` compute differently from the JDK (`2000-03-31` to `2000-04-30` is `P1M`, where the JDK has `P30D`) |
+| `java.time` | `lib/20` | `LocalDate`/`LocalTime`/`LocalDateTime`/`Instant`/`Duration`/`Period`/`DayOfWeek`/`Month`; the calendar arithmetic is done on epoch days; time zones are `lib/46` (see "Time zones" above), and `LocalDate.now()`/`LocalTime.now()`/`LocalDateTime.now()` still read the system clock as UTC — that is the one deviation left in this file, and a zoned "now" is `ZonedDateTime.now()`. `LocalDate`, `Instant`, `Duration` and `DayOfWeek`/`Month` output byte-for-byte identically to the JDK; four places differ: the year is neither zero-padded nor given a plus sign (`1-01-01`, `10000-01-01`, where the JDK has `0001-01-01`, `+10000-01-01`), `LocalTime`'s `plus*`/`minus*` clear the nanoseconds (`00:00:00.000000001` plus one hour is `01:00`), `LocalDateTime`'s `plusHours`/`plusMinutes`/`plusSeconds` do not cross the day (`1899-01-01T23:00` plus 25 hours is `1899-01-01T00:00`), and `Period.between` and `addTo`/`subtractFrom` compute differently from the JDK (`2000-03-31` to `2000-04-30` is `P1M`, where the JDK has `P30D`) |
 | `java.io` | `lib/16` | `File` (`listFiles`), `Path`/`Paths`, `Files` (`readString`/`writeString`/`readAllLines`/`exists`/`createDirectories`) |
 | `java.util.regex` | `lib/21` | `Pattern`/`Matcher`: backtracking matching, supporting literals, `.`, `*`/`+`/`?`/`{n,m}` and their lazy forms, character classes, `\d`/`\w`/`\s`, `^`/`$`, `|`, capturing and non-capturing groups, `replaceAll`/`replaceFirst`/`split` (including all three signs of `limit`); unsupported syntax (possessive quantifiers, lookaround, backreferences, `\p{...}`) is rejected at `compile` time. `String.matches`/`replaceAll`/`replaceFirst`/`split` are exactly these five methods, not another implementation |
 | `java.net` | `lib/15` | `ServerSocket`, `Socket`, `SocketInputStream`/`SocketOutputStream`; synchronous blocking POSIX sockets, with timeouts reported as `SocketTimeoutException` |
@@ -645,15 +702,14 @@ duplicate declaration `TY-TYP-0001`, because the two fully qualified names are t
 
 ### What is missing
 
-A timezone database. That absence is deliberate: it needs a data table bigger than the
-entire language, which is why the rest of `java.time` is arithmetic on epoch days (`now()`
-reads UTC).
-
-The list is short because the gaps are stated where they belong now: every row of the package
-table above names what its own package does not have, and each of those is a decision rather
-than unfinished work — `MessageDigest` has no SHA-3 because `getInstance` would rather throw
-`NoSuchAlgorithmException` than answer with a digest the caller did not name, and
-`shutdownNow` cannot stop a running task because this language has no `interrupt`.
+**This list is empty now.** The standard library's gaps are stated where they belong — each
+row of the package table above, or the section about it, names what its own package does not
+have — and each of those is a decision rather than unfinished work: `MessageDigest` has no
+SHA-3 because `getInstance` would rather throw `NoSuchAlgorithmException` than answer with a
+digest the caller did not name; `shutdownNow` cannot stop a running task because this
+language has no `interrupt`; a leap-second file is refused because an answer 27 seconds wrong
+is worse than none; and `java.util.TimeZone` is not implemented because this library has no
+`Date` or `Calendar` for it to serve.
 
 Reflection is there (`java.lang.reflect`, §11). What it does not have: generic type
 arguments, a class per array type (every array value belongs to one class, so there is no
@@ -730,8 +786,8 @@ When you need your own native library, a `native` method can be implemented in C
   implemented, and hitting them stops with `ty_unimplemented` rather than printing
   something that looks reasonable; the rest are written where they belong, in §11's package
   table and in "Concurrency tools" (`Scanner` reads a `String` only, `MessageDigest` has no
-  SHA-3 or SHA-512/256, there is no timezone database, and `java.util.concurrent` is the
-  executors plus four synchronizers)
+  SHA-3 or SHA-512/256, `java.util.concurrent` is the executors plus four synchronizers, leap
+  seconds are refused, and a host without tzdata gets a named refusal instead of an offset)
 - An unresolvable fully qualified name (for example `com.example.Baz.qux(x)`) reports
   `cannot find symbol com` — the message points at the first segment of the chain rather than
   the whole path
