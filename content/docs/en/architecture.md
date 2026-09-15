@@ -90,16 +90,29 @@ methods, and only 42 are reachable by being called**; the other 1,233 are there 
 (`--no-lto` differs by only 17-54 KB at every commit checked, so this is not a change in
 LTO's settings but in what the back end emits.)
 
-**The rule to fix it** is the one the LLVM back end already stated for its own tables,
-applied to the C this back end emits: *a slot is kept because a call site dispatches that
-index*. It only has to write `NULL` into a slot initializer, never renumber or shorten a
-table (so the layout the runtime and the class records share is untouched); it keeps slots 0,
-1 and 2 for any live class, because the runtime calls those by index; and it leaves the
-interface tables alone, because a native method the program supplies may dispatch through one
-with a selector the compiler never saw. **That version is not in the compiler yet**: the
-prune was measured at a 95,064-byte hello world, but it made `t133_arrow_blocks`,
-`t84_sealed_switch` and `t51_java25_tour` segfault on a `NULL` slot the scan failed to keep,
-so it is back out and being corrected.
+**The rule** is the one the LLVM back end already stated for its own tables, applied to the C
+this back end emits: *a slot is kept because a call site dispatches that index*. It only
+writes `NULL` into a slot initializer, never renumbers or shortens a table (so the layout the
+runtime and the class records share is untouched); it keeps slots 0, 1 and 2 for any live
+class, because the runtime calls those by index; and it leaves the interface tables alone,
+because a native method the program supplies may dispatch through one with a selector the
+compiler never saw.
+
+Deciding which indices have a call site means scanning the generated C, and the first version
+scanned it wrongly: it ended a function body at the first line holding a lone `}`, while the
+pattern-switch desugar writes its own closing brace at the left margin *inside* the function
+— so those bodies ended early, every dispatch after the brace was attributed to no
+definition, and the slots it read were filled with `NULL`. That is what broke
+`t133_arrow_blocks`, `t84_sealed_switch` and `t51_java25_tour`. It counts braces now, aware
+of string literals and comments (the generated C carries JSON in its literals, so `"{}"` is a
+string and `/* */` can span lines), and a body ends when the depth returns to zero.
+
+Measured on one machine with `-O2`, the same compiler before and after: a hello world goes
+from 501,072 to 95,832 bytes; `t84_sealed_switch` 521,456 -> 113,904, `t133_arrow_blocks`
+509,536 -> 105,688 and `t51_java25_tour` 523,696 -> 438,560, each of the three byte-identical
+in output. **A program that reflects is unchanged**: `t146_reflect` 4,712,720 and `t101_gson`
+4,684,584, the same before and after, because reflection attaches every member table from
+`main` — what the prune buys is the size of programs that do not reflect.
 
 ## Back Ends and Platforms
 

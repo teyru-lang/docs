@@ -55,7 +55,7 @@ Temurin; produced by `RUNS=5 sh scripts/bench.sh`, best of 5 runs per row. The n
 | Metric | Teyru (native) | Java (HotSpot) | Difference |
 |---|---|---|---|
 | 100 startups | **0.0769 s** (0.77 ms each) | 1.9982 s (20.0 ms each) | **~26x faster** |
-| Executable size | **489 KB** (an open problem right now; see the note below) | — | — |
+| Executable size | **93.6 KB** | — | — |
 | Peak RSS (hello) | **4232 kB** | 51124 kB | **~12.1x less** |
 | `bench_fib` recursion | **0.0062 s** | 0.0266 s | **~4.3x faster** |
 | `bench_loop` loops and integer math | **0.0243 s** | 0.0435 s | **~1.8x faster** |
@@ -68,24 +68,34 @@ The `bench_invoke` row is now measured by the same script as every other row. It
 
 `bench_loop` fell from about 2.2x in the previous revision to about 1.8x because every loop back-edge now carries a safepoint check — the deliberate cost of a stop-the-world collector, which is **cooperative** here, as [docs/language.md](/en/docs/language) §11 explains. It is not measurement noise.
 
-**The size row is not a boast right now, it is an open problem — but the cause is known.**
-It is the same hello world built with `-O2` and measured with `wc -c`: 501,072 bytes today
-(about 489 KB). The same program was **48,840 bytes** at `74fa648` (9/13), and the regression
-starts at `52913a0` ("feat(lib): java.util.function"). The cause is structural rather than a
-program written badly: **a vtable is a list of addresses, and LTO cannot drop a function
-whose address is taken** (`vt_X[i] = (void*)M_X_i`), while `cls_X` is live in every program,
-so every method a class declares stayed live and each of those named the classes it
-allocates — a closure that swallows most of the standard library (a hello world printing one
-string carries `java.util.stream`, because `String.lines()` sits in String's table beside
-`String.length()`). Measured: 1,262 functions survive in a hello world, 951 of them prelude
-methods, and only 42 are reachable by being *called*. The mechanism is written up in
+**The size row is a strength again, and the reason for the number is specific.** It is the
+same hello world built with `-O2` and measured with `wc -c`: 95,832 bytes today (about
+93.6 KB). The number comes from the compiler **pruning the vtable slots nothing
+dispatches** — the mechanism is written up in
 [docs/architecture.md](/en/docs/architecture), under "Why every binary carries the prelude".
+Two days ago it was not this: 48,840 bytes at `74fa648` (9/13), growing to 501,072, because
+the C back end wrote every method out and left "drop what nobody calls" to clang's LTO — and
+LTO cannot drop a function whose address is taken, while a vtable is a list of addresses. So
+a hello world was carrying most of the standard library (1,262 functions surviving, 951 of
+them prelude methods, only 42 reachable by being called).
 
-Pruning the slots nothing dispatches was measured at 95,064 bytes, but it made three tests
-(`t133_arrow_blocks`, `t84_sealed_switch`, `t51_java25_tour`) segfault on a `NULL` slot the
-scan failed to keep, so it was reverted and is being corrected; the compiler repository's
-`AGENTS.md` §10 carries the full measurement. This row gets a new number when that pruning is
-actually in the compiler.
+After the prune: a hello world goes from 501,072 to 95,832 bytes, and the three most
+dispatch-heavy programs shrink with it (`t84_sealed_switch` 521,456 -> 113,904,
+`t133_arrow_blocks` 509,536 -> 105,688, `t51_java25_tour` 523,696 -> 438,560) while their
+output stays byte-identical. **A program that reflects is unchanged**: `t146_reflect` is
+4,712,720 bytes, the same as before the prune, because reflection attaches every member table
+from `main` — which is why the "reflection carries about 3 MB" note below still holds, and
+what the prune buys is the size of programs that do not reflect. Speed did not measurably
+change: six benchmarks, interleaved over twenty runs, every difference inside the noise with
+all checksums identical.
+
+One piece of headroom is left: 95,832 bytes against the floor a build with every slot `NULL`
+would have, because slots 0, 1 and 2 and four indices (7, 12, 13 and 16, for
+`Class.toString`/`isArray`/`isInterface`/`isPrimitive`) are filled for every live class rather
+than only for subclasses of the dispatch's owner — the emitted dispatch does carry the owner,
+so an `isSubclass` walk could tighten those too.
+
+
 
 **Where the speed comes from:**
 

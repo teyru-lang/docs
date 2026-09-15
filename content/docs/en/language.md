@@ -503,7 +503,7 @@ additions just as the JDK does), and `computeIfAbsent`/`merge`/`forEach` are all
 the compiler emits per class, so a lookup is an array walk and nothing is built at run
 time. The member tables ship only when a program can reach reflection: one that can carries
 all of them (a hello world with one extra `Class.forName` and `getDeclaredFields()` call goes
-from 483.2 KB to about 4.1 MB), and one that cannot carries none. Where they differ from Java:
+from 93.6 KB to about 4.5 MB), and one that cannot carries none. Where they differ from Java:
 the class names are Teyru's (`String.class.getName()`
 is `teyru.String`, and `forName` takes either spelling), annotations are reflectable but
 their elements are read **by name** (`ann.stringValue("value")`, not Java's `ann.value()`),
