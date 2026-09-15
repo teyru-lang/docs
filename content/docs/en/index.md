@@ -346,7 +346,7 @@ compiles unchanged:
 | `java.io` streams | `Reader`/`Writer`/`OutputStream`, `ByteArrayInputStream`/`ByteArrayOutputStream`, `DataInputStream`/`DataOutputStream` (`writeUTF`/`readUTF` are Java's modified UTF-8), `BufferedReader`, `PrintWriter` |
 | `java.util.HexFormat` | `of`/`ofDelimiter`, the `with*` mutators, `formatHex`/`parseHex`, `toHexDigits` and the digit classifications |
 | `java.util.Scanner` | Reads one `String`: `hasNext`/`next` with the int, long and double forms, plus `nextLine` |
-| `java.security` | `MessageDigest` (MD5, SHA-1/224/256/384/512, implemented in Teyru), `Checksum` and `CRC32` |
+| `java.security` | `MessageDigest` (MD5, SHA-1/224/256/384/512, implemented in Teyru), plus `java.util.zip`'s `Checksum` and `CRC32` |
 | `java.util.concurrent` | The executors (`Executors`/`Future`/`ThreadPool`) and the synchronizers (`CountDownLatch`, `AtomicInteger`/`AtomicLong`, `ConcurrentHashMap`); all monitors, nothing lock-free |
 | `com.google.gson` | Gson's tree API plus an object binding that reads the class's fields at run time ([docs/json.md](/en/docs/json)) |
 | threads | `Thread`/`Runnable`, real `synchronized` (including the method modifier) and `Object.wait`/`notify`/`notifyAll` ([docs/language.md](/en/docs/language) §11) |
