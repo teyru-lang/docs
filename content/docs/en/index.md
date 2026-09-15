@@ -343,6 +343,11 @@ compiles unchanged:
 | `java.util.stream` | `Stream`/`IntStream`/`LongStream`/`DoubleStream`, `Collectors`, `Collector`, `Spliterator`; lazy, entered through `Collection.stream()` |
 | `java.math` | `BigInteger`, `BigDecimal`, `MathContext`, `RoundingMode` |
 | `java.text` | `NumberFormat`/`DecimalFormat` (the full pattern language), `DateFormat`/`SimpleDateFormat`, `DateTimeFormatter`, `MessageFormat`; ROOT/en-US only, `format` takes an `Instant` |
+| `java.io` streams | `Reader`/`Writer`/`OutputStream`, `ByteArrayInputStream`/`ByteArrayOutputStream`, `DataInputStream`/`DataOutputStream` (`writeUTF`/`readUTF` are Java's modified UTF-8), `BufferedReader`, `PrintWriter` |
+| `java.util.HexFormat` | `of`/`ofDelimiter`, the `with*` mutators, `formatHex`/`parseHex`, `toHexDigits` and the digit classifications |
+| `java.util.Scanner` | Reads one `String`: `hasNext`/`next` with the int, long and double forms, plus `nextLine` |
+| `java.security` | `MessageDigest` (MD5, SHA-1/224/256/384/512, implemented in Teyru), `Checksum` and `CRC32` |
+| `java.util.concurrent` | The executors (`Executors`/`Future`/`ThreadPool`) and the synchronizers (`CountDownLatch`, `AtomicInteger`/`AtomicLong`, `ConcurrentHashMap`); all monitors, nothing lock-free |
 | `com.google.gson` | Gson's tree API plus an object binding that reads the class's fields at run time ([docs/json.md](/en/docs/json)) |
 | threads | `Thread`/`Runnable`, real `synchronized` (including the method modifier) and `Object.wait`/`notify`/`notifyAll` ([docs/language.md](/en/docs/language) §11) |
 | framework | A Spring-shaped container and web layer: settings and profiles, `@ControllerAdvice`, interceptors, static files, CORS, `ResponseEntity`, `MockServer`, WebSocket, sessions, multipart uploads, validation annotations, and an accept loop that runs on a thread ([docs/framework.md](/en/docs/framework)) |
@@ -367,9 +372,9 @@ teyru get example.com/greeting@v0.1.0
 teyru build ./...
 ```
 
-There is no `java.util.concurrent`, no `Scanner` and no time zone database. Each
-absence is deliberate and argued for in [docs/language.md](/en/docs/language) §11
-and §13. Threads themselves are there, see §11's "Threads and synchronization".
+The time zone database is still missing, argued for in [docs/language.md](/en/docs/language)
+§11 and §13. Threads, the `java.util.concurrent` executors and synchronizers, and `Scanner`
+are all there now, in §11's "Threads and synchronization" and "Concurrency tools".
 
 For your own native library, declare a `native` method and implement it in C:
 

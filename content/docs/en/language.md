@@ -548,6 +548,42 @@ collection wait for it to come back. Allocation in a single-threaded program is
 unchanged (every thread has its own allocation area). The end-to-end test is
 `tests/programs/t159_threads.teyru`.
 
+### Concurrency tools (`lib/37`, `lib/38`)
+
+The two halves of `java.util.concurrent` this library carries: the executor half
+(`Callable`, `Future`, `FutureTask`, `Executor`, `ExecutorService`, `ThreadPool`, and
+`Executors` with `newFixedThreadPool`/`newSingleThreadExecutor`/`newCachedThreadPool`) and
+the synchronizer half (`CountDownLatch`, `AtomicInteger`, `AtomicLong`,
+`ConcurrentHashMap`), plus `ExecutionException`, `CancellationException` and
+`RejectedExecutionException`. A task runs on one of the pool's threads, so its stack, its
+allocation and its monitors belong to that thread; the `Future` `submit` answers waits in
+`get()` until the task is done, and a task that threw is reported as an
+`ExecutionException` whose cause is the throwable the task raised.
+
+**Every one of these is a monitor, not lock-free.** The runtime has no hardware atomics, so
+the pool's work queue is an `ArrayDeque` under the pool's monitor, `AtomicInteger` is the
+object's monitor (not a CAS), and `ConcurrentHashMap` is one hash table behind one monitor
+(no striping, no lock-free read path). Each call is atomic and any number of threads may use
+them at once, but none of it scales the way `java.util.concurrent` scales: four threads
+taking tasks from one queue contend on that one monitor. The waiting itself is
+`Object.wait`, not polling: an object has exactly one monitor, a timed wait goes by the
+monotonic clock, and a `notify`/`notifyAll` is not lost (every thread already waiting when
+it happened wakes for it, and a thread that arrives later waits for the next one).
+
+**`shutdownNow` is not Java's.** This language has no `interrupt`, so it cannot stop a task
+that is already running: it refuses new work, hands back the tasks that never started, and a
+task that is inside `run()` runs to its end. No method here takes Java's
+`mayInterruptIfRunning`; a nominal flag that silently did nothing would be worse than no
+flag.
+
+**What is not there** (declared nowhere, so writing it is a missing symbol): `TimeUnit`
+(every duration here is milliseconds, as in `Thread.sleep`), `invokeAll`/`invokeAny`,
+`submit(Runnable)`, the scheduled executor, fork/join, `CompletionService`, `ThreadFactory`,
+`CyclicBarrier`/`Semaphore`/`Phaser`/`Exchanger`, the atomic field updaters, and
+interruptible waits (there is no `InterruptedException`). `ConcurrentHashMap` is not a
+`Map`: no `clear`/`putAll`/`keySet`/`values`/`entrySet`, and `keys()` answers a snapshot
+`Enumeration`.
+
 ### Other packages
 
 | Package | Files | Contents |
@@ -561,6 +597,11 @@ unchanged (every thread has its own allocation area). The end-to-end test is
 | `java.math` | `lib/23` | `BigInteger` (base-2^30 limbs, sign and magnitude), `BigDecimal` (unscaled value and scale), `MathContext`, `RoundingMode`; the algorithms are translated from the JDK, because the number of decimal digits, the scale left behind by division and the rounding are all observable |
 | `java.text` | `lib/24` | `NumberFormat`/`DecimalFormat`/`DecimalFormatSymbols` (the full pattern language), `DateFormat`/`SimpleDateFormat` (four styles and parsing), `DateTimeFormatter`, `MessageFormat`, `ChoiceFormat`, `ParseException`/`ParsePosition`. **There is no `Locale`** (only ROOT/en-US), **there is no `java.util.Date`** (`format`/`parse` go through `Instant`), and `format` has no `FieldPosition` overload |
 | Rest of `java.util` | `lib/25` | `Properties`, `Random` (byte-for-byte like java.util.Random), `UUID`, `BitSet`, `StringTokenizer`, `Enumeration`, `ArrayOps` (the range form of arrays) |
+| `java.security` | `lib/40` | `MessageDigest` (`getInstance`, `update`, `digest`, `reset`, `getAlgorithm`, `getDigestLength`, `isEqual`), the `Checksum` interface and `CRC32`, plus `GeneralSecurityException`/`NoSuchAlgorithmException`/`DigestException`. MD5, SHA-1, SHA-224, SHA-256, SHA-384 and SHA-512 are implemented in Teyru (`tests/programs/t170_digest.teyru`, `t171_crc32.teyru`); `getInstance` matches the name case-insensitively and `getAlgorithm` answers the caller's own spelling, as the JDK does. The JDK at 21 also answers for SHA3-256 and its siblings and for SHA-512/256 and SHA-512/224; `getInstance` throws `NoSuchAlgorithmException` for those rather than quietly answering with a different digest. `update` takes a `byte` (`java.security.MessageDigest` has no `update(int)`; that one is on `Checksum`, where `CRC32` has it). No Provider, no `getInstance(String, String)`, no `clone()`, no `update(ByteBuffer)`, no `toString()` override |
+| `java.util.HexFormat` | `lib/41` | `of`/`ofDelimiter`, `withDelimiter`/`withPrefix`/`withSuffix`/`withUpperCase`/`withLowerCase` (each answers a new instance and leaves the original alone), `isUpperCase`/`delimiter`/`prefix`/`suffix`, `formatHex`, `parseHex`, `isHexDigit`/`fromHexDigit`, the two digit extractors, and six `toHexDigits` overloads. No `ByteBuffer`/`Appendable` overloads (this library has neither type), and `toString`/`equals`/`hashCode` are not overridden (`tests/programs/t175_hexformat.teyru`) |
+| `java.io` streams | `lib/42` | The `OutputStream`/`Reader`/`Writer` interfaces, `ByteArrayInputStream`/`ByteArrayOutputStream`, `DataInputStream`/`DataOutputStream`, `BufferedReader`, `PrintWriter`, `UTFDataFormatException`. `writeUTF`/`readUTF` use Java's **modified UTF-8** (NUL is `C0 80`, a character above the BMP is the six bytes of its surrogate pair), and a string whose encoded length does not fit the unsigned short is a `UTFDataFormatException` with the JDK's message — checked **before** anything is written, so a refused string leaves the stream as it was. `BufferedReader` has Java's line grammar (LF, CRLF, a lone CR) but no buffer of its own, because the sources it wraps already read in blocks. No serialization, no streams over a file (the disk belongs to `lib/16`), no char[] `Writer` methods, no `DataInputStream.read(byte[], int, int)` (a blocking full read is `readFully`'s contract, not Java's short-read one), and a `SocketOutputStream` is not an `OutputStream` |
+| `java.util.Scanner` | `lib/43` | Reads one `String`: `hasNext`/`next`, `hasNextInt`/`hasNextLong`/`hasNextDouble` with their `next*` forms, `hasNextLine`/`nextLine`, and `InputMismatchException`. The delimiter is Java's `\p{javaWhitespace}+`, so a `nextLine()` after `nextInt()` answers the rest of the line; the numeric tests are the parse itself, not a regular expression. No `useDelimiter`, no radix overloads, no `nextShort`/`nextFloat`, no `hasNext(Pattern)`/`findInLine` family, no locale-sensitive number formats, and no constructor from a stream |
+| `java.util.concurrent` | `lib/37`, `lib/38` | The executor and synchronizer halves — see "Concurrency tools" above |
 | `com.google.gson` | `lib/10`, `lib/19` | Gson's tree API, plus an object binding that reads the class's fields at run time (see [docs/json.md](/en/docs/json)) |
 | framework | `lib/17`, `lib/18`, `lib/30`, `lib/33`, `lib/34`, `lib/36` | A Spring-shaped container and web layer: `SpringApplication.run`, `application.properties` with `@ConfigurationProperties`/`@Profile`, `@ControllerAdvice`/`@ExceptionHandler`, `HandlerInterceptor`, static files, CORS, `ResponseEntity`, `MockServer`, HTTP/1.1 keep-alive, chunked, cookies, HEAD and OPTIONS, WebSocket (`WebSocketHandler`/`WebSocketSession` + `server.addWebSocket`), sessions (`HttpSession`/`Sessions`), uploads (`MultipartFile`), validation (`Validation`/`ValidationException`), and an accept loop that runs on a thread (`ServerTask`) — see [docs/framework.md](/en/docs/framework) |
 
@@ -602,9 +643,15 @@ duplicate declaration `TY-TYP-0001`, because the two fully qualified names are t
 
 ### What is missing
 
-`java.util.concurrent`, a timezone database, `Scanner`. These absences are deliberate: they
-either need a data table bigger than the entire language (timezones), or — as with
-`Scanner` — doing half the job would be worse than not doing it at all.
+A timezone database. That absence is deliberate: it needs a data table bigger than the
+entire language, which is why the rest of `java.time` is arithmetic on epoch days (`now()`
+reads UTC).
+
+The list is short because the gaps are stated where they belong now: every row of the package
+table above names what its own package does not have, and each of those is a decision rather
+than unfinished work — `MessageDigest` has no SHA-3 because `getInstance` would rather throw
+`NoSuchAlgorithmException` than answer with a digest the caller did not name, and
+`shutdownNow` cannot stop a running task because this language has no `interrupt`.
 
 Reflection is there (`java.lang.reflect`, §11). What it does not have: generic type
 arguments, a class per array type (every array value belongs to one class, so there is no
@@ -677,9 +724,12 @@ When you need your own native library, a `native` method can be implemented in C
   module system at runtime; `module-info` is not supported)
 - An array's runtime element type is always `teyru.Array`, so `String[].class` and
   `int[].class` are the same object (in Java they are two)
-- Standard library gaps: `Scanner` (see §11); `String.format`'s `%t`/`%T` (date-time
-  conversions) are not implemented either, and hitting them stops with `ty_unimplemented`
-  rather than printing something that looks reasonable
+- Standard library gaps: `String.format`'s `%t`/`%T` (date-time conversions) are not
+  implemented, and hitting them stops with `ty_unimplemented` rather than printing
+  something that looks reasonable; the rest are written where they belong, in §11's package
+  table and in "Concurrency tools" (`Scanner` reads a `String` only, `MessageDigest` has no
+  SHA-3 or SHA-512/256, there is no timezone database, and `java.util.concurrent` is the
+  executors plus four synchronizers)
 - An unresolvable fully qualified name (for example `com.example.Baz.qux(x)`) reports
   `cannot find symbol com` — the message points at the first segment of the chain rather than
   the whole path

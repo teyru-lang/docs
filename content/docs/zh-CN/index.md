@@ -328,6 +328,11 @@ class Main {
 | `java.util.stream` | `Stream`／`IntStream`／`LongStream`／`DoubleStream`、`Collectors`、`Collector`、`Spliterator`；惰性求值，入口是 `Collection.stream()` |
 | `java.math` | `BigInteger`、`BigDecimal`、`MathContext`、`RoundingMode` |
 | `java.text` | `NumberFormat`／`DecimalFormat`（完整 pattern 语言）、`DateFormat`／`SimpleDateFormat`、`DateTimeFormatter`、`MessageFormat`；只做 ROOT／en-US，`format` 用 `Instant` |
+| `java.io` 数据流 | `Reader`／`Writer`／`OutputStream`、`ByteArrayInputStream`／`ByteArrayOutputStream`、`DataInputStream`／`DataOutputStream`（`writeUTF`／`readUTF` 是 Java 的 modified UTF-8）、`BufferedReader`、`PrintWriter` |
+| `java.util.HexFormat` | `of`／`ofDelimiter`、`with*`、`formatHex`／`parseHex`、`toHexDigits` 与位分类 |
+| `java.util.Scanner` | 读一个 `String`：`hasNext`／`next` 与整数、长整数、浮点的形式，加上 `nextLine` |
+| `java.security` | `MessageDigest`（MD5、SHA-1／224／256／384／512，以 Teyru 实现）、`Checksum` 与 `CRC32` |
+| `java.util.concurrent` | 执行器（`Executors`／`Future`／`ThreadPool`）与同步器（`CountDownLatch`、`AtomicInteger`／`AtomicLong`、`ConcurrentHashMap`）；全部是监视器，不是 lock-free |
 | `com.google.gson` | Gson 的树状 API，以及运行期读取类字段的对象绑定（[docs/json.md](/zh-CN/docs/json)） |
 | 线程 | `Thread`／`Runnable`、真正的 `synchronized`（含方法修饰符）与 `Object.wait`／`notify`／`notifyAll`（[docs/language.md](/zh-CN/docs/language) §11） |
 | 框架 | Spring 形状的容器与 web 层：配置与 profile、`@ControllerAdvice`、拦截器、静态文件、CORS、`ResponseEntity`、`MockServer`、WebSocket、会话、multipart 上传、验证注解，以及可以放到线程上的接收循环（[docs/framework.md](/zh-CN/docs/framework)） |
@@ -351,9 +356,9 @@ teyru get example.com/greeting@v0.1.0
 teyru build ./...
 ```
 
-没有 `java.util.concurrent`、没有 `Scanner`、没有时区数据库——这些缺席都是刻意的，
-理由记在 [docs/language.md](/zh-CN/docs/language) §11 与 §13。线程本身有了，见 §11
-的〈线程与同步〉。
+时区数据库仍然没有，理由记在 [docs/language.md](/zh-CN/docs/language) §11 与 §13。
+线程、`java.util.concurrent` 的执行器与同步器、`Scanner` 都有了，见 §11 的〈线程与
+同步〉与〈并发工具〉。
 
 需要自己的原生库时，声明 `native` 方法并用 C 实现：
 

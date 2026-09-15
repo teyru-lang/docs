@@ -330,6 +330,11 @@ class Main {
 | `java.util.stream` | `Stream`／`IntStream`／`LongStream`／`DoubleStream`、`Collectors`、`Collector`、`Spliterator`；延遲求值，`Collection.stream()` 是入口 |
 | `java.math` | `BigInteger`、`BigDecimal`、`MathContext`、`RoundingMode` |
 | `java.text` | `NumberFormat`／`DecimalFormat`（完整 pattern 語言）、`DateFormat`／`SimpleDateFormat`、`DateTimeFormatter`、`MessageFormat`；只做 ROOT／en-US，`format` 走 `Instant` |
+| `java.io` 資料流 | `Reader`／`Writer`／`OutputStream`、`ByteArrayInputStream`／`ByteArrayOutputStream`、`DataInputStream`／`DataOutputStream`（`writeUTF`／`readUTF` 是 Java 的 modified UTF-8）、`BufferedReader`、`PrintWriter` |
+| `java.util.HexFormat` | `of`／`ofDelimiter`、`with*`、`formatHex`／`parseHex`、`toHexDigits` 與位數分類 |
+| `java.util.Scanner` | 讀一個 `String`：`hasNext`／`next` 與整數、長整數、浮點的形式，加上 `nextLine` |
+| `java.security` | `MessageDigest`（MD5、SHA-1／224／256／384／512，以 Teyru 實作）、`Checksum` 與 `CRC32` |
+| `java.util.concurrent` | 執行器（`Executors`／`Future`／`ThreadPool`）與同步器（`CountDownLatch`、`AtomicInteger`／`AtomicLong`、`ConcurrentHashMap`）；全部是監視器，不是 lock-free |
 | `com.google.gson` | Gson 的樹狀 API，以及執行期讀取類別欄位的物件綁定（[docs/json.md](/docs/json)） |
 | 執行緒 | `Thread`／`Runnable`、真正的 `synchronized`（含方法修飾子）與 `Object.wait`／`notify`／`notifyAll`（[docs/language.md](/docs/language) §11） |
 | 框架 | Spring 形狀的容器與 web 層：設定與 profile、`@ControllerAdvice`、攔截器、靜態檔案、CORS、`ResponseEntity`、`MockServer`、WebSocket、會話、multipart 上傳、驗證註解，以及可放上執行緒的接收迴圈（[docs/framework.md](/docs/framework)） |
@@ -353,9 +358,9 @@ teyru get example.com/greeting@v0.1.0
 teyru build ./...
 ```
 
-沒有 `java.util.concurrent`、沒有 `Scanner`、沒有時區資料庫——這些缺席都是刻意的，
-理由記在 [docs/language.md](/docs/language) §11 與 §13。執行緒本身有了，見 §11
-的〈執行緒與同步〉。
+時區資料庫仍然沒有，理由記在 [docs/language.md](/docs/language) §11 與 §13。執行緒、
+`java.util.concurrent` 的執行器與同步器、`Scanner` 都有了，見 §11 的〈執行緒與同步〉
+與〈並行工具〉。
 
 需要自己的原生程式庫時，宣告 `native` 方法並用 C 實作：
 

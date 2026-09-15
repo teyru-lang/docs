@@ -513,6 +513,37 @@ GC 是**合作式**停止世界，這是真正要知道的限制：安全點在�
 執行緒（例如卡在原生 `read()` 裡）會讓收集等它，直到它回來。單執行緒程式的配置速度
 不變（每條執行緒有自己的配置區）。端到端測試是 `tests/programs/t159_threads.teyru`。
 
+### 並行工具（`lib/37`、`lib/38`）
+
+`java.util.concurrent` 的兩塊：執行器（`Callable`、`Future`、`FutureTask`、`Executor`、
+`ExecutorService`、`ThreadPool`，以及 `Executors` 的 `newFixedThreadPool`／
+`newSingleThreadExecutor`／`newCachedThreadPool`）與同步器（`CountDownLatch`、
+`AtomicInteger`、`AtomicLong`、`ConcurrentHashMap`），再加上 `ExecutionException`、
+`CancellationException`、`RejectedExecutionException`。任務在池裡的一條執行緒上跑，
+所以它的堆疊、配置與監視器都屬於那條執行緒；`submit` 回傳的 `Future.get()` 等它做完，
+失敗的任務以 `ExecutionException` 回報，cause 就是任務拋出的那個 throwable。
+
+**這些全部是監視器，不是 lock-free。** 執行期沒有硬體原子操作，所以池的工作佇列是
+池監視器下的一個 `ArrayDeque`、`AtomicInteger` 是物件的監視器（不是 CAS）、
+`ConcurrentHashMap` 是一張雜湊表放在一個監視器後面（沒有分槽、沒有無鎖讀取路徑）。
+每一次呼叫都是原子的、多條執行緒一起用是安全的，但它不會像 `java.util.concurrent`
+那樣擴展：四條執行緒從同一個佇列拿任務，就會在那一個監視器上競爭。等待本身是
+`Object.wait`，不是輪詢；監視器是**每個物件一份**，逾時的等待走單調時鐘，
+`notify`／`notifyAll` 的通知不會掉（通知發生的當下已經在等的執行緒都醒得過來，
+晚到的執行緒等的是下一次通知）。
+
+**`shutdownNow` 不是 Java 的那一個。** 這個語言沒有 `interrupt`，所以它不會——也不能
+——打斷正在跑的任務：它拒收新工作、把還沒開始的任務交回來，已經進到 `run()` 的任務
+跑完為止。沒有任何方法收 Java 的 `mayInterruptIfRunning`；一個默默不做事的名義旗標
+比沒有那個旗標更糟。
+
+**沒有的東西**（沒有宣告，寫了就是找不到符號）：`TimeUnit`（這裡每個時長都是毫秒，
+和 `Thread.sleep` 一樣）、`invokeAll`／`invokeAny`、`submit(Runnable)`、排程執行器、
+fork/join、`CompletionService`、`ThreadFactory`、`CyclicBarrier`／`Semaphore`／
+`Phaser`／`Exchanger`、原子欄位更新器，以及可中斷的等待（沒有
+`InterruptedException`）。`ConcurrentHashMap` 不是 `Map`：沒有 `clear`／`putAll`／
+`keySet`／`values`／`entrySet`，`keys()` 回的是一份快照 `Enumeration`。
+
 ### 其他套件
 
 | 套件 | 檔案 | 內容 |
@@ -526,6 +557,11 @@ GC 是**合作式**停止世界，這是真正要知道的限制：安全點在�
 | `java.math` | `lib/23` | `BigInteger`（base-2^30 limb、符號與大小）、`BigDecimal`（unscaled value 與 scale）、`MathContext`、`RoundingMode`；演算法照 JDK 翻譯，因為小數位數、除法留下的 scale、進位方式都是可觀察的 |
 | `java.text` | `lib/24` | `NumberFormat`／`DecimalFormat`／`DecimalFormatSymbols`（完整 pattern 語言）、`DateFormat`／`SimpleDateFormat`（四種 style 與 parse）、`DateTimeFormatter`、`MessageFormat`、`ChoiceFormat`、`ParseException`／`ParsePosition`。**沒有 `Locale`**（只做 ROOT／en-US），**沒有 `java.util.Date`**（`format`／`parse` 走 `Instant`），`format` 沒有 `FieldPosition` 多載 |
 | `java.util` 其餘 | `lib/25` | `Properties`、`Random`（逐位元組照 java.util.Random）、`UUID`、`BitSet`、`StringTokenizer`、`Enumeration`、`ArrayOps`（陣列的範圍形式） |
+| `java.security` | `lib/40` | `MessageDigest`（`getInstance`、`update`、`digest`、`reset`、`getAlgorithm`、`getDigestLength`、`isEqual`）、`Checksum` 介面與 `CRC32`，以及 `GeneralSecurityException`／`NoSuchAlgorithmException`／`DigestException`。MD5、SHA-1、SHA-224、SHA-256、SHA-384、SHA-512 都在 Teyru 裡實作（`tests/programs/t170_digest.teyru`、`t171_crc32.teyru`）；`getInstance` 的名字比對不分大小寫，`getAlgorithm` 回報呼叫者寫的那個拼法（JDK 也是這樣）。JDK 21 還回答 SHA3-256 那一家族與 SHA-512/256、SHA-512/224，這裡的 `getInstance` 對它們丟 `NoSuchAlgorithmException`，而不是安靜地給另一種雜湊。`update` 收的是 `byte`（`java.security.MessageDigest` 沒有 `update(int)`，那是 `Checksum` 的，`CRC32` 有）；沒有 Provider、沒有 `getInstance(String, String)`、沒有 `clone()`、沒有 `update(ByteBuffer)`、沒有 `toString()` 覆寫 |
+| `java.util.HexFormat` | `lib/41` | `of`／`ofDelimiter`、`withDelimiter`／`withPrefix`／`withSuffix`／`withUpperCase`／`withLowerCase`（每個都回傳新的實例，原物件不變）、`isUpperCase`／`delimiter`／`prefix`／`suffix`、`formatHex`、`parseHex`、`isHexDigit`／`fromHexDigit` 與兩個位數取出方法，以及六個 `toHexDigits`。沒有 `ByteBuffer`／`Appendable` 的多載（這個標準程式庫沒有那兩個型別），也沒有覆寫 `toString`／`equals`／`hashCode`（`tests/programs/t175_hexformat.teyru`） |
+| `java.io` 資料流 | `lib/42` | `OutputStream`／`Reader`／`Writer` 介面、`ByteArrayInputStream`／`ByteArrayOutputStream`、`DataInputStream`／`DataOutputStream`、`BufferedReader`、`PrintWriter`、`UTFDataFormatException`。`writeUTF`／`readUTF` 用 Java 的 **modified UTF-8**（NUL 是 `C0 80`，BMP 之外的字是代理對的六個位元組），長度欄放不下時（65536 位元組以上）以 JDK 的訊息丟 `UTFDataFormatException`，而且是在寫出任何位元組**之前**檢查，所以失敗的呼叫不會留下半個 frame。`BufferedReader` 的行語法是 Java 的（LF、CRLF、單獨的 CR），但它沒有自己的緩衝區——它包裝的來源本來就整塊讀。沒有序列化、沒有檔案資料流（磁碟歸 `lib/16`）、沒有 `char[]` 的 `Writer` 方法、`DataInputStream` 沒有 `read(byte[], int, int)`（阻塞讀滿是 `readFully` 的契約，不是 Java 那個允許短讀的契約）、`SocketOutputStream` 不是 `OutputStream` |
+| `java.util.Scanner` | `lib/43` | 只從一個 `String` 讀：`hasNext`／`next`、`hasNextInt`／`hasNextLong`／`hasNextDouble` 與對應的 `next*`、`hasNextLine`／`nextLine`，以及 `InputMismatchException`。分隔字元是 Java 的 `\p{javaWhitespace}+`，所以 `nextInt()` 之後的 `nextLine()` 拿到的是那一行剩下的部分；數值測試就是解析本身，不是正規表達式。沒有 `useDelimiter`、沒有進位基底的多載、沒有 `nextShort`／`nextFloat`、沒有 `hasNext(Pattern)`／`findInLine` 那一家族、沒有地區化數字格式，也沒有從資料流建構的建構子 |
+| `java.util.concurrent` | `lib/37`、`lib/38` | 執行器與同步器兩塊——見上面〈並行工具〉 |
 | `com.google.gson` | `lib/10`、`lib/19` | Gson 的樹狀 API，以及執行期讀取類別欄位的物件綁定（見 [docs/json.md](/docs/json)） |
 | 框架 | `lib/17`、`lib/18`、`lib/30`、`lib/33`、`lib/34`、`lib/36` | Spring 形狀的容器與 web 層：`SpringApplication.run`、`application.properties` 與 `@ConfigurationProperties`／`@Profile`、`@ControllerAdvice`／`@ExceptionHandler`、`HandlerInterceptor`、靜態檔案、CORS、`ResponseEntity`、`MockServer`，HTTP/1.1 的 keep-alive、chunked、Cookie、HEAD／OPTIONS，WebSocket（`WebSocketHandler`／`WebSocketSession` + `server.addWebSocket`），會話（`HttpSession`／`Sessions`），上傳（`MultipartFile`），驗證（`Validation`／`ValidationException`），以及可以放上執行緒的接收迴圈（`ServerTask`）——見 [docs/framework.md](/docs/framework) |
 
@@ -561,8 +597,13 @@ Teyru 是照**簡單名稱**找的，前面寫什麼套件都一樣，所以 `im
 
 ### 沒有的東西
 
-`java.util.concurrent`、時區資料庫、`Scanner`。這些缺席都是刻意的：它們要嘛需要一份
-比整個語言還大的資料表（時區），要嘛——`Scanner` 就是——做半套會比不做更糟。
+時區資料庫。這個缺席是刻意的：它需要一份比整個語言還大的資料表，所以 `java.time`
+的其他部分都算在 epoch day 上（`now()` 讀 UTC）。
+
+這份清單不長，因為缺口現在分散在各個套件裡說明：上面每個套件那一列自己寫出它少了
+什麼，而且每個「沒有」都是決定，不是還沒做——`MessageDigest` 沒有 SHA-3 是因為
+`getInstance` 寧可丟 `NoSuchAlgorithmException` 也不要給一個不是呼叫者指名的那種
+雜湊，`shutdownNow` 不能打斷任務是因為這個語言沒有 `interrupt`。
 
 需要自己的原生程式庫時，`native` 方法可以實作在 C 裡，見
 [docs/native.md](/docs/native)。
@@ -621,8 +662,9 @@ Teyru 是照**簡單名稱**找的，前面寫什麼套件都一樣，所以 `im
 - 模組系統的語意（`import module X` 會被剖析後忽略，執行期沒有模組系統；`module-info` 不支援）
 - 陣列的執行期元素型別一律是 `teyru.Array`，所以 `String[].class` 與
   `int[].class` 是同一個物件（Java 是兩個）
-- 標準程式庫缺口：`Scanner`（見 §11）；`String.format` 的
-  `%t`／`%T`（日期時間轉換）也未實作，遇到會以 `ty_unimplemented` 停止而不是
-  印出看起來合理的東西
+- 標準程式庫缺口：`String.format` 的 `%t`／`%T`（日期時間轉換）未實作，遇到會以
+  `ty_unimplemented` 停止而不是印出看起來合理的東西；其餘缺口寫在 §11 的套件表與
+  〈並行工具〉（`Scanner` 只讀一個 `String`、`MessageDigest` 沒有 SHA-3 與
+  SHA-512/256、時區資料庫沒有、`java.util.concurrent` 只有執行器與四個同步器）
 - 無法解析的完整限定名稱（例如 `com.example.Baz.qux(x)`）會回報
   `cannot find symbol com`——訊息指向鏈的第一段而不是整條路徑
