@@ -138,10 +138,17 @@ clang 不收**（最后一项不为零就让扫描以非零结束，因为 clang
 运行期对操作系统的每一项需求都收在 `internal/runtime/src/tyrt_plat.h` 里，四十个
 `typlat_*` 函数，分成时间与 CPU、mutex、condition variable、线程、启动、socket
 与文件几组；实现有两半，`tyrt_plat_posix.c` 与 `tyrt_plat_win.c`。调用它们的只有
-`tyrt.c`、`tyrt2.c`、`tyrt_thread.c` 与 `tyrt_net.c`（`tyrt_reflect.c` 一个都不用）。
+`tyrt.c`、`tyrt2.c`、`tyrt_thread.c`、`tyrt_net.c` 与 `tyrt_tls.c`（`tyrt_reflect.c`
+一个都不用）。
 刻意**不**抽象化的东西也写在头文件里：mingw 的 C 函数库长得跟 POSIX 一样，所以
 `open`／`read`／`write`／`stat` 这一组由 `tyrt_net.c` 直接调用，只有形状不同的四件事
 （打开旗标、`mkdir` 的参数个数、`mkdtemp`、临时目录）放在这一层后面。
+
+TLS 是这一层唯一的例外，而例外本身就是一个文件：`tyrt_tls.c` 写在 **OpenSSL** 上，只有
+程序的可达代码碰得到它时才会被编译并加上 `-lssl -lcrypto`，所以不用 TLS 的程序不会被
+链接 OpenSSL；没有 OpenSSL 的目标（windows 与 macOS）在写出任何输出文件之前就被指名
+拒绝，而 OpenSSL 的下限（1.1）是一个预处理器的 `#error`。见
+[docs/native.md](/zh-CN/docs/native)。
 
 `teyru build --target <os>/<arch>` 决定用哪个编译器、哪些旗标、编哪一半平台层与输出
 文件名；目标表有五列，每一列背后有多少证据写在首页的〈后端与平台〉（[docs/index.md](/zh-CN/docs)）。
@@ -203,6 +210,22 @@ chunk 里（`valid_obj` 会拒绝它的地址），但它的引用字段就在 C
 - 触发：分配量超过 `ty_gc_threshold` 这一个条件。阈值初始 4 MB，每次回收后设为存活量
   的两倍，最低不低于 4 MB。chunk 用完**不是**回收的理由——free list 没有可用的块时
   就直接分配一个新的 chunk，因为阈值还没到就回收只是白白重扫一次活着的对象。
+- **从 free list 拿下来的块，在交出去之前就是一个根。** 这一条是修来的，值得写下来，
+  因为它坏的方式看不出来：`ty_heap_unlock` 是唯一「先解开 heap mutex、才把线程从停止
+  状态拿掉」的地方，所以从 free list 取下一块到交给调用者之间，那条线程**仍然算在
+  `n_stopped` 里**。在那个窗口开始的回收不会等它——它走过那块 slab、读到块说自己是
+  空的（也没有任何东西指向它），于是当成可用空间：把块接回 free list，或把整块 slab
+  还给系统；接着那条线程醒来，往同一段内存写、再把它交出去。同一块内存发出去两次，
+  或写进已经还给系统的内存。四条线程的分配压力测试（各 30 万次分配）在修好前 400 次
+  跑出 63 次崩溃，每一次都在 free list 这条路、而且都在同一次回收刚释放的 256 KB slab
+  里；修好后是 0 次。
+  修法用的是这个文件自己的惯例：在放掉锁**之前**就把块放上该线程的 shadow stack，
+  对象存在之后才移除，所以回收器一定看得到它。**回收器一个字都没改**，也不需要改；但
+  顺序有意义——标记不是结束，被标记的对象会被**追踪**，而刚从 free list 拿下来的块还
+  留着前一个租户的字节，所以先把大小字与标记字写好、把类字写成 0（追踪它就变成
+  no-op）才上根，其余的字节等放掉锁之后再清（否则多 MB 的数组会在 heap 锁里被清）。
+  需要这样做的只有两处：free list 交出的块与刚拿到的 slab 的第一块；bump 路径交出的
+  块在回收器会走访的水位之上，任何回收都看不到它，所以那里**不能**加。
 - 已知代价：每次回收都要扫描整个使用中的栈，且没有分代假设；清除阶段还要走过每个
   保留 chunk 的每个块。
 

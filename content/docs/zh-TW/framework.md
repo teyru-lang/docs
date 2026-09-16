@@ -160,6 +160,21 @@ HttpServer server = new HttpServer(port, router, ctx)
 `tests/programs/t141_web_param_errors.teyru` 就是這樣測的，後者涵蓋轉型失敗的 400、
 enum 參數與回傳值、`defaultValue`。
 
+**TLS。** `server.ssl(certificate, privateKey)` 收的是 PEM 憑證鏈與其私鑰的**路徑**
+（就是 Spring 的 `server.ssl.certificate` 與 `server.ssl.certificate-private-key`），
+給了之後這個伺服器接到的每一個連線都是 TLS，`server.isSecure()` 回答它是不是。那組
+檔案在設定時就讀取與檢查，所以用不了的憑證在這裡失敗——程式還說得出哪裡錯——而不是
+讓每一個進來的客戶端失敗。自己建 `HttpServer` 的程式（下面〈伺服器跑在自己的執行緒
+上〉那一節、以及 `Application.boot` ＋ `routerFrom` 那條路）就是自己呼叫它；
+`Application.serve(ctx, port, idleMs)` 會讀上面那兩個屬性，有
+`server.ssl.certificate` 時自己呼叫 `ssl()`——`SpringApplication.run` 不會。
+
+這一層是 OpenSSL，所以只有 POSIX 的目標有；windows 與 macOS 是具名拒絕，而且在寫出
+任何輸出檔之前（見 [docs/native.md](/docs/native)），不碰 TLS 的程式則不會被連結
+OpenSSL。伺服器與客戶端在同一個程式裡往返的測試是
+`tests/programs/t163_https_roundtrip.teyru`，一次 TLS 連線上的兩個請求與交握逾時是
+`t191_tls_keepalive.teyru` 與 `t192_tls_handshake_timeout.teyru`。
+
 ### 啟動與設定
 
 ```teyru
@@ -339,3 +354,7 @@ serving.join()
 5. **沒有 `@Conditional`、`@Import`、`@Lazy`、AOP、交易**，也沒有
    `@ComponentScan` 的範圍控制：整個程式都是掃描範圍，因為編譯器看得見全部——要
    排除什麼，就不要標註它。
+6. **`SpringApplication.run` 不讀 `server.ssl.certificate`。** 讀那兩個屬性的是
+   `Application.serve`，它自己建伺服器；`SpringApplication.run` 也自己建一個，但沒有
+   那個分支。要用這個入口跑 HTTPS，得自己建 `HttpServer` 並呼叫 `ssl(cert, key)`
+   再自己服務，或改用 `Application.serve`。

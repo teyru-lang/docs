@@ -370,6 +370,31 @@ may be added), `throw`, `yield`, `assert`, `synchronized (lock) { … }`, labell
   `A.super.hello()`; the interface must be a super interface of the current class.
 - cast: conversion between numeric types, a runtime check between reference types (failure
   throws `ClassCastException`).
+- **A narrowing conversion from floating point to integer follows JLS 5.1.3, not C's
+  `(int)`/`(long)`.** A value that does not fit is undefined in C, so both back ends emit a
+  runtime call (`ty_d2i`/`ty_d2l`): NaN → `0`, `+∞` → the target type's maximum, `-∞` → the
+  minimum, too large → the maximum, too small → the minimum, and the rest truncates towards
+  zero. When the target is narrower than `int` (`byte`/`short`/`char`) a second step follows
+  — saturate to `int` first, then truncate — the same two steps as Java's, which is why
+  `(byte) 1.0e20` is `-1` and not `127`.
+
+  ```teyru
+  System.out.println((int) Double.NaN)                 // 0
+  System.out.println((int) Double.POSITIVE_INFINITY)   // 2147483647
+  System.out.println((long) 1.0e20)                    // 9223372036854775807
+  System.out.println((long) -1.0e20)                   // -9223372036854775808
+  System.out.println((int) 3.99)                       // 3 (truncated towards zero)
+  System.out.println((byte) 1.0e20)                    // -1
+  ```
+
+  This conversion used to be undefined, and visibly so: the same `(long) 1.0e20` gave four
+  answers across four builds — the C back end at `-O2` said `160`, at `-O0`
+  `-9223372036854775808`, at `-O3` `0`, and the LLVM back end `48` — because constant folding
+  handed it to C's undefined behaviour. With a defined call emitted, constant folding is
+  defined too: all four optimisation levels and both back ends now answer
+  `9223372036854775807`. The end-to-end test is
+  `tests/programs/t193_narrowing_saturation.teyru` (the expected values are produced by javac,
+  and both back ends are identical line for line).
 - boxing/unboxing happens automatically, and unboxing `null` throws `NullPointerException`.
 - Object initializer lists: `new int[]{…}`, `int[] xs = {1,2,3}`, nested `{{1,2},{3}}`.
 
@@ -452,10 +477,17 @@ try {
 ```
 
 - The `Throwable` family: `Exception`, `RuntimeException`, `NullPointerException`,
-  `ArithmeticException`, `ArrayIndexOutOfBoundsException`, `ClassCastException`,
+  `ArithmeticException`, `IndexOutOfBoundsException` and its two subclasses
+  `ArrayIndexOutOfBoundsException`/`StringIndexOutOfBoundsException`, `ClassCastException`,
   `IllegalArgumentException`, `IllegalStateException`, `NoSuchElementException`,
   `NegativeArraySizeException`, `ArrayStoreException`, `AssertionError`,
   `UnsupportedOperationException`.
+- **The out-of-bounds hierarchy is the same as Java's**: `IndexOutOfBoundsException` is the
+  parent, an array index throws `ArrayIndexOutOfBoundsException`, a string or `StringBuilder`
+  index or range throws `StringIndexOutOfBoundsException` — both of them under the parent —
+  and a container (the `ArrayList` family) throws `IndexOutOfBoundsException` itself. So the
+  Java idiom `catch (IndexOutOfBoundsException e)` catches all three here; for when each one
+  is thrown see "Runtime errors" in [docs/diagnostics.md](/en/docs/diagnostics).
 - Reading or **writing** a field on `null`, calling a method, and reading or writing array
   elements (including taking `length`) all throw `NullPointerException`.
 - `catch` uses `|` for multiple types; `finally` always runs (including when a catch block
@@ -641,6 +673,55 @@ and hold two equal objects where a JVM's provider shares one; and an id comes ba
 default zone), and `t190_timezone_tzif.teyru` proves which block is read with synthetic files
 it writes itself rather than asserting it.
 
+### TLS (`lib/15`, `lib/18`, `lib/32`)
+
+TLS is the one layer of this standard library that it **does not implement itself**: the
+cryptography underneath is OpenSSL, running on POSIX sockets. The pure-Teyru half is policy
+and lifecycle — `TlsSocket` (`start(plain, host)` and `start(plain, host, caFile)` on the
+client side, `accept(plain, ctx)` on the server side), `Tls` handing out a client context
+(`clientContext(caFile)`), `TlsServer` holding one certificate and private key, and
+`TlsException`/`TlsCertificateException` (the latter's message carries the reason OpenSSL
+gave, because "certificate not trusted" answers only half of the question).
+`HttpServer.ssl(certificate, privateKey)` hands the server the paths of a PEM certificate
+chain and its private key — Spring's `server.ssl.certificate` and
+`server.ssl.certificate-private-key` — and from then on every connection it accepts is TLS
+and `isSecure()` answers whether it is; the pair of files is read and checked **at
+configuration time**, so an unusable certificate fails where it is set up (where the program
+can still say what is wrong) rather than making every client that arrives fail. An HTTP
+client going to `https://` travels the same path.
+
+**The layer only enters the executable if it can be reached.** It is the only part of the
+runtime that links against a library the compiler does not ship, so it is a file of its own
+(`internal/runtime/src/tyrt_tls.c`), and "whether this program can reach TLS" is decided by
+the generated C: only if it can is that file compiled and `-lssl -lcrypto` added. A program
+that does not use TLS therefore pays not one byte — hello world is still 54.6 KB. Note that
+this decision is **reachability**, not actual execution: a program that uses reflection
+carries a table naming every class, so it answers "can reach" even if it never calls TLS.
+
+**This layer requires OpenSSL 1.1, and that is a preprocessor `#error`**
+(`OPENSSL_VERSION_NUMBER < 0x10100000L`): `SSL_set1_host`, `BIO_meth_new`,
+`TLS_client_method` and `SSL_CTX_set_min_proto_version` are all absent from 1.0.x. That is
+said at compile time rather than letting the user read "undeclared identifier" one identifier
+at a time in a runtime file the user did not write. **Only POSIX has this layer**; the other
+targets are a **named refusal**, and it comes before any output file is written:
+
+- `windows/amd64`: mingw-w64 has no OpenSSL, so there is no TLS library to link for that
+  target.
+- `darwin/amd64`, `darwin/arm64`: macOS ships SecureTransport, not OpenSSL.
+
+What is refused is the **program**, not the call: as soon as reachable code can reach this
+layer that target does not build, and the message names the target, the reason and the
+targets that would work. The points and how to write it are in [docs/native.md](/en/docs/native).
+
+No call can turn verification off: a client that was given a `caFile` takes that file's
+certificate as a trust anchor and the system's for the rest. Timeouts are where this layer is
+easiest to get wrong, so a test watches it specifically:
+`tests/programs/t163_https_roundtrip.teyru` (server and client in one program, the
+certificate given by path, verification passing and being refused once each, the body
+compared byte for byte), `t191_tls_keepalive.teyru` (two requests on one TLS connection),
+`t192_tls_handshake_timeout.teyru` (the peer completes the TCP connection and then says
+nothing; the timeout must be a `SocketTimeoutException` and not be read as end of stream).
+
 ### Other packages
 
 | Package | Files | Contents |
@@ -648,13 +729,13 @@ it writes itself rather than asserting it.
 | `java.time` | `lib/20` | `LocalDate`/`LocalTime`/`LocalDateTime`/`Instant`/`Duration`/`Period`/`DayOfWeek`/`Month`; the calendar arithmetic is done on epoch days; time zones are `lib/46` (see "Time zones" above), and `LocalDate.now()`/`LocalTime.now()`/`LocalDateTime.now()` still read the system clock as UTC — that is the one deviation left in this file, and a zoned "now" is `ZonedDateTime.now()`. `LocalDate`, `Instant`, `Duration` and `DayOfWeek`/`Month` output byte-for-byte identically to the JDK; four places differ: the year is neither zero-padded nor given a plus sign (`1-01-01`, `10000-01-01`, where the JDK has `0001-01-01`, `+10000-01-01`), `LocalTime`'s `plus*`/`minus*` clear the nanoseconds (`00:00:00.000000001` plus one hour is `01:00`), `LocalDateTime`'s `plusHours`/`plusMinutes`/`plusSeconds` do not cross the day (`1899-01-01T23:00` plus 25 hours is `1899-01-01T00:00`), and `Period.between` and `addTo`/`subtractFrom` compute differently from the JDK (`2000-03-31` to `2000-04-30` is `P1M`, where the JDK has `P30D`) |
 | `java.io` | `lib/16` | `File` (`listFiles`), `Path`/`Paths`, `Files` (`readString`/`writeString`/`readAllLines`/`exists`/`createDirectories`) |
 | `java.util.regex` | `lib/21` | `Pattern`/`Matcher`: backtracking matching, supporting literals, `.`, `*`/`+`/`?`/`{n,m}` and their lazy forms, character classes, `\d`/`\w`/`\s`, `^`/`$`, `|`, capturing and non-capturing groups, `replaceAll`/`replaceFirst`/`split` (including all three signs of `limit`); unsupported syntax (possessive quantifiers, lookaround, backreferences, `\p{...}`) is rejected at `compile` time. `String.matches`/`replaceAll`/`replaceFirst`/`split` are exactly these five methods, not another implementation |
-| `java.net` | `lib/15` | `ServerSocket`, `Socket`, `SocketInputStream`/`SocketOutputStream`; synchronous blocking POSIX sockets, with timeouts reported as `SocketTimeoutException` |
+| `java.net` | `lib/15` | `ServerSocket`, `Socket`, `SocketInputStream`/`SocketOutputStream`; synchronous blocking POSIX sockets, with timeouts reported as `SocketTimeoutException`; TLS is a layer on that same path (`TlsSocket`/`Tls`/`TlsServer`/`TlsException`, see "TLS" above) |
 | `java.util.Base64` | `lib/25` | The encoder (`encodeToString`); no decoder |
 | `java.util.stream` | `lib/22` | `Stream`/`IntStream`/`LongStream`/`DoubleStream`, `Collectors` (26 factories), `Collector`, `Spliterator`/`Spliterators`, `StreamSupport`, statistics and the `OptionalInt` family; intermediate operations build the pipeline and only terminal operations pull, with `Collection.stream()` as the entry point |
 | `java.math` | `lib/23` | `BigInteger` (base-2^30 limbs, sign and magnitude), `BigDecimal` (unscaled value and scale), `MathContext`, `RoundingMode`; the algorithms are translated from the JDK, because the number of decimal digits, the scale left behind by division and the rounding are all observable |
 | `java.text` | `lib/24` | `NumberFormat`/`DecimalFormat`/`DecimalFormatSymbols` (the full pattern language), `DateFormat`/`SimpleDateFormat` (four styles and parsing), `DateTimeFormatter`, `MessageFormat`, `ChoiceFormat`, `ParseException`/`ParsePosition`. **There is no `Locale`** (only ROOT/en-US), **there is no `java.util.Date`** (`format`/`parse` go through `Instant`), and `format` has no `FieldPosition` overload |
 | Rest of `java.util` | `lib/25` | `Properties`, `Random` (byte-for-byte like java.util.Random), `UUID`, `BitSet`, `StringTokenizer`, `Enumeration`, `ArrayOps` (the range form of arrays) |
-| `java.security`/`java.util.zip` | `lib/40` | `MessageDigest` (`getInstance`, `update`, `digest`, `reset`, `getAlgorithm`, `getDigestLength`, `isEqual`), the `Checksum` interface and `CRC32` (Java keeps those two in `java.util.zip`), plus `GeneralSecurityException`/`NoSuchAlgorithmException`/`DigestException`. MD5, SHA-1, SHA-224, SHA-256, SHA-384 and SHA-512 are implemented in Teyru (`tests/programs/t170_digest.teyru`, `t171_crc32.teyru`); `getInstance` matches the name case-insensitively and `getAlgorithm` answers the caller's own spelling, as the JDK does. The JDK at 21 also answers for SHA3-256 and its siblings and for SHA-512/256 and SHA-512/224; `getInstance` throws `NoSuchAlgorithmException` for those rather than quietly answering with a different digest. `update` takes a `byte` (`java.security.MessageDigest` has no `update(int)`; that one is on `Checksum`, where `CRC32` has it). No Provider, no `getInstance(String, String)`, no `clone()`, no `update(ByteBuffer)`, no `toString()` override |
+| `java.security`/`java.util.zip` | `lib/40` | `MessageDigest` (`getInstance`, `update`, `digest`, `reset`, `getAlgorithm`, `getDigestLength`, `isEqual`), the `Checksum` interface and `CRC32` (Java keeps those two in `java.util.zip`), plus `GeneralSecurityException`/`NoSuchAlgorithmException`/`DigestException`. MD5, SHA-1, SHA-224, SHA-256, SHA-384 and SHA-512 are implemented in Teyru (`tests/programs/t173_digest.teyru`, `t174_crc32.teyru`); `getInstance` matches the name case-insensitively and `getAlgorithm` answers the caller's own spelling, as the JDK does. The JDK at 21 also answers for SHA3-256 and its siblings and for SHA-512/256 and SHA-512/224; `getInstance` throws `NoSuchAlgorithmException` for those rather than quietly answering with a different digest. `update` takes a `byte` (`java.security.MessageDigest` has no `update(int)`; that one is on `Checksum`, where `CRC32` has it). No Provider, no `getInstance(String, String)`, no `clone()`, no `update(ByteBuffer)`, no `toString()` override |
 | `java.util.HexFormat` | `lib/41` | `of`/`ofDelimiter`, `withDelimiter`/`withPrefix`/`withSuffix`/`withUpperCase`/`withLowerCase` (each answers a new instance and leaves the original alone), `isUpperCase`/`delimiter`/`prefix`/`suffix`, `formatHex`, `parseHex`, `isHexDigit`/`fromHexDigit`, the two digit extractors, and six `toHexDigits` overloads. No `ByteBuffer`/`Appendable` overloads (this library has neither type), and `toString`/`equals`/`hashCode` are not overridden (`tests/programs/t175_hexformat.teyru`) |
 | `java.io` streams | `lib/42` | The `OutputStream`/`Reader`/`Writer` interfaces, `ByteArrayInputStream`/`ByteArrayOutputStream`, `DataInputStream`/`DataOutputStream`, `BufferedReader`, `PrintWriter`, `UTFDataFormatException`. `writeUTF`/`readUTF` use Java's **modified UTF-8** (NUL is `C0 80`, a character above the BMP is the six bytes of its surrogate pair), and a string whose encoded length does not fit the unsigned short is a `UTFDataFormatException` with the JDK's message — checked **before** anything is written, so a refused string leaves the stream as it was. `BufferedReader` has Java's line grammar (LF, CRLF, a lone CR) but no buffer of its own, because the sources it wraps already read in blocks. No serialization, no streams over a file (the disk belongs to `lib/16`), no char[] `Writer` methods, no `DataInputStream.read(byte[], int, int)` (a blocking full read is `readFully`'s contract, not Java's short-read one), and a `SocketOutputStream` is not an `OutputStream` |
 | `java.util.Scanner` | `lib/43` | Reads one `String`: `hasNext`/`next`, `hasNextInt`/`hasNextLong`/`hasNextDouble` with their `next*` forms, `hasNextLine`/`nextLine`, and `InputMismatchException`. The delimiter is Java's `\p{javaWhitespace}+`, so a `nextLine()` after `nextInt()` answers the rest of the line; the numeric tests are the parse itself, not a regular expression. No `useDelimiter`, no radix overloads, no `nextShort`/`nextFloat`, no `hasNext(Pattern)`/`findInLine` family, no locale-sensitive number formats, and no constructor from a stream |

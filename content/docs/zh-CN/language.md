@@ -351,6 +351,27 @@ String kind = switch (obj) {
 - `Interface.super.method()` 会静态绑定到该接口的 default 实现：
   `A.super.hello()`；接口必须是当前类的父接口。
 - cast：数值间做转换，引用类型间做运行时检查（失败抛 `ClassCastException`）。
+- **浮点数转整数的窄化转换按 JLS 5.1.3，不是 C 的 `(int)`／`(long)`。** 放不下的值在 C 是
+  undefined，所以两个后端都发出运行期调用（`ty_d2i`／`ty_d2l`）：NaN → `0`、`+∞` → 目标
+  类型的最大值、`-∞` → 最小值、太大 → 最大值、太小 → 最小值，其余向零截断。目标窄于
+  `int`（`byte`／`short`／`char`）时再做第二步——先饱和到 `int` 再截断——与 Java 的两步
+  相同，所以 `(byte) 1.0e20` 是 `-1`，不是 `127`。
+
+  ```teyru
+  System.out.println((int) Double.NaN)                 // 0
+  System.out.println((int) Double.POSITIVE_INFINITY)   // 2147483647
+  System.out.println((long) 1.0e20)                    // 9223372036854775807
+  System.out.println((long) -1.0e20)                   // -9223372036854775808
+  System.out.println((int) 3.99)                       // 3（向零截断）
+  System.out.println((byte) 1.0e20)                    // -1
+  ```
+
+  这个转换从前是未定义的，而且看得出来：同一个 `(long) 1.0e20` 在四个构建里给出四个答案
+  ——C 后端 `-O2` 是 `160`、`-O0` 是 `-9223372036854775808`、`-O3` 是 `0`，LLVM 后端是
+  `48`——因为常量折叠把它交给 C 的未定义行为。发出的是有定义的调用之后，常量折叠也跟着
+  有定义：四个优化等级与两个后端现在都给出 `9223372036854775807`。端到端测试是
+  `tests/programs/t193_narrowing_saturation.teyru`（期望值由 javac 产生，两个后端逐行
+  相同）。
 - boxing／unboxing 自动发生，`null` 拆箱会抛 `NullPointerException`。
 - 对象初始化列表：`new int[]{…}`、`int[] xs = {1,2,3}`、嵌套 `{{1,2},{3}}`。
 
@@ -429,10 +450,17 @@ try {
 ```
 
 - `Throwable` 家族：`Exception`、`RuntimeException`、`NullPointerException`、
-  `ArithmeticException`、`ArrayIndexOutOfBoundsException`、`ClassCastException`、
-  `IllegalArgumentException`、`IllegalStateException`、`NoSuchElementException`、
-  `NegativeArraySizeException`、`ArrayStoreException`、`AssertionError`、
-  `UnsupportedOperationException`。
+  `ArithmeticException`、`IndexOutOfBoundsException` 与它的两个子类
+  `ArrayIndexOutOfBoundsException`／`StringIndexOutOfBoundsException`、
+  `ClassCastException`、`IllegalArgumentException`、`IllegalStateException`、
+  `NoSuchElementException`、`NegativeArraySizeException`、`ArrayStoreException`、
+  `AssertionError`、`UnsupportedOperationException`。
+- **索引超出范围的继承层级与 Java 相同**：`IndexOutOfBoundsException` 是父类，数组索引抛
+  `ArrayIndexOutOfBoundsException`，字符串与 `StringBuilder` 的索引或范围抛
+  `StringIndexOutOfBoundsException`——两者都在父类下面——容器（`ArrayList` 那一家）
+  抛 `IndexOutOfBoundsException` 本身。所以 Java 的惯用写法
+  `catch (IndexOutOfBoundsException e)` 在这里能捕获到这三种；每一种的触发时机见
+  [docs/diagnostics.md](/zh-CN/docs/diagnostics) 的〈运行期错误〉。
 - 对 `null` 读**写**字段、调用方法、读写数组元素（含取 `length`）都会抛
   `NullPointerException`。
 - `catch` 多类型用 `|`；`finally` 一定会执行（包括 catch 内再次抛出的情况）。
@@ -592,6 +620,46 @@ designation，JVM 是通过 formatter 给 CLDR 的名字）；规则**按 id 缓
 `t189_timezone_lookup.teyru` 是政策那一面（id 清单、各种拒绝、`TZDIR`／`TZ`、默认时区），
 `t190_timezone_tzif.teyru` 用自己写的合成文件把「读哪一段」证明出来，而不是宣称。
 
+### TLS（`lib/15`、`lib/18`、`lib/32`）
+
+TLS 是这个标准库唯一**不自己实现**的一层：底下的密码学是 OpenSSL，跑在 POSIX
+socket 上。纯 Teyru 的那一半是政策与生命周期——`TlsSocket`（`start(plain, host)`、
+`start(plain, host, caFile)` 是客户端，`accept(plain, ctx)` 是服务器端）、提供客户端
+context 的 `Tls`（`clientContext(caFile)`）、持有一组证书与私钥的 `TlsServer`，以及
+`TlsException`／`TlsCertificateException`（后者的消息带着 OpenSSL 给的理由，因为
+「证书不受信任」只答了一半）。`HttpServer.ssl(certificate, privateKey)` 把 PEM 证书链与
+其私钥的路径交给服务器——就是 Spring 的 `server.ssl.certificate` 与
+`server.ssl.certificate-private-key`——从此它接到的每个连接都是 TLS，`isSecure()`
+回答它是不是；那组文件在**配置时**就被读取与检查，所以用不了的证书在配置的地方失败
+（程序还说得出哪里错），而不是让每一个进来的客户端失败。HTTP 客户端走 `https://`
+时就是同一条路。
+
+**这一层只有碰得到才进可执行文件。** 它是运行期唯一会链接「编译器不附带的函数库」的
+部分，所以它自己是一个文件（`internal/runtime/src/tyrt_tls.c`），而「这个程序碰不碰得到
+TLS」是由生成出来的 C 决定的：碰得到才编译那个文件、才加 `-lssl -lcrypto`。不用 TLS
+的程序因此一个字节都不付——hello world 还是 54.6 KB。要注意这个判断是**可达性**，
+不是实际执行：会反射的程序带着一份指名每个类的表格，所以它答「碰得到」，即使它从不
+调用 TLS。
+
+**这一层的要求是 OpenSSL 1.1，而且它是一个预处理器的 `#error`**
+（`OPENSSL_VERSION_NUMBER < 0x10100000L`）：`SSL_set1_host`、`BIO_meth_new`、
+`TLS_client_method` 与 `SSL_CTX_set_min_proto_version` 都不在 1.0.x 里。这件事在编译
+时就讲清楚，而不是让使用者在一个他没写过的运行期文件里逐个标识符地读「未声明的标识
+符」。**只有 POSIX 有这一层**，其他目标是**具名拒绝**，而且在写出任何输出文件之前：
+
+- `windows/amd64`：mingw-w64 没有 OpenSSL，那个目标没有 TLS 函数库可以链接。
+- `darwin/amd64`、`darwin/arm64`：macOS 出的是 SecureTransport，不是 OpenSSL。
+
+被拒绝的是**程序**，不是那个调用：只要可达代码碰得到这一层，那个目标就编不出来，
+消息指名目标、原因与可以改用的目标。要点与写法见 [docs/native.md](/zh-CN/docs/native)。
+
+没有任何调用可以把验证关掉：给了 `caFile` 的客户端把该文件的证书当成信任锚，其余用
+系统的锚。超时是这一层最容易做错的地方，所以有测试专盯它：
+`tests/programs/t163_https_roundtrip.teyru`（服务器与客户端在同一个程序里，证书以路径
+给，验证通过与被拒绝各一次，主体逐字节比对）、`t191_tls_keepalive.teyru`（一次 TLS
+连接上两个请求）、`t192_tls_handshake_timeout.teyru`（对端完成 TCP 连接后就不说话，
+超时必须是 `SocketTimeoutException` 而不是被读成流结束）。
+
 ### 其他包
 
 | 包 | 文件 | 内容 |
@@ -599,13 +667,13 @@ designation，JVM 是通过 formatter 给 CLDR 的名字）；规则**按 id 缓
 | `java.time` | `lib/20` | `LocalDate`／`LocalTime`／`LocalDateTime`／`Instant`／`Duration`／`Period`／`DayOfWeek`／`Month`；历法算在 epoch day 上；时区在 `lib/46`（见上面〈时区〉），而 `LocalDate.now()`／`LocalTime.now()`／`LocalDateTime.now()` 仍然把系统时钟读成 UTC——那是这个文件剩下的一处偏差，分区的「现在」是 `ZonedDateTime.now()`。`LocalDate`、`Instant`、`Duration`、`DayOfWeek`／`Month` 的输出与 JDK 逐字节相同；四处不同：年份不补零也不加正号（`1-01-01`、`10000-01-01`，JDK 是 `0001-01-01`、`+10000-01-01`）、`LocalTime` 的 `plus*`／`minus*` 清掉纳秒（`00:00:00.000000001` 加一小时是 `01:00`）、`LocalDateTime` 的 `plusHours`／`plusMinutes`／`plusSeconds` 不跨日（`1899-01-01T23:00` 加 25 小时是 `1899-01-01T00:00`）、`Period.between` 与 `addTo`／`subtractFrom` 的算法与 JDK 不同（`2000-03-31` 到 `2000-04-30` 是 `P1M`，JDK 是 `P30D`） |
 | `java.io` | `lib/16` | `File`（`listFiles`）、`Path`／`Paths`、`Files`（`readString`／`writeString`／`readAllLines`／`exists`／`createDirectories`） |
 | `java.util.regex` | `lib/21` | `Pattern`／`Matcher`：回溯式匹配，支持字面量、`.`、`*`／`+`／`?`／`{n,m}` 及其惰性形式、字符类、`\d`／`\w`／`\s`、`^`／`$`、`|`、捕获与非捕获组、`replaceAll`／`replaceFirst`／`split`（含 `limit` 的三种正负号）；不支持的语法（占有量词、环视、反向引用、`\p{...}`）在 `compile` 就被拒绝。`String.matches`／`replaceAll`／`replaceFirst`／`split` 就是这五个方法，不是另一套实现 |
-| `java.net` | `lib/15` | `ServerSocket`、`Socket`、`SocketInputStream`／`SocketOutputStream`；同步阻塞的 POSIX socket，超时通过 `SocketTimeoutException` 报告 |
+| `java.net` | `lib/15` | `ServerSocket`、`Socket`、`SocketInputStream`／`SocketOutputStream`；同步阻塞的 POSIX socket，超时通过 `SocketTimeoutException` 报告；TLS 是同一条路上的一层（`TlsSocket`／`Tls`／`TlsServer`／`TlsException`，见上面〈TLS〉） |
 | `java.util.Base64` | `lib/25` | 编码（`encodeToString`）；没有解码 |
 | `java.util.stream` | `lib/22` | `Stream`／`IntStream`／`LongStream`／`DoubleStream`、`Collectors`（26 个工厂）、`Collector`、`Spliterator`／`Spliterators`、`StreamSupport`、统计与 `OptionalInt` 家族；中间操作构建流水线、终端操作才拉取，`Collection.stream()` 是入口 |
 | `java.math` | `lib/23` | `BigInteger`（base-2^30 limb、符号与大小）、`BigDecimal`（unscaled value 与 scale）、`MathContext`、`RoundingMode`；算法照 JDK 翻译，因为小数位数、除法留下的 scale、舍入方式都是可观察的 |
 | `java.text` | `lib/24` | `NumberFormat`／`DecimalFormat`／`DecimalFormatSymbols`（完整的 pattern 语言）、`DateFormat`／`SimpleDateFormat`（四种 style 与 parse）、`DateTimeFormatter`、`MessageFormat`、`ChoiceFormat`、`ParseException`／`ParsePosition`。**没有 `Locale`**（只做 ROOT／en-US），**没有 `java.util.Date`**（`format`／`parse` 经由 `Instant`），`format` 没有 `FieldPosition` 重载 |
 | `java.util` 其余 | `lib/25` | `Properties`、`Random`（逐字节照 java.util.Random）、`UUID`、`BitSet`、`StringTokenizer`、`Enumeration`、`ArrayOps`（数组的范围形式） |
-| `java.security`／`java.util.zip` | `lib/40` | `MessageDigest`（`getInstance`、`update`、`digest`、`reset`、`getAlgorithm`、`getDigestLength`、`isEqual`）、`Checksum` 接口与 `CRC32`（Java 把它们放在 `java.util.zip`），以及 `GeneralSecurityException`／`NoSuchAlgorithmException`／`DigestException`。MD5、SHA-1、SHA-224、SHA-256、SHA-384、SHA-512 都在 Teyru 里实现（`tests/programs/t170_digest.teyru`、`t171_crc32.teyru`）；`getInstance` 的名字比较不分大小写，`getAlgorithm` 回报调用者写的那个拼法（JDK 也是如此）。JDK 21 还回应 SHA3-256 那一家族与 SHA-512/256、SHA-512/224，这里的 `getInstance` 对它们抛 `NoSuchAlgorithmException`，而不是安静地给出另一种哈希。`update` 收的是 `byte`（`java.security.MessageDigest` 没有 `update(int)`，那是 `Checksum` 的，`CRC32` 有）；没有 Provider、没有 `getInstance(String, String)`、没有 `clone()`、没有 `update(ByteBuffer)`、没有 `toString()` 覆写 |
+| `java.security`／`java.util.zip` | `lib/40` | `MessageDigest`（`getInstance`、`update`、`digest`、`reset`、`getAlgorithm`、`getDigestLength`、`isEqual`）、`Checksum` 接口与 `CRC32`（Java 把它们放在 `java.util.zip`），以及 `GeneralSecurityException`／`NoSuchAlgorithmException`／`DigestException`。MD5、SHA-1、SHA-224、SHA-256、SHA-384、SHA-512 都在 Teyru 里实现（`tests/programs/t173_digest.teyru`、`t174_crc32.teyru`）；`getInstance` 的名字比较不分大小写，`getAlgorithm` 回报调用者写的那个拼法（JDK 也是如此）。JDK 21 还回应 SHA3-256 那一家族与 SHA-512/256、SHA-512/224，这里的 `getInstance` 对它们抛 `NoSuchAlgorithmException`，而不是安静地给出另一种哈希。`update` 收的是 `byte`（`java.security.MessageDigest` 没有 `update(int)`，那是 `Checksum` 的，`CRC32` 有）；没有 Provider、没有 `getInstance(String, String)`、没有 `clone()`、没有 `update(ByteBuffer)`、没有 `toString()` 覆写 |
 | `java.util.HexFormat` | `lib/41` | `of`／`ofDelimiter`、`withDelimiter`／`withPrefix`／`withSuffix`／`withUpperCase`／`withLowerCase`（每个都返回新的实例，原对象不变）、`isUpperCase`／`delimiter`／`prefix`／`suffix`、`formatHex`、`parseHex`、`isHexDigit`／`fromHexDigit` 与两个取位方法，以及六个 `toHexDigits`。没有 `ByteBuffer`／`Appendable` 的重载（这个标准库没有那两个类型），也没有覆写 `toString`／`equals`／`hashCode`（`tests/programs/t175_hexformat.teyru`） |
 | `java.io` 数据流 | `lib/42` | `OutputStream`／`Reader`／`Writer` 接口、`ByteArrayInputStream`／`ByteArrayOutputStream`、`DataInputStream`／`DataOutputStream`、`BufferedReader`、`PrintWriter`、`UTFDataFormatException`。`writeUTF`／`readUTF` 用 Java 的 **modified UTF-8**（NUL 是 `C0 80`，BMP 之外的字是代理对的六个字节），长度字段放不下时（65536 字节以上）以 JDK 的消息抛 `UTFDataFormatException`，而且是在写出任何字节**之前**检查，所以失败的调用不会留下半个 frame。`BufferedReader` 的行语法是 Java 的（LF、CRLF、单独的 CR），但它没有自己的缓冲区——它包装的来源本来就整块读。没有序列化、没有文件流（磁盘归 `lib/16`）、没有 `char[]` 的 `Writer` 方法、`DataInputStream` 没有 `read(byte[], int, int)`（阻塞读满是 `readFully` 的契约，不是 Java 那个允许短读的契约）、`SocketOutputStream` 不是 `OutputStream` |
 | `java.util.Scanner` | `lib/43` | 只从一个 `String` 读：`hasNext`／`next`、`hasNextInt`／`hasNextLong`／`hasNextDouble` 与对应的 `next*`、`hasNextLine`／`nextLine`，以及 `InputMismatchException`。分隔符是 Java 的 `\p{javaWhitespace}+`，所以 `nextInt()` 之后的 `nextLine()` 拿到的是那一行剩下的部分；数值测试就是解析本身，不是正则表达式。没有 `useDelimiter`、没有基数重载、没有 `nextShort`／`nextFloat`、没有 `hasNext(Pattern)`／`findInLine` 那一家族、没有本地化数字格式，也没有从数据流构造的构造函数 |

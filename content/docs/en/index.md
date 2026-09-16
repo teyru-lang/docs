@@ -374,7 +374,7 @@ compiles unchanged:
 | `java.time` | `LocalDate`/`LocalTime`/`LocalDateTime`/`Instant`/`Duration`/`Period`; time zones are `ZoneId`/`ZoneOffset`/`ZoneRules`/`ZonedDateTime`, reading the host's own tzdata |
 | `java.io` | `File`, `Path`/`Paths`, `Files` |
 | `java.util.regex` | `Pattern`/`Matcher` |
-| `java.net` | `ServerSocket`, `Socket` and their streams |
+| `java.net` | `ServerSocket`, `Socket` and their streams; TLS is a layer on that same path (`TlsSocket`/`Tls`/`TlsServer`/`TlsException`, using OpenSSL, POSIX only) |
 | `java.util.stream` | `Stream`/`IntStream`/`LongStream`/`DoubleStream`, `Collectors`, `Collector`, `Spliterator`; lazy, entered through `Collection.stream()` |
 | `java.math` | `BigInteger`, `BigDecimal`, `MathContext`, `RoundingMode` |
 | `java.text` | `NumberFormat`/`DecimalFormat` (the full pattern language), `DateFormat`/`SimpleDateFormat`, `DateTimeFormatter`, `MessageFormat`; ROOT/en-US only, `format` takes an `Instant` |
@@ -440,8 +440,15 @@ See [`docs/native.md`](/en/docs/native).
 - **tree-sitter**: `tree-sitter-teyru/` in the same repository is a complete grammar with
   highlight queries, indentation queries and corpus tests, usable from Neovim,
   Helix, Zed and anything else that loads tree-sitter parsers.
-- GitHub still labels `.teyru` files as Java. Linguist has no Teyru definition
-  yet; `.gitattributes` maps the extension to the closest grammar until it does.
+- **GitHub's language statistics** are decided by `.gitattributes`: `*.teyru` is
+  declared `linguist-language=Teyru`, while `*.java.ref` (that is the spec — the
+  `.expected` files are produced from javac's output) and `*.expected` (test data)
+  are marked as not counted. Before that correction "Java" was the largest language
+  in this repository and it barely existed. **What has to be said clearly is that
+  the `linguist-language` line does not make Teyru appear**: Linguist only counts
+  the languages it knows, so Teyru is still not an entry in the statistics, and it
+  will not be until the language itself and the grammar in `teyru-lang/editors` are
+  taken upstream.
 
 ---
 
@@ -458,7 +465,7 @@ See [`docs/native.md`](/en/docs/native).
 | `internal/sema` | Name resolution, type checking, erasure and inference, overload resolution, vtable/selector layout, property lowering |
 | `internal/codegen` | Two back ends: C (the default; classes to structs, virtual calls to vtables, interface calls to itables, GC root info) and LLVM (`--backend=llvm`; emits the program's own IR module) |
 | `internal/util` | Shared helpers: name mangling, type descriptors, C layout |
-| `internal/runtime/src` | C runtime: GC, strings, arrays, exceptions, boxing, threads and monitors, sockets; its operating-system half is `tyrt_plat.h`, implemented for POSIX and Windows |
+| `internal/runtime/src` | C runtime: GC, strings, arrays, exceptions, boxing, threads and monitors, sockets; its operating-system half is `tyrt_plat.h`, implemented for POSIX and Windows. TLS is in `tyrt_tls.c` — the one file that links OpenSSL, compiled and linked only when the program's reachable code can reach it |
 | `lib` | Standard library, written in Teyru |
 | `tests/programs` | End-to-end programs plus expected output (`go test` compiles and diffs each one) |
 | `tests/native` | Native-method interop test: Teyru declarations, a C implementation and the expected output (`TestNative`) |
@@ -566,27 +573,61 @@ rest. It compiles for linux/amd64 only, and refuses every other target with `TY-
 **The platform layer.** Everything the runtime asks of the operating system goes through
 `internal/runtime/src/tyrt_plat.h`: time and CPU, mutexes and condition variables, threads,
 startup, sockets and files — forty `typlat_*` functions, implemented in two halves,
-`tyrt_plat_posix.c` and `tyrt_plat_win.c`. Only `tyrt.c`, `tyrt2.c`, `tyrt_thread.c` and
-`tyrt_net.c` call them.
+`tyrt_plat_posix.c` and `tyrt_plat_win.c`. Only `tyrt.c`/`tyrt2.c`/`tyrt_thread.c`/
+`tyrt_net.c`/`tyrt_tls.c` call them. (TLS is the one exception to this layer: it is written
+on OpenSSL, compiled and linked only when the program's reachable code can reach it, so a
+target without OpenSSL refuses it by name — see [docs/native.md](/en/docs/native).)
 
 `teyru build --target <os>/<arch>` picks the compiler, the flags, which half of the
 platform layer to compile and the output suffix; without it, the build targets this
-machine. The target table has five rows, and the evidence behind them is not the same:
+machine. The target table has five rows, and **"it builds" and "it runs" are two different
+questions** with different evidence, so it has two columns — putting one of them into the
+other's cell is claiming a measurement that was never taken:
 
-| Target | How far it is verified |
-|---|---|
-| `linux/amd64` | The full suite, natively on the maintainer's machine: `go test ./...` and `TEYRU=<compiler> sh tests/run.sh` (221 cases) |
-| `windows/amd64` | Built with mingw-w64 and run under Wine: 179 of the 195 test programs of the time were byte-identical (14 of the 16 that were not also failed on Linux with gcc under the pre-change compiler, and 2 were Windows path and filename facts) |
-| `linux/arm64` | **Implemented, not verified**: no aarch64 sysroot can be installed here |
-| `darwin/amd64`, `darwin/arm64` | **Implemented, not verified**: there is no macOS to run here |
+| Target | Build | Run |
+|---|---|---|
+| `linux/amd64` | ✅ | ✅ The full suite, natively on this machine: `go test ./...` and `TEYRU=<compiler> sh tests/run.sh` (221 cases) |
+| `windows/amd64` | ✅ Cross-compiled with `x86_64-w64-mingw32-gcc`; **except a program that can reach TLS** (see below) | ✅ Run under Wine: 179 of the 195 test programs of the time were byte-identical (14 of the 16 that were not also failed on Linux with gcc under the pre-change compiler, and 2 were Windows path and filename facts) |
+| `linux/arm64` | ❌ This machine has `aarch64-linux-gnu-gcc`, but its sysroot has no libc headers (`fatal error: stdint.h`), so it does not even get through compilation | ❌ No aarch64 sysroot |
+| `darwin/amd64`, `darwin/arm64` | ❌ There is no macOS SDK here, and no usable cross compiler (`teyru: no C compiler for darwin/amd64 on a linux/amd64 host`) | ❌ There is no macOS here |
+
+The build column was measured like this: eight representative programs — sealed switch
+(`t84_sealed_switch`), arrow blocks (`t133_arrow_blocks`), reflection (`t146_reflect`),
+threads (`t159_threads`), time zones (`t188_timezone`), the Spring-shaped layer (`t102_web`),
+TLS (`t163_https_roundtrip`) and Gson (`t101_gson`) — each built for five targets with
+`teyru build --no-lto --target <os>/<arch>`, with the verdict read from the compiler's own
+exit code. **12 of the 40 succeeded** (all eight on linux/amd64, four on windows/amd64); the
+other 28 were either a toolchain that is not on this machine or the "this target does not
+have this feature" case below.
+
+**All five targets are implemented, but this machine can exercise only two of them.**
+Cross-compiling to `linux/arm64` needs that target's sysroot (the `aarch64-linux-gnu-gcc`
+here has its own headers but not the target's libc), and to macOS it needs an SDK — neither
+is here. Those three targets are therefore "implemented, **nobody has run it**", not "it
+builds but was not tested"; the ones that really have been verified are the other two:
+`linux/amd64` runs the full suite natively, and `windows/amd64` runs under Wine (the 179
+above).
+
+**windows and macOS have no TLS, and what is refused is the program.** The TLS layer is
+written on OpenSSL, mingw-w64 does not have it and macOS ships SecureTransport, so a program
+that can reach TLS is a **named refusal** on those two targets (the message names the target,
+the reason and the targets that would work), rather than being left to the linker to say
+`undefined reference to SSL_CTX_new`. Note that "can reach" counts **reachability**: a
+program that uses reflection carries a table naming every class, so it reaches TLS
+automatically — that is how `t146_reflect`, `t101_gson` and `t102_web` (the Spring-shaped
+layer scans classes) were refused on windows/amd64. A program that uses neither reflection
+nor TLS is entirely unaffected, and a program that does not use TLS is not linked against
+OpenSSL.
 
 The table is **not a promise that every row has been run**: `linux/amd64` is the suite's,
-and a target that needs a cross toolchain this machine does not have fails at the compiler
-with the compiler's own error rather than silently. There is no cross compiler for macOS
-to name, so asking for one from another host is an explicit error.
+and a target that needs something this machine does not have fails at the compiler with the
+compiler's own error rather than silently. There is no cross compiler for macOS to name, so
+asking for one from another host is an explicit error.
 
-This project has **no CI**: the gate for every change is those two commands, run on this
-machine, which is why the numbers in these pages say how and where they were measured.
+This project has **no CI**: there are no GitHub Actions, the gate for every change is those
+two commands, run on this machine, which is why the numbers in these pages say how and where
+they were measured. The arm64 and macOS rows therefore stay at "implemented, nobody has run
+it" for ever — with no CI, there is nowhere else that would run them.
 
 
 ---

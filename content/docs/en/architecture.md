@@ -158,11 +158,19 @@ default back end.
 Everything the runtime asks of the operating system is collected in
 `internal/runtime/src/tyrt_plat.h`: forty `typlat_*` functions grouped into time and CPU,
 mutexes, condition variables, threads, startup, sockets and files, implemented in two halves,
-`tyrt_plat_posix.c` and `tyrt_plat_win.c`. Only `tyrt.c`, `tyrt2.c`, `tyrt_thread.c` and
-`tyrt_net.c` call them (`tyrt_reflect.c` calls none). What is deliberately **not** abstracted
-is written in that header too: mingw's C library is POSIX-shaped, so `open`/`read`/`write`/
-`stat` are called straight from `tyrt_net.c`, and only the four things whose shape differs
-(open flags, `mkdir`'s arity, `mkdtemp`, the temporary directory) sit behind the layer.
+`tyrt_plat_posix.c` and `tyrt_plat_win.c`. Only `tyrt.c`, `tyrt2.c`, `tyrt_thread.c`,
+`tyrt_net.c` and `tyrt_tls.c` call them (`tyrt_reflect.c` calls none). What is deliberately
+**not** abstracted is written in that header too: mingw's C library is POSIX-shaped, so
+`open`/`read`/`write`/`stat` are called straight from `tyrt_net.c`, and only the four things
+whose shape differs (open flags, `mkdir`'s arity, `mkdtemp`, the temporary directory) sit
+behind the layer.
+
+TLS is the one exception to this layer, and the exception is itself a file: `tyrt_tls.c` is
+written on **OpenSSL**, and it is compiled and given `-lssl -lcrypto` only when the program's
+reachable code can reach it, so a program that does not use TLS is never linked against
+OpenSSL; a target without OpenSSL (windows and macOS) is refused by name before any output
+file is written, and OpenSSL's floor (1.1) is a preprocessor `#error`. See
+[docs/native.md](/en/docs/native).
 
 `teyru build --target <os>/<arch>` decides which compiler, which flags, which half of the
 platform layer and which output suffix; the target table has five rows, with evidence of
@@ -237,6 +245,26 @@ for how to reproduce them.
   4 MB and after each collection is set to twice the live amount, never lower than 4 MB. Running out of chunks
   is **not** a reason to collect — when the free list has no usable block, a new chunk is simply grown, because
   collecting before the threshold is reached would only rescan the live objects for nothing.
+- **A block taken off the free list is a root before it is handed out.** This one was a fix, and it is worth
+  writing down because of how invisibly it broke: `ty_heap_unlock` is the only place that unlocks the heap
+  mutex *before* it takes the thread out of the stopped state, so between taking a block off the free list and
+  handing it to the caller that thread **still counts in `n_stopped`**. A collection that starts inside that
+  window does not wait for it — it walks the slab, reads the block as saying it is empty (and nothing points at
+  it either), and takes it as free space: it splices the block back onto the free list, or returns the whole
+  slab to the system; then the thread wakes up, writes into the same memory and hands it out. The same memory
+  is handed out twice, or written after it has gone back to the system. A four-thread allocation stress test
+  (300,000 allocations each) produced 63 crashes in 400 runs before the fix, every one of them on the free-list
+  path and every one of them inside the 256 KB slab a collection had just released; after the fix it was 0.
+
+  The fix uses this file's own convention: put the block on that thread's shadow stack *before* the lock is
+  dropped and remove it once the object exists, so the collector cannot miss it. **The collector was not
+  changed at all**, and does not need to be; but the order matters — marking is not the end, a marked object is
+  **traced**, and a block just taken off the free list still holds the previous tenant's bytes, so the size word
+  and the mark word are written first, the class word is written as 0 (which makes tracing it a no-op) and only
+  then is it pushed as a root, while the remaining bytes are cleared after the lock is released (otherwise a
+  multi-MB array would be cleared while holding the heap lock). Only two places need this: the block the free
+  list hands out and the first block of a freshly obtained slab; a block handed out by the bump path sits above
+  the watermark the collector walks, so no collection can see it, and there it **must not** be added.
 - Known costs: every collection must scan the entire stack in use, and there is no generational assumption; the
   sweep phase must additionally walk every block of every retained chunk.
 

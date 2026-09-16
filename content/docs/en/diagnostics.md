@@ -235,14 +235,21 @@ A run-time failure is not a diagnostic code but a member of the `Throwable` fami
 | Exception | When it is thrown |
 |---|---|
 | `NullPointerException` | Unboxing `null`, or reading/writing a field, calling a method (`String` methods, `clone()`, interface methods and virtual calls all count), reading/writing an array element or taking `length` |
-| `ArrayIndexOutOfBoundsException` | An array index outside `[0, length)` (both reads and writes; a `null` array throws `NullPointerException` first) |
-| `IndexOutOfBoundsException` | The index of `ArrayList.get`/`set`/`remove` outside `[0, size)` |
+| `ArrayIndexOutOfBoundsException` | An array index outside `[0, length)` (both reads and writes; a `null` array throws `NullPointerException` first); a range argument out of bounds in the `Arrays.copyOfRange` family uses it too |
+| `StringIndexOutOfBoundsException` | A string or `StringBuilder` index or range outside: `charAt`, `substring`, `delete`, `StringBuilder.insert` and the like (every one of `String`'s bounds checks is this one) |
+| `IndexOutOfBoundsException` | A container's own index, such as the index of `ArrayList.get`/`set`/`remove` outside `[0, size)` |
 | `NoSuchElementException` | `Iterator.next()` called again although there are no elements left |
 | `ArithmeticException` | Integer division by zero or remainder by zero |
 | `ClassCastException` | A cast that fails, through `cast` or `instanceof` |
 | `NegativeArraySizeException` | A negative array length |
 | `AssertionError` | A failed `assert` |
 | `IllegalArgumentException` | `enum.valueOf` cannot find the constant, and so on |
+
+The three out-of-bounds ones have the same hierarchy as Java's: `IndexOutOfBoundsException` is
+the parent, `ArrayIndexOutOfBoundsException` and `StringIndexOutOfBoundsException` sit under
+it, so `catch (IndexOutOfBoundsException e)` catches all three. That is also the most common
+way it is written in Java code, and it works here as it does in Java (see
+[docs/language.md](/en/docs/language) §10).
 
 An exception that is not caught prints `Exception in thread "main" …` and exits with status 1.
 Reaching an abstract method that has no implementation prints `teyru: no implementation for …` and exits with status 70.

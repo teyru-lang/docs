@@ -352,7 +352,7 @@ class Main {
 | `java.time` | `LocalDate`／`LocalTime`／`LocalDateTime`／`Instant`／`Duration`／`Period`；时区是 `ZoneId`／`ZoneOffset`／`ZoneRules`／`ZonedDateTime`，读主机自己的 tzdata |
 | `java.io` | `File`、`Path`／`Paths`、`Files` |
 | `java.util.regex` | `Pattern`／`Matcher` |
-| `java.net` | `ServerSocket`、`Socket` 及其输入输出流 |
+| `java.net` | `ServerSocket`、`Socket` 及其输入输出流；TLS 是同一条路上的一层（`TlsSocket`／`Tls`／`TlsServer`／`TlsException`，用 OpenSSL，只有 POSIX 有） |
 | `java.util.stream` | `Stream`／`IntStream`／`LongStream`／`DoubleStream`、`Collectors`、`Collector`、`Spliterator`；惰性求值，入口是 `Collection.stream()` |
 | `java.math` | `BigInteger`、`BigDecimal`、`MathContext`、`RoundingMode` |
 | `java.text` | `NumberFormat`／`DecimalFormat`（完整 pattern 语言）、`DateFormat`／`SimpleDateFormat`、`DateTimeFormatter`、`MessageFormat`；只做 ROOT／en-US，`format` 用 `Instant` |
@@ -412,8 +412,12 @@ teyru build --native impl.c program.teyru            # 一起编译
   用 `npx @vscode/vsce package` 打包，再用 `code --install-extension teyru-0.1.0.vsix` 安装。
 - **tree-sitter**：同一仓库的 `tree-sitter-teyru/` 是完整文法，附高亮 query、缩进 query
   与 corpus 测试，Neovim、Helix、Zed 等可直接使用。
-- GitHub 目前仍把 `.teyru` 显示为 Java：linguist 还没有 Teyru 的定义，
-  `.gitattributes` 先映射到最接近的语法。
+- **GitHub 的语言统计**由 `.gitattributes` 决定：`*.teyru` 声明成
+  `linguist-language=Teyru`，而 `*.java.ref`（那是规格——`.expected` 是由 javac 的输出
+  产生的）与 `*.expected`（测试数据）标成不计入。校正之前，「Java」曾经是这个仓库里
+  最大的语言，而它几乎不存在。**要说清楚的是 `linguist-language` 这一行不会让 Teyru
+  出现**：Linguist 只统计它认得的语言，所以统计里仍然没有 Teyru 这一项，要等语言本身
+  与 `teyru-lang/editors` 那份文法被上游收下。
 
 ---
 
@@ -430,7 +434,7 @@ teyru build --native impl.c program.teyru            # 一起编译
 | `internal/sema` | 名称解析、类型检查、泛型擦除与推断、重载解析、vtable／selector 分配、property 降级 |
 | `internal/codegen` | 两个后端：C（默认；类→struct、虚调用→vtable、接口调用→itable、GC 根信息）与 LLVM（`--backend=llvm`；生成程序自己的 IR 模块） |
 | `internal/util` | 前后端共用的工具：名称修饰、类型描述、C 内存布局 |
-| `internal/runtime/src` | C 运行时：GC、字符串、数组、异常、boxing、线程与监视器、socket；操作系统那一层在 `tyrt_plat.h`，实现分成 POSIX 与 Windows 两半 |
+| `internal/runtime/src` | C 运行时：GC、字符串、数组、异常、boxing、线程与监视器、socket；操作系统那一层在 `tyrt_plat.h`，实现分成 POSIX 与 Windows 两半。TLS 在 `tyrt_tls.c`——唯一会链接 OpenSSL 的文件，只有程序的可达代码碰得到它时才编译与链接 |
 | `lib` | 用 Teyru 编写的标准库 |
 | `tests/programs` | 端到端测试程序与期望输出（`go test` 会逐一编译并比对） |
 | `tests/native` | native 方法互通测试：Teyru 声明、C 实现与期望输出（`TestNative`） |
@@ -528,24 +532,49 @@ record／enum／注解合成出来的成员、类型 pattern 与带守卫的 swi
 **平台层。** 运行期对操作系统的调用都走 `internal/runtime/src/tyrt_plat.h`：
 时间与 CPU、mutex 与 condition variable、线程、启动、socket、文件，共四十个
 `typlat_*` 函数，实现分成 `tyrt_plat_posix.c` 与 `tyrt_plat_win.c` 两半，
-只有 `tyrt.c`／`tyrt2.c`／`tyrt_thread.c`／`tyrt_net.c` 会调用它们。
+只有 `tyrt.c`／`tyrt2.c`／`tyrt_thread.c`／`tyrt_net.c`／`tyrt_tls.c` 会调用它们。
+（TLS 是这一层唯一的例外：它写在 OpenSSL 上，只有程序的可达代码碰得到它时才会被
+编译与链接，所以没有 OpenSSL 的目标对它是具名拒绝——见 [docs/native.md](/zh-CN/docs/native)。）
 
 `teyru build --target <os>/<arch>` 选的是编译器、旗标、要编哪一半的平台层与输出文件名；
-没有给就编给这台机器。目标表有五列，每列的证据不一样：
+没有给就编给这台机器。目标表有五列，而**「编得出来」与「跑得起来」是两个问题**、证据
+也不一样，所以分成两栏——把其中一个写进另一格，就是把没量到的讲成量到的：
 
-| 目标 | 验证到什么程度 |
-|---|---|
-| `linux/amd64` | 在这台机器上原生跑完整套件：`go test ./...` 与 `TEYRU=<compiler> sh tests/run.sh`（221 项） |
-| `windows/amd64` | 用 mingw-w64 构建、在 Wine 下跑：当时 195 支测试程序有 179 支逐字节相同（16 支不符里 14 支在改动前的编译器上用 gcc 编 Linux 也一样失败，2 支是 Windows 的路径与文件名事实） |
-| `linux/arm64` | **有实现，没有验证过**：这里装不了 aarch64 sysroot |
-| `darwin/amd64`、`darwin/arm64` | **有实现，没有验证过**：这里没有 macOS 可跑 |
+| 目标 | 构建 | 运行 |
+|---|---|---|
+| `linux/amd64` | ✅ | ✅ 在这台机器上原生跑完整套件：`go test ./...` 与 `TEYRU=<compiler> sh tests/run.sh`（221 项） |
+| `windows/amd64` | ✅ 用 `x86_64-w64-mingw32-gcc` 交叉编译；**碰得到 TLS 的程序除外**（见下） | ✅ 在 Wine 下跑：当时 195 支测试程序有 179 支逐字节相同（16 支不符里 14 支在改动前的编译器上用 gcc 编 Linux 也一样失败，2 支是 Windows 的路径与文件名事实） |
+| `linux/arm64` | ❌ 这台机器有 `aarch64-linux-gnu-gcc`，但它的 sysroot 里没有 libc 头文件（`fatal error: stdint.h`），所以连编译都过不去 | ❌ 没有 aarch64 sysroot |
+| `darwin/amd64`、`darwin/arm64` | ❌ 这里没有 macOS SDK，也没有可用的交叉编译器（`teyru: no C compiler for darwin/amd64 on a linux/amd64 host`） | ❌ 这里没有 macOS |
 
-这张表**不是「每一列都跑过」的承诺**：`linux/amd64` 是整套测试的那一个，其他目标如果
-需要这台机器没有的交叉工具链，会在编译器那里以编译器自己的错误失败，而不是安静地
-成功。macOS 没有可命名的交叉编译器，所以从别的宿主要求它是明确的错误。
+构建那一栏是这样量的：八支代表性程序——sealed switch（`t84_sealed_switch`）、arrow
+blocks（`t133_arrow_blocks`）、反射（`t146_reflect`）、线程（`t159_threads`）、时区
+（`t188_timezone`）、Spring 形状的那一层（`t102_web`）、TLS（`t163_https_roundtrip`）与
+Gson（`t101_gson`）——各以 `teyru build --no-lto --target <os>/<arch>` 编五个目标，判定
+看的是编译器自己的退出码。**40 次里 12 次成功**（linux/amd64 八支全过、windows/amd64
+四支过）；其余 28 次不是工具链不在这台机器上，就是下面这一种「这个目标没有这个功能」。
 
-这个项目**没有 CI**：每次改动的关卡就是上面那两条指令，在这台机器上跑，所以文档里的
-数字都写着它是怎么量、在哪里量的。
+**五个目标都实现了，但这台机器只能演练其中两个。** 交叉编译到 `linux/arm64` 需要那个目标
+的 sysroot（这里的 `aarch64-linux-gnu-gcc` 有它自己的头文件，却没有目标的 libc），到 macOS
+则需要一份 SDK——两者都不在。那三个目标因此是「实现了、**没有任何人跑过**」，而不是「编得
+出来但没测」；真正被实际验证过的是另外两个：`linux/amd64` 原生跑整套测试，
+`windows/amd64` 在 Wine 下跑（上面那 179 支）。
+
+**windows 与 macOS 没有 TLS，而被拒绝的是程序。** TLS 那一层写在 OpenSSL 上，
+mingw-w64 没有它、macOS 出的是 SecureTransport，所以碰得到 TLS 的程序在那两个目标上是
+**具名拒绝**（消息指名目标、原因与可以改用的目标），而不是留给链接器去说
+`undefined reference to SSL_CTX_new`。要注意「碰得到」算的是**可达性**：会用反射的程序
+带着一份指名每个类的表格，所以它自动碰得到 TLS——`t146_reflect`、`t101_gson` 与
+`t102_web`（Spring 形状的那一层会扫描类）就是这样在 windows/amd64 上被拒绝的。不用
+反射也不用 TLS 的程序完全不受影响，而且不用 TLS 的程序不会被链接 OpenSSL。
+
+这张表**不是「每一列都跑过」的承诺**：`linux/amd64` 是整套测试的那一个，其他目标需要
+这台机器没有的东西时，会在编译器那里以编译器自己的错误失败，而不是安静地成功。macOS
+没有可命名的交叉编译器，所以从别的宿主要求它是明确的错误。
+
+这个项目**没有 CI**：没有任何 GitHub Actions，每次改动的关卡就是上面那两条指令，在这台
+机器上跑，所以文档里的数字都写着它是怎么量、在哪里量的。arm64 与 macOS 那三列因此永远
+停在「实现了、没有任何人跑过」——没有 CI，就没有别的地方会跑它们。
 
 
 ---

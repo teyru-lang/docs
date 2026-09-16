@@ -185,7 +185,45 @@ System.out.println(Native.apply(t, 4))   // 40
 
 ---
 
-## 7. 已知限制
+## 7. 运行期唯一需要原生函数库的一层：TLS
+
+运行期是自足的——它只依赖 C 函数库——**除了 TLS**。那一层写在 OpenSSL 上，所以它是
+一个自己的文件（`internal/runtime/src/tyrt_tls.c`）：只有程序的**可达**代码碰得到
+它的其中一个函数时，构建才编译它、才加上 `-lssl -lcrypto`。不用 TLS 的程序因此一个
+字节都不付——这是「运行期不需要附带的函数库」这个原则的例外，而它被关在一个文件里。
+
+用 `native` 方法的程序与这件事无关：那是你自己的 C 文件与 `--native`，要链接什么由你
+决定。
+
+**这一层的要求是 OpenSSL 1.1，而它是一个预处理器的 `#error`**，不是一页未声明的
+标识符：
+
+```c
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+#error "the TLS layer needs OpenSSL 1.1 or newer (SSL_set1_host, BIO_meth_new, TLS_client_method and SSL_CTX_set_min_proto_version are not in 1.0.x)"
+#endif
+```
+
+`SSL_set1_host`、`BIO_meth_new`、`TLS_client_method` 与
+`SSL_CTX_set_min_proto_version` 都不在 1.0.x 里，所以旧的 OpenSSL 在编译那个文件时
+用一句话讲清楚，而不是让使用者在一个他没写过的运行期文件里逐个标识符地读「未声明的
+标识符」。
+
+**没有 OpenSSL 的目标是具名拒绝，不是链接阶段失败。** 只有 POSIX 有这一层：
+`windows/amd64` 的 mingw-w64 没有 OpenSSL，`darwin/amd64` 与 `darwin/arm64` 的 macOS
+出的是 SecureTransport——两者都在**写出任何输出文件之前**被拒绝，消息指名目标、原因与
+可以改用的目标，而不是留给链接器去说 `undefined reference to SSL_CTX_new`（那会指名
+一个程序作者从没提过的函数库里的符号）。被拒绝的是**程序**：只要可达代码碰得到这一
+层就编不出来，而可达性是生成出来的 C 算的，所以会用到反射的程序（带着指名每个类的
+表格）即使从不调用 TLS 也算碰得到。
+
+以 C 实现 native 方法的人要知道的就是这些：这一层不是你可以 include 的头文件，它是一
+个运行期文件，而它进不进可执行文件由编译器依可达性决定。API、政策与测试见
+[docs/language.md](/zh-CN/docs/language) 的〈TLS〉。
+
+---
+
+## 8. 已知限制
 
 - **没有自动绑定。** 头文件由编译器生成，实现要自己写；没有 C++ 名称修饰解析、
   没有结构体描述符、没有内存布局协商。

@@ -178,6 +178,24 @@ connection: that is how `tests/programs/t102_web.teyru` and
 400 from a failed conversion, enum parameters and return values, and
 `defaultValue`.
 
+**TLS.** `server.ssl(certificate, privateKey)` takes the **paths** of a PEM certificate chain
+and its private key (Spring's `server.ssl.certificate` and
+`server.ssl.certificate-private-key`), and once it is given, every connection this server
+accepts is TLS and `server.isSecure()` answers whether it is. The pair of files is read and
+checked at configuration time, so an unusable certificate fails there — where the program can
+still say what is wrong — rather than making every client that arrives fail. A program that
+builds its own `HttpServer` (the "The server on a thread of its own" section below, and the
+`Application.boot` + `routerFrom` path) calls it itself; `Application.serve(ctx, port, idleMs)`
+reads those two properties and calls `ssl()` itself when `server.ssl.certificate` is there —
+`SpringApplication.run` does not.
+
+The layer is OpenSSL, so only POSIX targets have it; windows and macOS are a named refusal, and
+it comes before any output file is written (see [docs/native.md](/en/docs/native)), while a
+program that does not touch TLS is not linked against OpenSSL. The test with a server and a
+client round tripping inside one program is `tests/programs/t163_https_roundtrip.teyru`; two
+requests on one TLS connection, and the handshake timeout, are `t191_tls_keepalive.teyru` and
+`t192_tls_handshake_timeout.teyru`.
+
 ### Starting up, and settings
 
 ```teyru
@@ -391,3 +409,8 @@ thread, the main thread as the client, a round trip inside one program.
    control for `@ComponentScan`: the whole program is in scan scope, because the
    compiler sees everything — if you want to exclude something, just don't
    annotate it.
+6. **`SpringApplication.run` does not read `server.ssl.certificate`.** What reads
+   those two properties is `Application.serve`, which builds the server itself;
+   `SpringApplication.run` also builds one, but has no such branch. To serve HTTPS
+   from that entry point, build an `HttpServer` yourself, call `ssl(cert, key)` and
+   serve it yourself, or use `Application.serve` instead.

@@ -234,14 +234,20 @@ hello.teyru:4:11: error[TY-TYP-0051]: incompatible types: String cannot be conve
 | 异常 | 触发时机 |
 |---|---|
 | `NullPointerException` | 对 `null` 拆箱，或者读写字段、调用方法（`String` 的方法、`clone()`、接口方法与虚调用都是）、读写数组元素或取 `length` |
-| `ArrayIndexOutOfBoundsException` | 数组索引超出 `[0, length)`（读与写都是；`null` 数组先抛 `NullPointerException`） |
-| `IndexOutOfBoundsException` | `ArrayList.get`／`set`／`remove` 的索引超出 `[0, size)` |
+| `ArrayIndexOutOfBoundsException` | 数组索引超出 `[0, length)`（读与写都是；`null` 数组先抛 `NullPointerException`）；`Arrays.copyOfRange` 那类范围实参超出也用它 |
+| `StringIndexOutOfBoundsException` | 字符串与 `StringBuilder` 的索引或范围超出：`charAt`、`substring`、`delete`、`StringBuilder.insert` 等（`String` 的每一个边界检查都是这一个） |
+| `IndexOutOfBoundsException` | 容器自己的索引，例如 `ArrayList.get`／`set`／`remove` 的索引超出 `[0, size)` |
 | `NoSuchElementException` | 已经没有元素却再调用 `Iterator.next()` |
 | `ArithmeticException` | 整数除以零或取余数为零 |
 | `ClassCastException` | `cast` 或 `instanceof` 失败的强制转换 |
 | `NegativeArraySizeException` | 数组长度为负 |
 | `AssertionError` | `assert` 失败 |
 | `IllegalArgumentException` | `enum.valueOf` 找不到常量等 |
+
+这三种索引超出范围的异常的继承层级与 Java 相同：`IndexOutOfBoundsException` 是父类，
+`ArrayIndexOutOfBoundsException` 与 `StringIndexOutOfBoundsException` 在它下面，所以
+`catch (IndexOutOfBoundsException e)` 能捕获到这三种。这也是 Java 代码里最常见的写法，
+它在这里跟在 Java 里一样有效（见 [docs/language.md](/zh-CN/docs/language) §10）。
 
 没有被 catch 的异常会打印出 `Exception in thread "main" …` 并以状态 1 结束。
 如果执行到没有实现的抽象方法，会打印出 `teyru: no implementation for …` 并以状态 70 结束。
