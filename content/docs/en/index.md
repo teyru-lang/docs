@@ -925,6 +925,14 @@ and 25.03 s with `TEYRU_NOCACHE=1`, the two executables byte-identical.
 **sha256-identical** executable, with identical output and exit status (I checked hello's four cells,
 `-O0`/`-O2` x `c`/`llvm`; the plan's run was 20 cells with 0 differences).
 
+**The default level is what a user actually gets.** `run` defaults to `-O0`, so the first press of the
+button gives `-O0` behaviour -- and the gap between levels is real: constant-divisor specialisation (an
+integer division or remainder whose divisor is a constant becomes a multiply and a shift) is worth
+**1.55x at `-O0`, 1.39x at `-O1` and nothing at `-O2`** in the same long `bench_loop` run (1,000,000
+rounds), measured by building it once from `d44f3fb` and once from the commit before it. **That is not
+the performance section changing**: its long table is `-O2`, and `-O2` is identical before and after
+(1.16 s against 1.16 s).
+
 **One question this method cannot settle**: the plan sets a "under one second" line for hello's warm
 compile, and on a loaded machine the identical measurement came out 73% apart between two runs
 (0.88 s against 1.12 s), so this page does not use it as a number. On a quiet machine I measured
