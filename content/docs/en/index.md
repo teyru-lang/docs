@@ -590,7 +590,7 @@ only assembles and links. It refuses what it cannot lower rather than quietly fa
 to the C back end — a refusal is a `TY-INT-0100` diagnostic naming the construct.
 
 That boundary is measured, not guessed: on 2026-09-17 a sweep over `tests/programs` with the
-compiler built from main (256 programs, `teyru build --backend=llvm`, every program that
+compiler built from main (256 programs, the test repository at `34584f2`, `teyru build --backend=llvm`, every program that
 builds then run and compared byte for byte with its `.expected`, plus `exit` and `experr`)
 comes out at **159 that build**, of which **153 produce exactly the expected output** and
 **6 differ** (those six are the W5/W6 JDK probes, whose expectations came from the JDK and
@@ -632,8 +632,8 @@ The evidence is measured separately, because "it builds" and "it runs" are diffe
 questions, and the rows added here are `linux/arm64` and macOS. **Read the table's numbers with
 the tree they were measured on**: the suite figures for `linux/amd64` and `linux/arm64` were
 measured on 2026-09-17, when `tests/programs` held 222 programs and the whole suite was 250
-cases; there are 256 programs today, so those two are records of that day rather than today's
-count. After W9 the arm64 and macOS rows are being re-measured with `TEYRU_TARGET` and `--cc`,
+cases; that directory holds more now (257), so those two are records of that day rather than
+today's count. After W9 the arm64 and macOS rows are being re-measured with `TEYRU_TARGET` and `--cc`,
 and until that run lands they carry the pre-W9 measurement.
 
 **How `linux/arm64` was measured.** This machine had `aarch64-linux-gnu-gcc`, but its sysroot

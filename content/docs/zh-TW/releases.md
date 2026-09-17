@@ -139,7 +139,7 @@ web 程式在沒有 OpenSSL 標頭的機器上照樣建置與服務，Gson 形�
 | 量到的東西 | 數字 | 怎麼量的 |
 |---|---|---|
 | 執行檔大小（hello world，`-O2`） | **66,808 B**（`-O1` 85,440、`-O3` 70,248） | `wc -c`；比 0.2 時代的 55,920 大，三次成長是裝箱快取（+6,016）、堆疊檢查（+2,256）與 W9 的 TLS 連結（+120），量在 [docs/index.md](/docs) |
-| LLVM 後端的邊界 | 256 支裡 159 支建得起來、153 支輸出相同、93 支具名拒絕 | 2026-09-17，`teyru build --backend=llvm` 逐支跑並與 `.expected` 比（[docs/index.md](/docs) 有完整分類） |
+| LLVM 後端的邊界 | `tests/programs`（`34584f2`）256 支裡 159 支建得起來、153 支輸出相同、93 支具名拒絕 | 2026-09-17，`teyru build --backend=llvm` 逐支跑並與 `.expected` 比（[docs/index.md](/docs) 有完整分類） |
 | `linux/arm64` 的整套 | **250 項全過、0 項不符**（qemu-aarch64，容器裡的 sysroot 自建） | `sh tests/run.sh`，見 [docs/index.md](/docs) 的平台表 |
 | Windows 目標 | 195 支裡 179 支逐位元組相同（Wine 下跑） | 同上 |
 | macOS 兩列 | **只到「編譯並連結」**：188 支編得過、產物是 Mach-O；沒有任何一行被執行過 | `zig cc -target <arch>-macos`，見平台表 |
