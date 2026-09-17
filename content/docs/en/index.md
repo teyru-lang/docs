@@ -425,12 +425,16 @@ The standard library is written **in Teyru itself** (`lib/*.teyru`) and is compi
 and checked together with every program. It is one Teyru package (`teyru`), so an import
 is one line: `import teyru.*` (or `import teyru.List` when a single class is all you
 name). Java's spelling (`import java.util.*`, `import java.util.List`) is accepted too —
-what is Java-compatible is **the import**. "Java source compiles unchanged" is **not**
-claimed here: the differences between Java source and this compiler are listed in §12 of
-the language reference (the syntax, whose first item is the semicolon) and §13 (the APIs
-that are missing and the forms that are refused), and those two sections are what such a
-claim would have to be limited to. They are not empty today. The claim becomes someone's
-to write once those entries are gone and `tests/` programs stand behind it:
+what is Java-compatible is **the import**. **Unmodified Java source does compile now, on
+the subset that has been tested** (W7): a `.teyru` may keep its semicolons, a `.java` file
+is accepted as input, JLS §14.22 reachability and definite assignment hold, and the common
+inferences work (`xs.sort(naturalOrder())` and `Comparator.comparing(f).thenComparing(g)`
+no longer need a type witness). **That is not "Java source compiles unchanged", which is a
+claim with no bounds on it**: the bounds are §12 and §13 of the language reference, and
+those are not empty today (`new String(char[])` and `String.codePointAt` are still
+missing). A claim follows its corpus, not the word "Java", and the corpus (45 unmodified
+Java programs) is on the `w7-java-compat` branch of `teyru-lang/tests` and not yet in
+main's submodule pointer:
 
 | Package | Contents |
 |---|---|
@@ -814,7 +818,8 @@ commands, run on this machine by a person, which is why the numbers in these pag
 and where they were measured. `.github/workflows/release.yml` is this repository's **only**
 workflow and it runs when a release is published: it builds that tag, runs the whole suite
 against it and attaches the executables to the release, calling the same targets a person
-does (`make ci`, `make jdk-diff`, `make notices`, `tests/run.sh`). arm64 therefore no longer
+does (`make ci`, `make java-compat`, `make jdk-diff`, `make backend-matrix`, `make notices`,
+`tests/run.sh`). arm64 therefore no longer
 stands at "implemented, nobody has run it" — it has been run, and the two macOS rows still
 stand there, and with no macOS machine they will stay that way.
 
@@ -860,6 +865,7 @@ The make targets wrap these up (`make` on its own is `make build`):
 | `make check` | what to run before a commit: `lint` (`go vet` plus a `gofmt` diff check), `notices` (the third-party notices agree with the tree) and `test` |
 | `make ci` | everything a CI job would run, run here by hand instead: `lint`, the whole suite built once with clang and once with gcc, and the JDK differential when `TEYRU_JDK` is set. With only one C compiler installed, the gcc half says out loud that it did not run |
 | `make jdk-diff` | compile and run every translatable program in `tests/programs/` with JDK 21 and compare stdout and exit status; `TEYRU_JDK` must point at a JDK 21 home |
+| `make java-compat` | compile and run every **unmodified Java** program in `tests/java-compat/` and compare with `.expected` (the corpus and its cases are described in `teyru-lang/tests`) |
 | `make progen` | the random-program differential: `internal/tools/progen` generates 200 programs from fixed seeds and builds each spelling and diffs them |
 | `make backend-matrix` | every program × six back-end cells (C+clang, C+gcc, LLVM at `-O0` and `-O2`), each cell compared with the suite and the cells with each other; the divergences allowed are in `scripts/backend-matrix-allow.txt` |
 | `make notices` | check `THIRD-PARTY-NOTICES.md` against the tree (see [docs/legal.md](/en/docs/legal)) |

@@ -88,21 +88,27 @@ obs-fold、冒号前空白、非十六进制的 chunk……）一律拒绝并关
   （`java.lang.*` 而不是 `teyru.*`）。两者都列在 §13，迭代顺序的实测写在 §13 那一条，
   类名的差异写在 §12 第 14 条。
 
-### Java 源代码相容（W7，**尚未合入 main**）
+### Java 源代码相容（W7，**已合入 main**）
 
-**main 上还没有东西，但分支上有一半量得到的东西**：`w7-java-compat` @ `be050f0` 的语料
-（`tests/java-compat/`）是 **45 支**未经修改的 Java 程序、**45 支全绿**，而**推断的那一半回来了**
-（子类型遍历会终止，所以把嵌套调用的实参对着形参检查不再让既有程序退步）。覆盖到的推断现在包含
-**collector 链**（`collect(Collectors.toList())`、`groupingBy(…, counting())`、`partitioningBy`）与
-**经过接收者的链**（`Comparator.comparing(f).thenComparing(g)`、`nullsFirst(nat)` 放在另一个调用里），
-所以下面清单不再把那两族列成没做。**这一页仍然不宣称那句话**，因为它在分支上，不在 main。
+**合入了**：main `07ce0a3`（PR [#124](https://github.com/teyru-lang/Teyru/pull/124)，8 个 commit）。
+main 上的行为我自己重跑过：`.teyru` 的语句写了分号也编得过、`.java` 文件可以直接作为输入、
+`xs.sort(naturalOrder())` 与 `Comparator.comparing(f).thenComparing(g)` 不再需要类型见证、
+`String.join` 解析得到；仍然缺的是 W5 那一组（`new String(char[])`、`String.codePointAt`），
+而嵌套的泛型推断（主体本身是需要目标类型的泛型调用时）还是要先把类型写出来。
 
-目标是让「Java 源代码不改就能编译」在一个可测试的子集上成立：分号可选、接受 `.java` 扩展名、
-依 JLS §14.22 与第 16 章做可达性与明确赋值（修掉 `switch` 结尾方法的 `TY-TYP-0020` 误报）、
-补齐缺的 API 与常见的泛型推断。在它合入之前，这一页不宣称那句话——今天的差异在
-[docs/language.md](/zh-CN/docs/language) §12 与 §13，而 [docs/index.md](/zh-CN/docs) 的
-〈支援的语言特性〉写的是「Java 开发者一看就懂」，不是「不改就能编译」。
+**语料还没进 main，这是唯一没收尾的地方。** PR 描述里那两行——`sh tests/run.sh` **320 过、
+1 失败、9 已知失败、0 跳过**（唯一的红是 `native/net_c_test`，那支 C 测试的链接失败在改动之前
+就是红的，同一个 `undefined reference` 我在 main 上原生编译也重现），以及
+`go test ./... -count=1 -p 1 -parallel 1` 结束码 0——量的是**分支那一对**。语料
+`tests/java-compat/`（45 支未经修改的 Java 程序）在 `teyru-lang/tests` 的 `w7-java-compat`
+分支上（`79901cc`；测试 main 没有这个目录），而 Teyru main 的 submodule 指标是 `0dca80b`：
+带着语料的那个指标 commit（`400d7d2`）不在 main 的历史里。**后果是 main 上的 `make java-compat`
+找不到语料，而 release 工作流程正好调用它**——把 tests 推进 main 并补上指标，是 owner 或 W7
+作者那一步；在那之前，这一页不把那两个数字当成 main 的事实。
 
+**在语料进来之前，这一页宣称的是子集，不是那句话。** 适用范围是
+[docs/language.md](/zh-CN/docs/language) §12（语法层）与 §13（缺的 API 与被误拒的写法），
+而它们不是空的。
 ### 两个后端的语义一致性（W8，**矩阵已合入 main，语义统一还没开始**）
 
 **矩阵先落地了（#122）**：`scripts/backend-matrix.sh` 与 `make backend-matrix` 把 `tests/programs`
@@ -170,6 +176,7 @@ GraalVM 的 `native-image` 对照**未测**（这台机器上没有 GraalVM）�
 | Windows 目标 | 195 支里 179 支逐字节相同（Wine 下跑） | 同上 |
 | macOS 两列 | **只到「编译并链接」**：257 支里 240 支建得起来、9 支因 TLS 被具名拒绝、8 支那个版本的编译器还不接受；产物是 Mach-O，**没有任何一行被运行过** | `teyru build --cc <zig 包装>`（`zig cc -target aarch64-macos`），见平台表 |
 | 递归过深的代价 | `bench_fib` 长跑回退约 32% | `scripts/bench.sh` 长跑前后，owner 已裁决接受 |
+| W7 的语料 | **45 支未经修改的 Java 程序**（`tests/java-compat`），**在 `teyru-lang/tests` 的 `w7-java-compat` 分支上，尚未进 main 的 submodule 指标** | `make java-compat`；main 上的指标（`0dca80b`）还没有这个目录，所以那个数字目前是分支的事实（见上） |
 
 （macOS 那一列是 W9 之后重测的（2026-09-17，`tests` @ `e4268a6`，编译器 `5ac017b`）；
 `linux/arm64` 那一列 W9 之后的 `TEYRU_TARGET` 重测已经跑完，两个数字都写在上面的表里。）
@@ -196,7 +203,9 @@ GraalVM 的 `native-image` 对照**未测**（这台机器上没有 GraalVM）�
   精确或分代的回收器」，所以那是下一个版本的事；0.4 的回收器仍然是保守式标记清除。
 - **macOS 可以跑**。那两列只到「编译并链接」：没有任何 Mach-O 可执行文件被运行过（这里没有
   一台 macOS），而「编译成功」不等于「跑得起来」。
-- **Java 源代码不改就能编译**（W7 尚未开始）。
+- **把「Java 源代码不改就能编译」当成一句没有范围的话**。W7 已合入 main，未经修改的 Java 在
+  **测过的子集**上编得过（见上），但语料还没进 main 的 submodule 指标，而 §12／§13 的差别也还在——
+  所以这一版宣称的是那个子集，不是那句话。
 - **与 javac 一致**。我们不是一致的：`'😀'` 这里是 `TY-SYN-0008`（一个 `char` 字面值只收一个
   UTF-16 code unit），而 JDK 21 **接受**它并取 55357——这一条是我们比 javac 严，不是我们对。
 - **checked exception 有被跟踪**。完全没有：`throws` 只被解析，JDK 差分里 javac 拒绝的 16 个

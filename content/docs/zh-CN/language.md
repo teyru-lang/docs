@@ -476,8 +476,9 @@ try {
 代码用一行按需导入就能把它整个带进来：`import teyru.*`（只用到单个类时
 `import teyru.List` 也一样）。Java 风格的 `import java.util.*` 与
 `import java.util.List` 照样接受：`java.*` 的名字对到标准库里同名的类，见下面的
-“名称怎么找”。**这不等于“Java 源代码不改就能编译”**：两边的差别在 §12（语法层）与
-§13（缺的 API 与被误拒的写法），那两节就是那句话的适用范围，而它们现在不是空的。
+“名称怎么找”。**W7 之后，未经修改的 Java 源代码在测过的那个子集上编得过**（分号可省、`.java` 可作为输入、
+JLS §14.22、常见的泛型推断），但那句话本身没有范围——§12（语法层）与 §13（缺的 API 与被误拒
+的写法）就是它的适用范围，而它们现在不是空的。
 
 ### java.lang（`lib/01`–`lib/07`）
 
@@ -750,12 +751,6 @@ SHA-3 是因为 `getInstance` 宁可抛 `NoSuchAlgorithmException`，也不要�
       `Function<String, Stream<String>>` 写出来。
     - 实参如果只有唯一一个候选方法，会拿该参数的类型当目标——所以嵌套的泛型调用
       可以推断出来。
-    - **带自由类型变量的泛型调用，当它是链式调用的接收者时，拿不到目标类型**：
-      `xs.sort(naturalOrder())` 要写出类型见证（`Comparator.<String>naturalOrder()`）；
-      `comparing(...).thenComparing(...)` 同样拿不到目标类型，见证要把该调用的类型变量
-      写齐才生效（`Comparator.<String,Integer>comparing(...)`），否则只能先放进一个有
-      声明类型的变量（`Comparator<String> c = comparing(...)` 之后 `c.thenComparing(...)`）。
-      javac 对这两种写法都可以。
     - 显式见证属于它自己的调用：`pair(f, Builder.<Integer>make())` 的外层见证不会被
       内层覆盖。
 11. **没有捕获转换**：`List<? extends Number>` 在这里就是 `List<Number>`。Java 靠捕获

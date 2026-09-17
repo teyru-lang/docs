@@ -103,22 +103,30 @@ boundary's test (`t196_string_bytes`) is in the test repository.
   fully-qualified exception names (`java.lang.*` rather than `teyru.*`). Both are listed in §13,
   with the iteration-order measurement in that entry and the class-name difference in §12 item 14.
 
-### Java source compatibility (W7 — **not in main yet**)
+### Java source compatibility (W7 -- **in main**)
 
-**Nothing is on main yet, but the branch has something measurable**: on `w7-java-compat` @ `be050f0`
-the corpus (`tests/java-compat/`) is **45** unmodified Java programs and all **45 are green**, and
-**the inference half is back** (the subtype walk terminates, so checking a nested call's argument
-against the parameter it is passed to no longer regresses the existing programs). What it covers now
-includes **collector chains** (`collect(Collectors.toList())`, `groupingBy(..., counting())`,
-`partitioningBy`) and **chains reached through a receiver** (`Comparator.comparing(f).thenComparing(g)`,
-`nullsFirst(nat)` inside another call), so neither family is listed as missing below. **The page still
-does not claim the sentence**, because this is on a branch and not on main. The goal is to make "Java source compiles unchanged" true of a testable subset: semicolons optional,
-`.java` files accepted as input, reachability and definite assignment by JLS §14.22 and Chapter 16
-(which fixes the `TY-TYP-0020` false positive on a method ending in a `switch`), the missing APIs,
-and the common generic inferences. Until it lands, this page does not claim that sentence — today's
-differences are in [docs/language.md](/en/docs/language) §12 and §13, and
-[docs/index.md](/en/docs) says the syntax is "familiar to Java developers", not that Java source
-compiles unchanged.
+**It is in**: main `07ce0a3` (PR [#124](https://github.com/teyru-lang/Teyru/pull/124), 8 commits). I
+re-ran the behaviour on main rather than trusting the branch: a `.teyru` may keep its semicolons, a
+`.java` file is accepted as input, `xs.sort(naturalOrder())` and
+`Comparator.comparing(f).thenComparing(g)` no longer need a type witness, and `String.join` resolves.
+What is still missing is W5's group (`new String(char[])`, `String.codePointAt`), and a nested
+generic inference -- where the body is itself a generic call that needs a target type -- still has to
+be written out.
+
+**The corpus never made it into main, and that is the one loose end.** The two lines in the PR body --
+`sh tests/run.sh` at **320 passed, 1 failed, 9 known, 0 skipped** (the one red is `native/net_c_test`,
+a link failure in that C test that was red before this change, and I reproduce the same
+`undefined reference` compiling it natively on main), and `go test ./... -count=1 -p 1 -parallel 1`
+exiting 0 -- measure **the branch pair**. The corpus (`tests/java-compat/`, 45 unmodified Java
+programs) is on `teyru-lang/tests`' `w7-java-compat` branch (`79901cc`; tests main has no such
+directory), while Teyru main's submodule pointer is `0dca80b`: the commit that carries the corpus,
+`400d7d2`, is not in main's history. **So `make java-compat` on main has nothing to run, and the
+release workflow calls exactly that** -- pushing tests and bumping the pointer is the owner's or W7's
+step, and until it happens this page does not treat those two numbers as facts about main.
+
+**Until the corpus lands, this page claims the subset, not the sentence.** The bounds are
+[docs/language.md](/en/docs/language) §12 (the syntax) and §13 (the APIs that are missing and the
+forms that are refused), and they are not empty.
 
 ### The two back ends' semantic consistency (W8 — **the matrix is in main, the unification has not started**)
 
@@ -200,6 +208,7 @@ ones this release is about:
 | The Windows target | 179 of 195 programs byte-identical (run under Wine) | same table |
 | The two macOS rows | **compile and link only**: 240 of 257 programs build, 9 are refused by name for TLS and 8 are not accepted by the compiler used; the artifact is Mach-O and **not one line has been executed** | `teyru build --cc <zig wrapper>` (`zig cc -target aarch64-macos`); same table |
 | What deep recursion costs | `bench_fib`'s long run is about 32% slower | `scripts/bench.sh`, long run, before and after; the owner has accepted it |
+| W7's corpus | **45 unmodified Java programs** (`tests/java-compat`), **on `teyru-lang/tests`' `w7-java-compat` branch and not yet in main's submodule pointer** | `make java-compat`; main's pointer (`0dca80b`) has no such directory, so that number is a branch fact for now (above) |
 
 (The macOS row was re-measured after W9 (2026-09-17, `tests` at `e4268a6`, compiler at
 `5ac017b`), and the `linux/arm64` row's `TEYRU_TARGET` re-run has finished, so both of its
@@ -232,7 +241,10 @@ copy them; it gives the direction:
   next; 0.4's collector is still conservative mark-and-sweep.
 - **macOS running anything.** Those two rows stop at "compiles and links": no Mach-O executable has
   been run (there is no macOS here), and compiling is not running.
-- **Java source compiling unchanged** — W7 has not started.
+- **"Java source compiles unchanged" as a sentence with no bounds.** W7 is in main and unmodified
+  Java compiles on **the subset that has been tested** (above), but the corpus is not in main's
+  submodule pointer and the §12/§13 differences are still there -- so this release claims the
+  subset, not the sentence.
 - **Agreeing with javac.** We do not: `'😀'` is `TY-SYN-0008` here (a `char` literal is one UTF-16
   code unit), while **JDK 21 accepts it** and takes 55357 — that one is us being stricter, not us
   being right.

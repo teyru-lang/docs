@@ -504,10 +504,11 @@ package: `teyru`. The classes inside it take Java's names, so Teyru code brings 
 in with one on-demand import: `import teyru.*` (using only one class, `import teyru.List`,
 works the same way). The Java-style `import java.util.*` and `import java.util.List` are
 accepted just as well: a `java.*` name resolves to the class of that name in the standard
-library, see "How names are found" below. **That is not the same thing as "Java source code
-compiles unchanged".** The differences are in §12 (the syntax) and §13 (the APIs that are
-missing and the forms that are refused), and those two sections are what such a claim would
-have to be limited to. They are not empty today.
+library, see "How names are found" below. **After W7, unmodified Java source does compile on
+the subset that has been tested** (semicolons optional, a `.java` accepted as input, JLS
+§14.22, the common inferences), but the sentence itself has no bounds -- §12 (the syntax)
+and §13 (the APIs that are missing and the forms that are refused) are its bounds, and they
+are not empty today.
 
 ### java.lang (`lib/01`–`lib/07`)
 
@@ -827,13 +828,6 @@ When you need your own native library, a `native` method can be implemented in C
       `Function<String, Stream<String>>` must be written out first.
     - If an argument has only one candidate method, that parameter's type is used as the
       target — so nested generic calls can be inferred.
-    - **A generic call with free type variables gets no target type as a chained-call receiver**:
-      `xs.sort(naturalOrder())` needs the type witness written out
-      (`Comparator.<String>naturalOrder()`); `comparing(...).thenComparing(...)` gets no target
-      type either, and a witness only takes effect when every type variable of that call is
-      written out (`Comparator.<String,Integer>comparing(...)`), so otherwise it must first go
-      into a variable with a declared type (`Comparator<String> c = comparing(...)`, then
-      `c.thenComparing(...)`). javac handles both spellings.
     - An explicit witness belongs to its own call: in `pair(f, Builder.<Integer>make())` the
       outer witness is not overridden by the inner one.
 11. **No capture conversion**: `List<? extends Number>` here is just `List<Number>`. The writes

@@ -88,20 +88,27 @@ WTF-8 加麵包屑（`tystr` 仍是 24 位元組），「改用 JDK 式 compact 
   （`java.lang.*` 而不是 `teyru.*`）。兩者都列在 §13，迭代順序的實測寫在 §13 那一條，
   類別名的差異寫在 §12 第 14 條。
 
-### Java 原始碼相容（W7，**尚未合入 main**）
+### Java 原始碼相容（W7，**已合入 main**）
 
-**main 上還沒有東西，但分支上有一半量得到的東西**：`w7-java-compat` @ `be050f0` 的語料
-（`tests/java-compat/`）是 **45 支**未經修改的 Java 程式、**45 支全綠**，而**推論的那一半回來了**
-（子型別走訪會終止，所以把巢狀呼叫的引數對著參數檢查不再讓既有程式退步）。覆蓋到的推論現在包含
-**collector 鏈**（`collect(Collectors.toList())`、`groupingBy(…, counting())`、`partitioningBy`）與
-**經過接收者的鏈**（`Comparator.comparing(f).thenComparing(g)`、`nullsFirst(nat)` 放在另一個呼叫裡），
-所以下面清單不再把那兩族列成沒做。**這一頁仍然不宣稱那句話**，因為它在分支上，不在 main。
+**合入了**：main `07ce0a3`（PR [#124](https://github.com/teyru-lang/Teyru/pull/124)，8 個 commit）。
+main 上的行為我自己重跑過：`.teyru` 的敘述寫了分號也編得過、`.java` 檔可以直接當輸入、
+`xs.sort(naturalOrder())` 與 `Comparator.comparing(f).thenComparing(g)` 不再需要型別見證、
+`String.join` 解析得到；仍然缺的是 W5 那一組（`new String(char[])`、`String.codePointAt`），
+而巢狀的泛型推論（主體本身是需要目標型別的泛型呼叫時）還是要先把型別寫出來。
 
-目標是讓「Java 原始碼不改就能編」在一個可測試的子集上成立：分號可選、接受 `.java` 副檔名、
-依 JLS §14.22 與第 16 章做可達性與明確指派（修掉 `switch` 結尾方法的 `TY-TYP-0020` 誤報）、
-補齊缺的 API 與常見的泛型推論。在它合入之前，這一頁不宣稱那句話——今天的差異在
-[docs/language.md](/docs/language) §12 與 §13，而 [docs/index.md](/docs) 的〈支援的語言特性〉
-寫的是「Java 開發者一看就懂」，不是「不改就能編」。
+**語料還沒進 main，這是唯一沒收尾的地方。** PR 描述裡那兩行——`sh tests/run.sh` **320 過、
+1 失敗、9 已知失敗、0 跳過**（唯一的紅是 `native/net_c_test`，那支 C 測試的連結失敗在改動之前
+就是紅的，同一個 `undefined reference` 我在 main 上原生編譯也重現），以及
+`go test ./... -count=1 -p 1 -parallel 1` 結束碼 0——量的是**分支那一對**。語料
+`tests/java-compat/`（45 支未修改的 Java 程式）在 `teyru-lang/tests` 的 `w7-java-compat`
+分支上（`79901cc`；測試 main 沒有這個目錄），而 Teyru main 的 submodule 指標是 `0dca80b`：
+帶著語料的那個指標 commit（`400d7d2`）不在 main 的歷史裡。**後果是 main 上的 `make java-compat`
+找不到語料，而 release 工作流程正好呼叫它**——把 tests 推進 main 並補上指標，是 owner 或 W7
+作者那一步；在那之前，這一頁不把那兩個數字當成 main 的事實。
+
+**在語料進來之前，這一頁宣稱的是子集，不是那句話。** 適用範圍是
+[docs/language.md](/docs/language) §12（語法層）與 §13（缺的 API 與被誤拒的寫法），
+而它們不是空的。
 
 ### 兩個後端的語意一致性（W8，**矩陣已合入 main，語意統整還沒開始**）
 
@@ -170,6 +177,7 @@ GraalVM 的 `native-image` 對照**未測**（這台機器上沒有 GraalVM）�
 | Windows 目標 | 195 支裡 179 支逐位元組相同（Wine 下跑） | 同上 |
 | macOS 兩列 | **只到「編譯並連結」**：257 支裡 240 支建得起來、9 支因 TLS 被具名拒絕、8 支那個版本的編譯器還不接受；產物是 Mach-O，**沒有任何一行被執行過** | `teyru build --cc <zig 包裝>`（`zig cc -target aarch64-macos`），見平台表 |
 | 遞迴過深的代價 | `bench_fib` 長跑回退約 32% | `scripts/bench.sh` 長跑前後，owner 已裁決接受 |
+| W7 的語料 | **45 支未修改的 Java 程式**（`tests/java-compat`），**在 `teyru-lang/tests` 的 `w7-java-compat` 分支上，尚未進 main 的 submodule 指標** | `make java-compat`；main 上的指標（`0dca80b`）還沒有這個目錄，所以那個數字目前是分支的事實（見上） |
 
 （macOS 那一列是 W9 之後重量的（2026-09-17，`tests` @ `e4268a6`，編譯器 `5ac017b`）；
 `linux/arm64` 那一列 W9 之後的 `TEYRU_TARGET` 重測已經跑完，兩個數字都寫在上面。）
@@ -196,7 +204,9 @@ GraalVM 的 `native-image` 對照**未測**（這台機器上沒有 GraalVM）�
   精確或分代的收集器」，所以那是下一個版本的事；0.4 的收集器仍然是保守式標記清除。
 - **macOS 可以跑**。那兩列只到「編譯並連結」：沒有任何 Mach-O 執行檔被執行過（這裡沒有
   一台 macOS），而「編譯成功」不等於「跑得起來」。
-- **Java 原始碼不改就能編**（W7 尚未開始）。
+- **「Java 原始碼不改就能編」當成一句沒有範圍的話**。W7 已合入 main，未修改的 Java 在**測過的
+  子集**上編得過（見上），但語料還沒進 main 的 submodule 指標，而 §12／§13 的差別也還在——
+  所以這一版宣稱的是那個子集，不是那句話。
 - **與 javac 一致**。我們不是一致的：`'😀'` 在這裡是 `TY-SYN-0008`（一個 `char` 字面值只收一個
   UTF-16 code unit），而 JDK 21 **接受**它並取 55357——這一條是我們比較嚴，不是我們對。
 - **checked exception 有被追蹤**。完全沒有：`throws` 只被解析，JDK 差分裡 javac 拒絕的 16 個

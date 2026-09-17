@@ -208,7 +208,8 @@ class Hello {
 }
 ```
 
-注意：**Teyru 不用分号**。每条语句以换行结束；`for` 头部用两个冒号分隔三段。
+注意：**Teyru 的语句不需要分号**——每条语句以换行结束，而 W7 之后写了分号也不报错
+（这是未经修改的 `.java` 文件能直接作为输入的原因之一）；`for` 头部用两个冒号分隔三段。
 
 ---
 
@@ -395,10 +396,13 @@ class Main {
 检查。标准库是一个 Teyru 包（`teyru`），所以导入写成一行
 `import teyru.*`（只用到单个类时也可以写 `import teyru.List`）；Java 写法的
 `import java.util.*` 和 `import java.util.List` 也照样接受——相容的是**导入**这一层。
-「Java 源码不改就能编译」**不是**本文的宣称：Java 源码与这里的差别列在〈语言参考〉
-§12（语法层，第一条就是分号）与 §13（缺的 API 与被误拒的写法），那两节就是那句话的
-适用范围，而它们现在不是空的。等那些条目都不存在、而且有 `tests/` 的程序在验，那句话
-才有人有资格说：
+**在测过的那个子集上，未经修改的 Java 源代码现在编得过**（W7）：`.teyru` 的分号可省、`.java`
+文件可以直接作为输入、JLS §14.22 的可达性与明确赋值、常见的泛型推断（`xs.sort(naturalOrder())`、
+`Comparator.comparing(f).thenComparing(g)` 都不再需要类型见证）。**但那不等于「Java 源代码
+不改就能编译」这句没有范围的话**：适用范围就是下面两节——〈语言参考〉§12 与 §13——而它们
+现在不是空的（`new String(char[])`、`String.codePointAt` 这种还是缺的）。宣称跟着语料走，
+不跟着「Java」三个字走，而语料（45 支未经修改的 Java 程序）目前在 `teyru-lang/tests` 的
+`w7-java-compat` 分支上、还没进 main 的 submodule 指标。
 
 | 包 | 内容 |
 |---|---|
@@ -695,7 +699,8 @@ mingw-w64 没有它、macOS 出的是 SecureTransport，所以碰得到 TLS 的�
 **push 与 PR 上没有 CI**：每次改动的关卡就是上面那两条指令，在这台机器上由人跑，所以
 文档里的数字都写着它是怎么量、在哪里量的。`.github/workflows/release.yml` 是这个仓库
 **唯一**的工作流，只在发布 release 时跑：它构建那个 tag、对它跑整套测试、把可执行文件附到
-release 上，跑的与人跑的是同一组（`make ci`、`make jdk-diff`、`make notices`、
+release 上，跑的与人跑的是同一组（`make ci`、`make java-compat`、`make jdk-diff`、
+`make backend-matrix`、`make notices`、
 `tests/run.sh`），push 与 PR 都不会触发它。arm64 因此不再停在「实现了、没有任何人跑过」
 ——它是被跑过的（数字与做法见上表）；macOS 那两列仍然没有，而且只要没有一台 macOS，它们
 就会一直是这样。
@@ -738,6 +743,7 @@ sh scripts/bench.sh       # 与 JVM 对照的性能测试（需要 java 才会�
 | `make check` | 提交前要跑的：`lint`（`go vet` ＋ `gofmt` 差异检查）＋ `notices`（第三方声明与树一致）＋ `test` |
 | `make ci` | 一次 CI job 会跑的东西，在这里由人跑：`lint`、整套测试分别用 clang 与 gcc 各构建一次，`TEYRU_JDK` 有设就再加上 JDK 差分。只装了一个 C 编译器时，gcc 那一半会明说它没跑 |
 | `make jdk-diff` | 把 `tests/programs/` 里能翻译的程序用 JDK 21 编译执行，比对 stdout 与结束状态；需要 `TEYRU_JDK` 指向 JDK 21 的家目录 |
+| `make java-compat` | 把 `tests/java-compat/` 里**未经修改的 Java 源代码**逐支编译、运行，再与 `.expected` 比（语料与案例说明在 `teyru-lang/tests`） |
 | `make progen` | 随机程序差分：`internal/tools/progen` 依固定种子生成 200 个程序，两种写法各编译一次再比对 |
 | `make backend-matrix` | 每一支程序 × 六个后端格子（C＋clang、C＋gcc、LLVM × `-O0`、`-O2`），逐格与套件比、格子之间再互相比；允许的跨格差异写在 `scripts/backend-matrix-allow.txt` |
 | `make notices` | 核对 `THIRD-PARTY-NOTICES.md` 与树一致（见 [docs/legal.md](/zh-CN/docs/legal)） |

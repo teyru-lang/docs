@@ -476,8 +476,9 @@ try {
 程式碼用一行 on-demand 匯入把它整個帶進來：`import teyru.*`（只用到一個類別時
 `import teyru.List` 也一樣）。Java 風格的 `import java.util.*` 與
 `import java.util.List` 照樣收：`java.*` 的名字對到標準程式庫裡同名的類別，見下面的
-〈名稱怎麼找〉。**這不等於「Java 原始碼不改就能編」**：兩邊的差別在 §12（語法層）與
-§13（缺的 API 與被誤拒的寫法），那兩節就是那句話的適用範圍，而它們現在不是空的。
+〈名稱怎麼找〉。**W7 之後，未修改的 Java 原始碼在測過的那個子集上編得過**（分號可省、
+`.java` 可當輸入、JLS §14.22、常見的泛型推論），但那句話本身沒有範圍——§12（語法層）與
+§13（缺的 API 與被誤拒的寫法）就是它的適用範圍，而它們現在不是空的。
 
 ### java.lang（`lib/01`–`lib/07`）
 
@@ -746,12 +747,6 @@ SHA-3 是因為 `getInstance` 寧可丟 `NoSuchAlgorithmException`，也不要�
       `Function<String, Stream<String>>` 寫出來。
     - 引數如果只有唯一一個候選方法，會拿該參數的型別當目標——所以巢狀的泛型呼叫
       可以推出來。
-    - **有自由型別變數的泛型呼叫，當它是鏈式呼叫的接收者時，拿不到目標型別**：
-      `xs.sort(naturalOrder())` 要寫出型別見證（`Comparator.<String>naturalOrder()`）；
-      `comparing(...).thenComparing(...)` 同樣拿不到目標型別，見證要把該呼叫的型別變數
-      寫齊才生效（`Comparator.<String,Integer>comparing(...)`），否則只能先放進一個有
-      宣告型別的變數（`Comparator<String> c = comparing(...)` 之後 `c.thenComparing(...)`）。
-      javac 對這兩種寫法都可以。
     - 顯式見證屬於它自己的呼叫：`pair(f, Builder.<Integer>make())` 的外層見證不會被
       內層覆蓋。
 11. **沒有捕獲轉換**：`List<? extends Number>` 在這裡就是 `List<Number>`。Java 靠捕獲
