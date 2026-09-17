@@ -603,8 +603,12 @@ fork/join、`CompletionService`、`ThreadFactory`、`CyclicBarrier`／`Semaphore
 +08:00 以東）；讀不下去的會丟 `ZoneRulesException`，訊息指名來源（檔案路徑或 `TZ=...`）
 與唸不下去的地方。
 
-**已知缺陷（未修）**：負 DST 的時區——`Europe/Dublin` 的標準時間是 +01、冬天是 GMT 而
-`isdst=1`，`Africa/Casablanca` 同理——目前把 `dst` 報成 `std`。`t189_timezone_lookup` 與
+**已知缺陷（未修）**：受影響的是 tzdata 用**負 DST** 描述的那些區——檔案的**標準時間型別不是
+冬季那個**：愛爾蘭（`Europe/Dublin`，標準時間 IST +01、冬天 GMT 而 `isdst=1`）與摩洛哥
+（`Africa/Casablanca`，標準 +01、齋戒月 +00 而 `isdst=1`）是兩個例子。判斷某個區中不中很簡單：
+`zdump -v <zone>` 看冬季那一筆的 `isdst` 是不是 1（我對這台主機的檔案驗過：Dublin 冬季是
+`GMT isdst=1 gmtoff=0`、夏季是 `IST isdst=0 gmtoff=3600`；Casablanca 是 `+00 isdst=1` 對
+`+01 isdst=0`）。這些區目前把 `dst` 報成 `std`。`t189_timezone_lookup` 與
 `t190_timezone_tzif` 在較新的宿主 tzdata 上就是這樣紅的（同一台主機上綠），修正列為獨立工作項，
 出在 `v0.4.1`。**這不是「資料不同所以答案不同」的藉口**：期望值是 Java 的答案，錯的是讀檔案
 的那一邊。

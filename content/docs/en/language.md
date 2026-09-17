@@ -653,9 +653,13 @@ the offset in force before the transition, and offsets in POSIX's inverted sense
 +08:00 east of UT); one it cannot read raises `ZoneRulesException` naming the source (a file
 path, or `TZ=...`) and the part it could not read.
 
-**A known defect, not yet fixed**: a negative-DST zone — `Europe/Dublin`'s standard time is +01 and
-its winter is GMT with `isdst=1`, and `Africa/Casablanca` is the same shape — currently reports `dst`
-as `std`. That is why `t189_timezone_lookup` and `t190_timezone_tzif` are red on a newer host tzdata
+**A known defect, not yet fixed**: what is affected is the zones tzdata describes with **negative
+DST** -- where the file's **standard-time type is not the winter one**: Ireland (`Europe/Dublin`,
+standard time IST +01 with a GMT winter at `isdst=1`) and Morocco (`Africa/Casablanca`, standard +01
+with a Ramadan +00 at `isdst=1`) are two examples. Telling whether a zone is affected is one command:
+`zdump -v <zone>` and read the winter entry's `isdst` (I checked this machine's files: Dublin's
+winter is `GMT isdst=1 gmtoff=0` against a summer `IST isdst=0 gmtoff=3600`, and Casablanca is
+`+00 isdst=1` against `+01 isdst=0`). Those zones currently report `dst` as `std`. That is why `t189_timezone_lookup` and `t190_timezone_tzif` are red on a newer host tzdata
 and green on this machine; the fix is filed as its own work item and goes out in `v0.4.1`. **This is
 not a case of "different data, different answer"**: the expectation is Java's answer and the reading
 side is what is wrong.
