@@ -113,14 +113,16 @@ What is still missing is W5's group (`new String(char[])`, `String.codePointAt`)
 generic inference -- where the body is itself a generic call that needs a target type -- still has to
 be written out.
 
-**The corpus is on tests main now; what is missing is Teyru's pointer to it.** The two lines in the PR body --
-`sh tests/run.sh` at **320 passed, 1 failed, 9 known, 0 skipped** (the one red is `native/net_c_test`,
-a link failure in that C test that was red before this change, and I reproduce the same
-`undefined reference` compiling it natively on main), and `go test ./... -count=1 -p 1 -parallel 1`
-exiting 0 -- measure **the branch pair**. The corpus (`tests/java-compat/`, 45 unmodified Java
-programs) **is on `teyru-lang/tests` main (`af41a7d`)**, while Teyru main's submodule pointer still
-reads `0dca80b`: the PR that moves it to `af41a7d` is
-[#128](https://github.com/teyru-lang/Teyru/pull/128) (`4270b66`), not merged yet. **So `make java-compat` on main has nothing to run, and the
+**The corpus is reproducible from main now.** `teyru-lang/tests` main is `af41a7d` (45 unmodified Java
+programs), and Teyru main's submodule pointer reaches it since PR
+[#128](https://github.com/teyru-lang/Teyru/pull/128) merged (`0e8e592`). I ran `sh tests/run.sh
+java-compat` myself on that content: **45 passed, 0 failed, 0 known, 0 skipped** -- so the PR body's
+45 of 45 reproduces, it is not a branch-only fact. The PR body's other two lines (the full
+`sh tests/run.sh` at **320 passed, 1 failed, 9 known, 0 skipped**, where the one red is
+`native/net_c_test`'s link failure -- the same `undefined reference` I reproduce compiling it
+natively on main -- and `go test ./... -count=1 -p 1 -parallel 1` exiting 0) measure **the branch
+pair**; I did not re-run the whole suite (it takes tens of minutes and shares the machine), so those
+two are marked as not yet reproduced on main. **So `make java-compat` on main has nothing to run, and the
 release workflow calls exactly that** -- pushing tests and bumping the pointer is the owner's or W7's
 step, and until it happens this page does not treat those two numbers as facts about main.
 
@@ -208,7 +210,7 @@ ones this release is about:
 | The Windows target | 179 of 195 programs byte-identical (run under Wine) | same table |
 | The two macOS rows | **compile and link only**: 240 of 257 programs build, 9 are refused by name for TLS and 8 are not accepted by the compiler used; the artifact is Mach-O and **not one line has been executed** | `teyru build --cc <zig wrapper>` (`zig cc -target aarch64-macos`); same table |
 | What deep recursion costs | `bench_fib`'s long run is about 32% slower | `scripts/bench.sh`, long run, before and after; the owner has accepted it |
-| W7's corpus | **45 unmodified Java programs** (`tests/java-compat`) on `teyru-lang/tests` main (`af41a7d`); Teyru main's submodule pointer still reads `0dca80b`, and PR [#128](https://github.com/teyru-lang/Teyru/pull/128) moves it | `make java-compat`; once #128 merges the number is reproducible from Teyru main (until then it is tests' fact, not Teyru main's) |
+| W7's corpus | **45 passed, 0 failed** (`tests/java-compat`; Teyru main `0e8e592` → `tests` `af41a7d`) | `sh tests/run.sh java-compat` on that content (I ran it; `make java-compat` is the same thing) |
 
 (The macOS row was re-measured after W9 (2026-09-17, `tests` at `e4268a6`, compiler at
 `5ac017b`), and the `linux/arm64` row's `TEYRU_TARGET` re-run has finished, so both of its

@@ -401,8 +401,9 @@ class Main {
 `Comparator.comparing(f).thenComparing(g)` 都不再需要类型见证）。**但那不等于「Java 源代码
 不改就能编译」这句没有范围的话**：适用范围就是下面两节——〈语言参考〉§12 与 §13——而它们
 现在不是空的（`new String(char[])`、`String.codePointAt` 这种还是缺的）。宣称跟着语料走，
-不跟着「Java」三个字走，而语料（45 支未经修改的 Java 程序）已经在 `teyru-lang/tests` main（`af41a7d`）上，
-Teyru main 的 submodule 指标要靠 PR [#128](https://github.com/teyru-lang/Teyru/pull/128) 才指到它。
+不跟着「Java」三个字走，而语料就是 45 支未经修改的 Java 程序（`tests/java-compat`，在 `teyru-lang/tests` main `af41a7d` 上，
+Teyru main `0e8e592` 的 submodule 指标指到它）：`sh tests/run.sh java-compat` 在那个内容上是
+**45 过、0 失败**。
 
 | 包 | 内容 |
 |---|---|

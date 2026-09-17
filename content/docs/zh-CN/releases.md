@@ -96,13 +96,14 @@ main 上的行为我自己重跑过：`.teyru` 的语句写了分号也编得过
 `String.join` 解析得到；仍然缺的是 W5 那一组（`new String(char[])`、`String.codePointAt`），
 而嵌套的泛型推断（主体本身是需要目标类型的泛型调用时）还是要先把类型写出来。
 
-**语料已经进了 tests 的 main，缺的是 Teyru 的指针。** PR 描述里那两行——`sh tests/run.sh` **320 过、
-1 失败、9 已知失败、0 跳过**（唯一的红是 `native/net_c_test`，那支 C 测试的链接失败在改动之前
-就是红的，同一个 `undefined reference` 我在 main 上原生编译也重现），以及
-`go test ./... -count=1 -p 1 -parallel 1` 结束码 0——量的是**分支那一对**。语料
-`tests/java-compat/`（45 支未经修改的 Java 程序）**已经进了 `teyru-lang/tests` 的 main（`af41a7d`）**，
-而 Teyru main 的 submodule 指标还是 `0dca80b`：把指标移到 `af41a7d` 的是 PR
-[#128](https://github.com/teyru-lang/Teyru/pull/128)（`4270b66`），还没合入。**后果是 main 上的 `make java-compat`
+**语料现在从 main 就重现得出来。** `teyru-lang/tests` 的 main 是 `af41a7d`（45 支未经修改的 Java
+程序），而 Teyru main 的指标在 PR [#128](https://github.com/teyru-lang/Teyru/pull/128) 合入后
+（`0e8e592`）指到它。我在 main 的那个内容上自己跑过 `sh tests/run.sh java-compat`：
+**45 过、0 失败、0 已知失败、0 跳过**——PR 描述的 45 支全过是重现得出来的，不是只有分支上成立。
+PR 描述里另外两行（`sh tests/run.sh` 整套 **320 过、1 失败、9 已知失败、0 跳过**，唯一的红是
+`native/net_c_test` 的链接失败——那在我的 main 原生编译上也重现同一个 `undefined reference`；
+以及 `go test ./... -count=1 -p 1 -parallel 1` 结束码 0）量的是**分支那一对**，我没有重跑整套
+（那要几十分钟且会与其他工作抢机器），所以那两行在这里标成还没在 main 上重现。**后果是 main 上的 `make java-compat`
 找不到语料，而 release 工作流程正好调用它**——把 tests 推进 main 并补上指标，是 owner 或 W7
 作者那一步；在那之前，这一页不把那两个数字当成 main 的事实。
 
@@ -176,7 +177,7 @@ GraalVM 的 `native-image` 对照**未测**（这台机器上没有 GraalVM）�
 | Windows 目标 | 195 支里 179 支逐字节相同（Wine 下跑） | 同上 |
 | macOS 两列 | **只到「编译并链接」**：257 支里 240 支建得起来、9 支因 TLS 被具名拒绝、8 支那个版本的编译器还不接受；产物是 Mach-O，**没有任何一行被运行过** | `teyru build --cc <zig 包装>`（`zig cc -target aarch64-macos`），见平台表 |
 | 递归过深的代价 | `bench_fib` 长跑回退约 32% | `scripts/bench.sh` 长跑前后，owner 已裁决接受 |
-| W7 的语料 | **45 支未经修改的 Java 程序**（`tests/java-compat`）在 `teyru-lang/tests` main（`af41a7d`）；Teyru main 的 submodule 指标还指在 `0dca80b`，移动它的 PR [#128](https://github.com/teyru-lang/Teyru/pull/128) 尚未合入 | `make java-compat`；等 #128 合入，这个数字就可以从 Teyru main 重现（在那之前它是 tests 的事实，不是 Teyru main 的） |
+| W7 的语料 | **45 支全过、0 失败**（`tests/java-compat`；Teyru main `0e8e592` → `tests` `af41a7d`） | 在 Teyru main 的那个内容上跑 `sh tests/run.sh java-compat`（我自己跑过；`make java-compat` 是同一件事） |
 
 （macOS 那一列是 W9 之后重测的（2026-09-17，`tests` @ `e4268a6`，编译器 `5ac017b`）；
 `linux/arm64` 那一列 W9 之后的 `TEYRU_TARGET` 重测已经跑完，两个数字都写在上面的表里。）
