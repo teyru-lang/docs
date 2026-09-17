@@ -139,7 +139,7 @@ int32_t f = me->f_factor;
 |---|---|
 | `ty_str_new(const char *bytes, int64_t len)` | 创建字符串 |
 | `ty_str_concat(tystr *a, tystr *b)` | 拼接 |
-| `ty_str_len(tystr *s)` | 长度 |
+| `ty_str_len(tystr *s)` | **字节**长度（不是 `String.length()`；字符串按 UTF-8 字节存储，见〈语言参考〉§12 第 12 条） |
 | `ty_array_new(int64_t len, int64_t elemsize)` | 创建数组 |
 | `ty_array_len(tyarr *a)` | 数组长度 |
 | `ty_alloc(size_t)` | 从 GC 堆分配（会被自动回收） |

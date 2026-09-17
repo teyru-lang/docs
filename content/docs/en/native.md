@@ -148,7 +148,7 @@ The common utilities the runtime offers to native code (all in `tyrt.h`):
 |---|---|
 | `ty_str_new(const char *bytes, int64_t len)` | Create a string |
 | `ty_str_concat(tystr *a, tystr *b)` | Concatenate |
-| `ty_str_len(tystr *s)` | Length |
+| `ty_str_len(tystr *s)` | Length **in bytes** (not `String.length()`; strings are stored as UTF-8 bytes, see §12 item 12 of the language reference) |
 | `ty_array_new(int64_t len, int64_t elemsize)` | Create an array |
 | `ty_array_len(tyarr *a)` | Array length |
 | `ty_alloc(size_t)` | Allocate from the GC heap (collected automatically) |
