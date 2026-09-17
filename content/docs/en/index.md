@@ -115,7 +115,7 @@ deliberate price of a stop-the-world collector -- see [docs/language.md](/docs/l
 
 **The size row is a strength again, and the reason for the number is specific.** It is the
 hello world from "Getting started" (`System.out.println("Hello, Teyru!")`) built with `-O2`
-and measured with `wc -c`: **66,808 bytes today** (about 65.2 KB). Most of the number comes
+and measured with `wc -c`: **67,240 bytes today** (about 65.7 KB; the 66,808 in the table above is the tree W10 measured, `130565a`). Most of the number comes
 from the compiler **pruning the vtable slots nothing dispatches** — the mechanism is written
 up in [docs/architecture.md](/en/docs/architecture), under "Why every binary carries the
 prelude": 48,840 bytes at `74fa648` (9/13), 501,072 before any pruning, 95,832 with the first
@@ -128,22 +128,22 @@ methods, only 42 reachable by being called — the rest were alive by address th
 hello): the **boxing caches** (`#109`, which is what makes `Integer.valueOf(127) ==
 Integer.valueOf(127)` agree with Java) added 6,016 bytes to 64,432, and the **stack-overflow
 prologue check** (`#104`, one `ty_stack_check()` at the top of every generated function) added
-2,256 more, to 66,688, and W9's TLS-link change (`#118`, the call graph decides instead of reflection) added 120 more, to **66,808 today**. The pruning bought the size of programs that do not reflect;
+2,256 more, to 66,688, and W9's TLS-link change (`#118`, the call graph decides instead of reflection) added 120 more, to 66,808, which the W5/W6/W8 batch added 432 to: **67,240 today**. The pruning bought the size of programs that do not reflect;
 those two bought semantics and a catchable error, and neither was free.
 
 **The number only means anything with its optimisation level.** The same hello world is
-85,440 bytes at `-O1`, 66,808 at `-O2` and 70,248 at `-O3` today; this row and
+118,608 bytes at `-O0`, 90,352 at `-O1`, 67,240 at `-O2` and 70,672 at `-O3` today; this row and
 `scripts/bench.sh` both use `-O2`, which is the default.
 
 Before and after, on one machine with `-O2`, measured with `wc -c`: a hello world goes
 501,072 before any pruning -> 95,832 with the first version -> 55,920 with the second ->
-66,808 today; `t84_sealed_switch` is 89,712 today (521,456 before, 113,904 with the first
-version), `t133_arrow_blocks` 71,704 (509,536, 105,688) and `t51_java25_tour` 283,648
+67,240 today; `t84_sealed_switch` is 86,736 today (521,456 before, 113,904 with the first
+version), `t133_arrow_blocks` 73,640 (509,536, 105,688) and `t51_java25_tour` 282,488
 (523,696, 438,560), with their output byte-identical throughout. **A program that reflects
-gets no help from the pruning**: `t146_reflect` is 5,287,376 bytes today and `t101_gson`
-5,251,024, because reflection attaches
+gets no help from the pruning**: `t146_reflect` is 5,404,176 bytes today and `t101_gson`
+5,382,816, because reflection attaches
 every member table from `main` — so a reflecting program still pays for the whole table
-(about 5.25 MB today rather than 3 MB), and what the pruning buys is the size of programs that
+(about 5.4 MB today rather than 3 MB), and what the pruning buys is the size of programs that
 do not reflect. Speed did not
 measurably change: six benchmarks, interleaved over twenty runs, every difference inside the
 noise with all checksums identical.

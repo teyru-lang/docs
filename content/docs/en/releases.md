@@ -250,7 +250,7 @@ ones this release is about:
 
 | Measured | The number | How |
 |---|---|---|
-| Executable size (hello world, `-O2`) | **66,808 B** (`-O1` 85,440, `-O3` 70,248) | `wc -c`; larger than the 55,920 of the 0.2 era — 6,016 for the boxing caches, 2,256 for the stack check, 120 for W9's TLS link; the arithmetic is in [docs/index.md](/en/docs) |
+| Executable size (hello world, `-O2`) | **67,240 B** (`-O0` 118,608, `-O1` 90,352, `-O3` 70,672) | `wc -c`; larger than the 55,920 of the 0.2 era — 6,016 for the boxing caches, 2,256 for the stack check, 120 for W9's TLS link; the arithmetic is in [docs/index.md](/en/docs) |
 | The LLVM back end's boundary | of 256 programs (`tests/programs` at `34584f2`), 159 build, 153 produce the expected output, 93 refused by name | 2026-09-17, `teyru build --backend=llvm` per program, compared against each `.expected` (the full breakdown is in [docs/index.md](/en/docs)) |
 | `linux/arm64`, the whole suite | **250 cases pass, 0 differ** (qemu-aarch64, with a sysroot built in the container); re-measured after W9 under `TEYRU_TARGET`: **271 passed, 5 failed, 10 known of 286**, and all five fail **natively too** | `sh tests/run.sh`, and `TEYRU_TARGET=linux/arm64 ... sh run.sh`; see the platform table in [docs/index.md](/en/docs) |
 | The Windows target | 179 of 195 programs byte-identical (run under Wine) | same table |
