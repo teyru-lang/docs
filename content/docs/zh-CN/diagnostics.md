@@ -225,6 +225,9 @@ hello.teyru:4:11: error[TY-TYP-0051]: incompatible types: String cannot be conve
 | TY-INT-0004 | `@Singular goes on a builder field, not on the class` | 写在类上没有意义。 |
 | TY-INT-0005 | `@Singular needs a List or Map field, found %s` | `@Singular` 只能用在集合字段。 |
 | TY-INT-0006 | `@CustomLog needs %s in a %s file in the source file's directory or above it`／`@CustomLog cannot pass TYPE: …`／`@CustomLog: cannot resolve the factory class %q named by %s` | `@CustomLog` 要靠 `lombok.config` 的 `lombok.log.custom.declaration` 才知道怎么建 logger（读法见 docs/lombok.md）：没有这个键、样式用了 `TYPE`，或者样式指的类找不到，都在这里报。也可以改用 `@Log` 或自己声明字段。 |
+| TY-INT-0100 | `<构造>: <原因>, in <位置>`（例：`an inner class (Main$Local$2): the llvm back end does not lower the enclosing-instance chain, in Main.instanceLocal`） | `--backend=llvm` 对它降不下去的构造具名拒绝，消息说出碰到的是什么、为什么、在哪里，而不是安静地退回 C 后端。要用 C 后端就不要加 `--backend=llvm` |
+| TY-INT-0101 | `the llvm back end compiles for linux/amd64 only (%s was asked for); use the c back end for other platforms` | LLVM 后端只编 linux/amd64；其他目标请用 C 后端 |
+| TY-INT-0102 | `cannot emit Java for <特性>: <原因>`（例：`cannot emit Java for the native property years: Java has no property syntax: …`） | `teyru emit-java` 遇到写不成 Java 的 Teyru 特性时拒绝，消息指名那个特性与原因。要打印出来的 Java 能编译，就改写那个特性 |
 | TY-IO-0001 | `cannot read %s: %v` | 源文件读不到，检查路径与权限。 |
 
 ## 运行期错误

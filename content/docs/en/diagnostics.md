@@ -226,6 +226,9 @@ emitted by the parser at the end of a statement and at a `throw` line break), an
 | TY-INT-0004 | `@Singular goes on a builder field, not on the class` | On a class it means nothing. |
 | TY-INT-0005 | `@Singular needs a List or Map field, found %s` | `@Singular` only works on a collection field. |
 | TY-INT-0006 | `@CustomLog needs %s in a %s file in the source file's directory or above it`／`@CustomLog cannot pass TYPE: …`／`@CustomLog: cannot resolve the factory class %q named by %s` | `@CustomLog` relies on `lombok.log.custom.declaration` in `lombok.config` to know how to build the logger (see docs/lombok.md for how it is read): a missing key, a pattern that uses `TYPE`, or a pattern naming a class that cannot be found are all reported here. You can also switch to `@Log` or declare the field yourself. |
+| TY-INT-0100 | `<construct>: <why>, in <where>` (for example `an inner class (Main$Local$2): the llvm back end does not lower the enclosing-instance chain, in Main.instanceLocal`) | `--backend=llvm` refuses a construct it cannot lower by name, saying what it met, why and where, rather than falling back to the C back end. To use the C back end, do not pass `--backend=llvm` |
+| TY-INT-0101 | `the llvm back end compiles for linux/amd64 only (%s was asked for); use the c back end for other platforms` | The LLVM back end compiles for linux/amd64 only; use the C back end for other targets |
+| TY-INT-0102 | `cannot emit Java for <feature>: <reason>` (for example `cannot emit Java for the native property years: Java has no property syntax: …`) | `teyru emit-java` refuses a Teyru feature it cannot express as Java, naming the feature and the reason. For Java that compiles, rewrite that feature |
 | TY-IO-0001 | `cannot read %s: %v` | The source file cannot be read; check the path and the permissions. |
 
 ## Runtime errors
