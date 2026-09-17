@@ -56,7 +56,7 @@ Temurin; produced by `RUNS=5 sh scripts/bench.sh`, best of 5 runs per row. The n
 | Metric | Teyru (native) | Java (HotSpot) | Difference |
 |---|---|---|---|
 | 100 startups | **0.0769 s** (0.77 ms each) | 1.9982 s (20.0 ms each) | **~26x faster** |
-| Executable size (`-O2`, `wc -c`, see below) | **66,688 B** (about 65.1 KB) | — | — |
+| Executable size (`-O2`, `wc -c`, see below) | **66,808 B** (about 65.2 KB) | — | — |
 | Peak RSS (hello) | **4232 kB** | 51124 kB | **~12.1x less** |
 | `bench_fib` recursion | **0.0062 s** | 0.0266 s | **~4.3x faster** |
 | `bench_loop` loops and integer math | **0.0243 s** | 0.0435 s | **~1.8x faster** |
@@ -71,7 +71,7 @@ The `bench_invoke` row is now measured by the same script as every other row. It
 
 **The size row is a strength again, and the reason for the number is specific.** It is the
 hello world from "Getting started" (`System.out.println("Hello, Teyru!")`) built with `-O2`
-and measured with `wc -c`: **66,688 bytes today** (about 65.1 KB). Most of the number comes
+and measured with `wc -c`: **66,808 bytes today** (about 65.2 KB). Most of the number comes
 from the compiler **pruning the vtable slots nothing dispatches** — the mechanism is written
 up in [docs/architecture.md](/en/docs/architecture), under "Why every binary carries the
 prelude": 48,840 bytes at `74fa648` (9/13), 501,072 before any pruning, 95,832 with the first
@@ -84,16 +84,16 @@ methods, only 42 reachable by being called — the rest were alive by address th
 hello): the **boxing caches** (`#109`, which is what makes `Integer.valueOf(127) ==
 Integer.valueOf(127)` agree with Java) added 6,016 bytes to 64,432, and the **stack-overflow
 prologue check** (`#104`, one `ty_stack_check()` at the top of every generated function) added
-2,256 more, to **66,688 today**. The pruning bought the size of programs that do not reflect;
+2,256 more, to 66,688, and W9's TLS-link change (`#118`, the call graph decides instead of reflection) added 120 more, to **66,808 today**. The pruning bought the size of programs that do not reflect;
 those two bought semantics and a catchable error, and neither was free.
 
 **The number only means anything with its optimisation level.** The same hello world is
-85,320 bytes at `-O1`, 66,688 at `-O2` and 70,128 at `-O3` today; this row and
+85,440 bytes at `-O1`, 66,808 at `-O2` and 70,248 at `-O3` today; this row and
 `scripts/bench.sh` both use `-O2`, which is the default.
 
 Before and after, on one machine with `-O2`, measured with `wc -c`: a hello world goes
 501,072 before any pruning -> 95,832 with the first version -> 55,920 with the second ->
-66,688 today; `t84_sealed_switch` is 89,712 today (521,456 before, 113,904 with the first
+66,808 today; `t84_sealed_switch` is 89,712 today (521,456 before, 113,904 with the first
 version), `t133_arrow_blocks` 71,704 (509,536, 105,688) and `t51_java25_tour` 283,648
 (523,696, 438,560), with their output byte-identical throughout. **A program that reflects
 gets no help from the pruning**: `t146_reflect` is 5,287,376 bytes today and `t101_gson`

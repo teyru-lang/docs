@@ -132,7 +132,7 @@ web 程序在没有 OpenSSL 头文件的机器上照样构建与服务，Gson �
 
 | 量到的东西 | 数字 | 怎么量的 |
 |---|---|---|
-| 可执行文件大小（hello world，`-O2`） | **66,688 B**（`-O1` 85,320、`-O3` 70,128） | `wc -c`；比 0.2 时代的 55,920 大，两次成长分别是装箱缓存（+6,016）与栈检查（+2,256），量在 [docs/index.md](/zh-CN/docs) |
+| 可执行文件大小（hello world，`-O2`） | **66,808 B**（`-O1` 85,440、`-O3` 70,248） | `wc -c`；比 0.2 时代的 55,920 大，三次成长是装箱缓存（+6,016）、栈检查（+2,256）与 W9 的 TLS 链接（+120），量在 [docs/index.md](/zh-CN/docs) |
 | LLVM 后端的边界 | 256 支里 159 支建得起来、153 支输出相同、93 支具名拒绝 | 2026-09-17，`teyru build --backend=llvm` 逐支跑并与 `.expected` 比（[docs/index.md](/zh-CN/docs) 有完整分类） |
 | `linux/arm64` 的整套 | **250 项全过、0 项不符**（qemu-aarch64，容器里的 sysroot 自建） | `sh tests/run.sh`，见 [docs/index.md](/zh-CN/docs) 的平台表 |
 | Windows 目标 | 195 支里 179 支逐字节相同（Wine 下跑） | 同上 |
