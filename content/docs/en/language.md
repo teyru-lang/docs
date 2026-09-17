@@ -910,13 +910,13 @@ When you need your own native library, a `native` method can be implemented in C
   (see §11).
 - An array's runtime element type is always `teyru.Array`, so `String[].class` and
   `int[].class` are the same object (in Java they are two)
-- **Known gaps in Java source compatibility** (javac accepts, this compiler refuses; all
-  measured): `Character.toChars(int)` and `Character.toChars(int, char[], int)` do not exist
-  (`TY-TYP-0076`). W5 and W7 closed the rest: `String.codePointAt`/`codePointCount`/
-  `offsetByCodePoints`/`getChars`, `Character.getType`/`isSurrogate`/`toCodePoint`/`charCount` and
-  `new String(char[])`/`String(char[],int,int)`/`String(int[],int,int)` all exist, a method ending
-  in a `switch` whose every branch returns is no longer misreported as `TY-TYP-0020` (measured:
-  `pick(2)` answers 20), and a semicolon is no longer an error (see §12 item 1).
+- **Known gaps in Java source compatibility** (javac accepts, this compiler refuses; all measured):
+  **this list is empty now.** W5 and W7 closed every entry it had: `String.codePointAt`/
+  `codePointCount`/`offsetByCodePoints`/`getChars`, `Character.getType`/`isSurrogate`/
+  `toCodePoint`/`charCount`/`toChars`, and `new String(char[])`/`String(char[],int,int)`/
+  `String(int[],int,int)` all exist, a method ending in a `switch` whose every branch returns is no
+  longer misreported as `TY-TYP-0020` (measured: `pick(2)` answers 20), and a semicolon is no longer
+  an error (see §12 item 1).
 - Standard library gaps: `String.format`'s `%t`/`%T` (date-time conversions) are not
   implemented, and hitting them stops with `ty_unimplemented` rather than printing
   something that looks reasonable; the rest are written where they belong, in §11's package

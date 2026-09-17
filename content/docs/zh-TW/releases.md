@@ -219,8 +219,8 @@ GraalVM 的 `native-image` 對照**未測**（這台機器上沒有 GraalVM）�
 | Windows 目標 | 195 支裡 179 支逐位元組相同（Wine 下跑） | 同上 |
 | macOS 兩列 | **只到「編譯並連結」**：257 支裡 240 支建得起來、9 支因 TLS 被具名拒絕、8 支那個版本的編譯器還不接受；產物是 Mach-O，**沒有任何一行被執行過** | `teyru build --cc <zig 包裝>`（`zig cc -target aarch64-macos`），見平台表 |
 | 遞迴過深的代價 | `bench_fib` 長跑回退約 32% | `scripts/bench.sh` 長跑前後，owner 已裁決接受 |
-| W7 的語料 | **45 支全過、0 失敗**（`tests/java-compat`；Teyru main `adf58e7` → `tests` `10ef6b2`） | `sh tests/run.sh java-compat`，在 main 上的那個內容跑（我自己跑的；`make java-compat` 是同一件事） |
-| 字串與 Unicode（W5）的 JDK 差分 | 寫的一半 **32/32 逐位元組相同**；讀的一半 **39/41**，其餘兩項是已聲明的差異 | 同一支程式寫兩次（`.teyru` 與 Java），`/opt/jdk21/jdk-21.0.11+10` 跑 Java 那一半再逐行 diff；於 `adf58e7` 上跑 |
+| W7 的語料 | **45 支全過、0 失敗**（`tests/java-compat`；Teyru main `a0b7fd0` → `tests` `10ef6b2`） | `sh tests/run.sh java-compat`，在 main 上的那個內容跑（我自己跑的；`make java-compat` 是同一件事） |
+| 字串與 Unicode（W5）的 JDK 差分 | 寫的一半 **32/32 逐位元組相同**；讀的一半 **39/41**，其餘兩項是已聲明的差異 | 同一支程式寫兩次（`.teyru` 與 Java），`/opt/jdk21/jdk-21.0.11+10` 跑 Java 那一半再逐行 diff；於 `a0b7fd0` 上跑 |
 | W8 的兩個缺陷 | 裝箱複合指定 `1L <<= 33` → `8589934592`；`f(1)+f(2)+f(3)` 在 clang 與 gcc 都印 `1(1)2(2)3(3)=6` | `t246`–`t248`（已從 `known-failures.txt` 拿掉）與一支 `--cc` 各建一次的程式；與 javac 21 比對 |
 | 整套測試（main） | **324 過、1 失敗、10 已知失敗、0 跳過**（同一個內容；唯一的失敗是 `native/net_c_test` 的連結失敗，10 條已知失敗與 `known-failures.txt` 完全一致） | `sh tests/run.sh`；log 與名單見 PR [#128](https://github.com/teyru-lang/Teyru/pull/128) 的留言（這一列不是我自己跑的，語料那 45 支才是） |
 
@@ -238,7 +238,6 @@ GraalVM 的 `native-image` 對照**未測**（這台機器上沒有 GraalVM）�
 - `sealed` 的 `permits` 子句沒有被驗證（switch 窮盡性因此要求 `default`）；
 - 反射沒有泛型型別參數，所有的陣列共用一個類別；
 - 與 Java 生態互通（JAR、JDK 類別庫、JNI）沒有，這是刻意的取捨；
-- `Character.toChars` 還沒有（`Character.toString` 有，`lib/04_boxing.teyru` 用它）；
 - locale 相關的大小寫映射（`tr`、`az`、`lt`）沒有實作，`String.toUpperCase()` 一律走 root locale 的規則。
 
 ## 4. 這一版不宣稱什麼

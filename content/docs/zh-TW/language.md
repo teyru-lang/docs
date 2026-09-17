@@ -815,12 +815,12 @@ SHA-3 是因為 `getInstance` 寧可丟 `NoSuchAlgorithmException`，也不要�
   64 桶以下的表不會樹化。`LinkedHashMap` 的插入序與 `TreeMap` 的鍵序照 JDK（見 §11）。
 - 陣列的執行期元素型別一律是 `teyru.Array`，所以 `String[].class` 與
   `int[].class` 是同一個物件（Java 是兩個）
-- **Java 原始碼相容的已知缺口**（`javac` 收、這裡拒絕，都是實測）：`Character.toChars(int)`
-  與 `Character.toChars(int, char[], int)` 不存在（`TY-TYP-0076`）。W5 與 W7 收掉了其餘的：
-  `String.codePointAt`／`codePointCount`／`offsetByCodePoints`／`getChars`、`Character.getType`／
-  `isSurrogate`／`toCodePoint`／`charCount`、`new String(char[])`／`String(char[],int,int)`／
-  `String(int[],int,int)` 都存在，以 `switch` 結尾而每條分支都 `return` 的方法不再被誤報
-  `TY-TYP-0020`（實測 `pick(2)` 得到 20），分號也不再是錯誤（見 §12 第 1 條）。
+- **Java 原始碼相容的已知缺口**（`javac` 收、這裡拒絕，都是實測）：**這份清單現在是空的**。
+  W5 與 W7 收掉了它的每一條：`String.codePointAt`／`codePointCount`／`offsetByCodePoints`／
+  `getChars`、`Character.getType`／`isSurrogate`／`toCodePoint`／`charCount`／`toChars`、
+  `new String(char[])`／`String(char[],int,int)`／`String(int[],int,int)` 都存在，以 `switch`
+  結尾而每條分支都 `return` 的方法不再被誤報 `TY-TYP-0020`（實測 `pick(2)` 得到 20），
+  分號也不再是錯誤（見 §12 第 1 條）。
 - 標準程式庫缺口：`String.format` 的 `%t`／`%T`（日期時間轉換）未實作，遇到會以
   `ty_unimplemented` 停止而不是印出看起來合理的東西；其餘缺口寫在 §11 的套件表與
   〈並行工具〉（`Scanner` 只讀一個 `String`、`MessageDigest` 沒有 SHA-3 與

@@ -256,8 +256,8 @@ ones this release is about:
 | The Windows target | 179 of 195 programs byte-identical (run under Wine) | same table |
 | The two macOS rows | **compile and link only**: 240 of 257 programs build, 9 are refused by name for TLS and 8 are not accepted by the compiler used; the artifact is Mach-O and **not one line has been executed** | `teyru build --cc <zig wrapper>` (`zig cc -target aarch64-macos`); same table |
 | What deep recursion costs | `bench_fib`'s long run is about 32% slower | `scripts/bench.sh`, long run, before and after; the owner has accepted it |
-| W7's corpus | **45 passed, 0 failed** (`tests/java-compat`; Teyru main `adf58e7` → `tests` `10ef6b2`) | `sh tests/run.sh java-compat` on that content (my own run; `make java-compat` is the same thing) |
-| Strings and Unicode (W5), JDK differential | writing half **32 of 32 byte-identical**; reading half **39 of 41**, the other two being the stated divergences | one program written twice (`.teyru` and Java), the Java half run with `/opt/jdk21/jdk-21.0.11+10`, then diffed line by line; on `adf58e7` |
+| W7's corpus | **45 passed, 0 failed** (`tests/java-compat`; Teyru main `a0b7fd0` → `tests` `10ef6b2`) | `sh tests/run.sh java-compat` on that content (my own run; `make java-compat` is the same thing) |
+| Strings and Unicode (W5), JDK differential | writing half **32 of 32 byte-identical**; reading half **39 of 41**, the other two being the stated divergences | one program written twice (`.teyru` and Java), the Java half run with `/opt/jdk21/jdk-21.0.11+10`, then diffed line by line; on `a0b7fd0` |
 | W8's two defects | boxed compound assignment `1L <<= 33` is `8589934592`; `f(1)+f(2)+f(3)` prints `1(1)2(2)3(3)=6` under both clang and gcc | `t246`-`t248` (whose `known-failures.txt` entries are gone) and one program built once with each `--cc`; compared with javac 21 |
 | The full suite (main) | **324 passed, 1 failed, 10 known, 0 skipped** (same content; the one failure is `native/net_c_test`'s link failure, and the ten known match `known-failures.txt` exactly) | `sh tests/run.sh`; the log and the list are in a comment on PR [#128](https://github.com/teyru-lang/Teyru/pull/128) (this row is not my run; the 45 corpus cases are) |
 
@@ -277,7 +277,6 @@ copy them; it gives the direction:
 - `sealed`'s `permits` clause is not verified, which is why switch exhaustiveness asks for a
   `default`;
 - reflection has no generic type parameters, and all arrays share one class;
-- `Character.toChars` is not there yet (`Character.toString` is, and `lib/04_boxing.teyru` uses it);
 - the locale-sensitive case mappings (`tr`, `az`, `lt`) are not implemented, so `String.toUpperCase()`
   always follows the root locale;
 - there is no interoperability with the Java ecosystem (JARs, JDK class libraries, JNI), which is a
