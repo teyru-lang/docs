@@ -516,9 +516,10 @@ undecided.
 `split`/`strip`/`repeat`…), `StringBuilder` and `StringBuffer`, `Math` (including `floorDiv`/
 `floorMod`/`round`/trigonometric functions), `System` (`out`/`err`/`currentTimeMillis`/
 `nanoTime`/`arraycopy`/`getenv`/`exit`), `PrintStream`, `InputStream`, `IO` (`println`/
-`readln`), `Number` and the eight wrapper classes (the complete static API such as
-`Integer.parseInt`, `Long.toHexString`, `Character.isDigit`), the `Throwable` family, `Enum`,
-`Record`, `Comparable`/`Iterable`/`Iterator`/`Cloneable`/`AutoCloseable`, `Logger`.
+`readln`), `Number` and the eight wrapper classes (the static API such as
+`Integer.parseInt`, `Long.toHexString` and `Character.isDigit` — **not** the complete set; what
+is missing is in §12 item 12 and §13), the `Throwable` family, `Enum`, `Record`,
+`Comparable`/`Iterable`/`Iterator`/`Cloneable`/`AutoCloseable`, `Logger`.
 
 ### java.util (`lib/08`, `lib/14_*`)
 
@@ -840,6 +841,28 @@ When you need your own native library, a `native` method can be implemented in C
     Java blocks through capture (`add` on a `? extends` container) are not blocked here; reads
     are no different (`list.get(0).doubleValue()` is accepted by javac too, so it is not
     capture conversion that holds it back).
+12. **Strings are sequences of UTF-8 bytes, not Java's UTF-16 code units, and character
+    classification and case mapping are ASCII-only.** `length`, `charAt`, `substring`,
+    `indexOf`, `compareTo` and `hashCode` all count bytes, so the same expression answers
+    differently here and on JDK 21. Measured (`teyru build`, then run; JDK 21 alongside):
+
+    | Expression | Teyru | JDK 21 |
+    |---|---|---|
+    | `"中文".length()` | `6` | `2` |
+    | `(int) "中文".charAt(1)` | `184` | `25991` |
+    | `"😀".length()` | `4` | `2` |
+    | `"ab中c".indexOf("c")` | `5` | `3` |
+    | `"中".compareTo("文")` | `-1` | `-5978` |
+    | `"中文".hashCode()` | `-1887180642` | `646394` |
+    | `Character.isLetter('中')` | `false` | `true` |
+    | `Character.isWhitespace('\u3000')` | `false` | `true` |
+    | `Character.isDigit('１')` / `Character.digit('１', 10)` | `false` / `-1` | `true` / `1` |
+    | `"ß".toUpperCase()` | `ß` | `SS` |
+    | `"ΟΔΟΣ".toLowerCase()` | `ΟΔΟΣ` | `οδος` |
+
+    The APIs that split a string by code unit (`codePointAt`, `codePointCount`,
+    `offsetByCodePoints`) and `Character.getType`/`isSurrogate`/`toCodePoint`/`charCount` do
+    not exist, see §13.
 
 ## 13. Not yet implemented
 
@@ -869,7 +892,8 @@ When you need your own native library, a `native` method can be implemented in C
   `int[].class` are the same object (in Java they are two)
 - **Known gaps in Java source compatibility** (javac accepts, this compiler refuses; all
   measured): `String.codePointAt`, `codePointCount` and `offsetByCodePoints` do not exist
-  (`TY-TYP-0076`, cannot find method), `new String(char[])` and
+  (`TY-TYP-0076`, cannot find method), and neither do `Character.getType`, `isSurrogate`,
+  `toCodePoint` and `charCount`; `new String(char[])` and
   `new String(char[], int, int)` do not exist (`TY-TYP-0072`, no suitable constructor), and
   a method that ends in a `switch` whose every branch (including `default`) returns is
   misreported as `TY-TYP-0020` missing return; the semicolon is §12 item 1

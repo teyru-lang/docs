@@ -488,7 +488,8 @@ try {
 `System`（`out`／`err`／`currentTimeMillis`／`nanoTime`／`arraycopy`／`getenv`／
 `exit`）、`PrintStream`、`InputStream`、`IO`（`println`／`readln`）、
 `Number` 與八個包裝類別（`Integer.parseInt`、`Long.toHexString`、`Character.isDigit`
-等完整靜態 API）、`Throwable` 家族、`Enum`、`Record`、`Comparable`／`Iterable`／
+等靜態 API；**不是**完整的一組，缺的見 §12 第 12 條與 §13）、`Throwable` 家族、`Enum`、
+`Record`、`Comparable`／`Iterable`／
 `Iterator`／`Cloneable`／`AutoCloseable`、`Logger`。
 
 ### java.util（`lib/08`、`lib/14_*`）
@@ -757,6 +758,27 @@ SHA-3 是因為 `getInstance` 寧可丟 `NoSuchAlgorithmException`，也不要�
 11. **沒有捕獲轉換**：`List<? extends Number>` 在這裡就是 `List<Number>`。Java 靠捕獲
     擋下的寫入（對 `? extends` 的容器 `add`）這裡擋不住；讀取則沒有差別
     （`list.get(0).doubleValue()` javac 也收，不是捕獲轉換擋的）。
+12. **字串以 UTF-8 位元組為單位，不是 Java 的 UTF-16 code unit；字元分類與大小寫映射
+    只認 ASCII。** `length`、`charAt`、`substring`、`indexOf`、`compareTo`、`hashCode`
+    都按位元組算，所以同樣的運算式在 JDK 21 與這裡答案不同。實測（`teyru build` 後執行；
+    JDK 21 的輸出並列）：
+
+    | 運算式 | Teyru | JDK 21 |
+    |---|---|---|
+    | `"中文".length()` | `6` | `2` |
+    | `(int) "中文".charAt(1)` | `184` | `25991` |
+    | `"😀".length()` | `4` | `2` |
+    | `"ab中c".indexOf("c")` | `5` | `3` |
+    | `"中".compareTo("文")` | `-1` | `-5978` |
+    | `"中文".hashCode()` | `-1887180642` | `646394` |
+    | `Character.isLetter('中')` | `false` | `true` |
+    | `Character.isWhitespace('\u3000')` | `false` | `true` |
+    | `Character.isDigit('１')`／`Character.digit('１', 10)` | `false`／`-1` | `true`／`1` |
+    | `"ß".toUpperCase()` | `ß` | `SS` |
+    | `"ΟΔΟΣ".toLowerCase()` | `ΟΔΟΣ` | `οδος` |
+
+    按 code unit 拆字串的 API（`codePointAt`／`codePointCount`／`offsetByCodePoints`）與
+    `Character.getType`／`isSurrogate`／`toCodePoint`／`charCount` 不存在，見 §13。
 
 ## 13. 尚未實作
 
@@ -781,7 +803,8 @@ SHA-3 是因為 `getInstance` 寧可丟 `NoSuchAlgorithmException`，也不要�
 - 陣列的執行期元素型別一律是 `teyru.Array`，所以 `String[].class` 與
   `int[].class` 是同一個物件（Java 是兩個）
 - **Java 原始碼相容的已知缺口**（`javac` 收、這裡拒絕，都是實測）：`String.codePointAt`／
-  `codePointCount`／`offsetByCodePoints` 不存在（`TY-TYP-0076` 找不到方法）、
+  `codePointCount`／`offsetByCodePoints` 不存在（`TY-TYP-0076` 找不到方法），
+  `Character.getType`／`isSurrogate`／`toCodePoint`／`charCount` 同理、
   `new String(char[])` 與 `new String(char[], int, int)` 不存在（`TY-TYP-0072` 找不到
   建構子）、每條分支（含 `default`）都 `return` 卻以 `switch` 結尾的方法被誤報
   `TY-TYP-0020` missing return；分號見 §12 第 1 條
