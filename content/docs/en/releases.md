@@ -171,12 +171,12 @@ ones this release is about:
 | The LLVM back end's boundary | of 256 programs (`tests/programs` at `34584f2`), 159 build, 153 produce the expected output, 93 refused by name | 2026-09-17, `teyru build --backend=llvm` per program, compared against each `.expected` (the full breakdown is in [docs/index.md](/en/docs)) |
 | `linux/arm64`, the whole suite | **250 cases pass, 0 differ** (qemu-aarch64, with a sysroot built in the container) | `sh tests/run.sh`; see the platform table in [docs/index.md](/en/docs) |
 | The Windows target | 179 of 195 programs byte-identical (run under Wine) | same table |
-| The two macOS rows | **compile and link only**: 188 programs build, the artifact is Mach-O; not one line has been executed | `zig cc -target <arch>-macos`; same table |
+| The two macOS rows | **compile and link only**: 240 of 257 programs build, 9 are refused by name for TLS and 8 are not accepted by the compiler used; the artifact is Mach-O and **not one line has been executed** | `teyru build --cc <zig wrapper>` (`zig cc -target aarch64-macos`); same table |
 | What deep recursion costs | `bench_fib`'s long run is about 32% slower | `scripts/bench.sh`, long run, before and after; the owner has accepted it |
 
-(The three platform rows are being re-measured after W9: `--cc` and `TEYRU_TARGET` turn macOS and
-arm64 into paths `teyru build` can take, and this page and the platform table will be updated
-together when that measurement lands.)
+(The macOS row was re-measured after W9 (2026-09-17, `tests` at `e4268a6`, compiler at
+`5ac017b`); the `linux/arm64` row is still the pre-W9 wrapper measurement, and the
+`TEYRU_TARGET` re-run is in progress.)
 
 ---
 

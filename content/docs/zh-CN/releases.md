@@ -145,11 +145,11 @@ web 程序在没有 OpenSSL 头文件的机器上照样构建与服务，Gson �
 | LLVM 后端的边界 | `tests/programs`（`34584f2`）256 支里 159 支建得起来、153 支输出相同、93 支具名拒绝 | 2026-09-17，`teyru build --backend=llvm` 逐支跑并与 `.expected` 比（[docs/index.md](/zh-CN/docs) 有完整分类） |
 | `linux/arm64` 的整套 | **250 项全过、0 项不符**（qemu-aarch64，容器里的 sysroot 自建） | `sh tests/run.sh`，见 [docs/index.md](/zh-CN/docs) 的平台表 |
 | Windows 目标 | 195 支里 179 支逐字节相同（Wine 下跑） | 同上 |
-| macOS 两列 | **只到「编译并链接」**：188 支编译得过、产物是 Mach-O；没有任何一行被运行过 | `zig cc -target <arch>-macos`，见平台表 |
+| macOS 两列 | **只到「编译并链接」**：257 支里 240 支建得起来、9 支因 TLS 被具名拒绝、8 支那个版本的编译器还不接受；产物是 Mach-O，**没有任何一行被运行过** | `teyru build --cc <zig 包装>`（`zig cc -target aarch64-macos`），见平台表 |
 | 递归过深的代价 | `bench_fib` 长跑回退约 32% | `scripts/bench.sh` 长跑前后，owner 已裁决接受 |
 
-（平台那三列的数字在 W9 之后正在重测：`--cc` 与 `TEYRU_TARGET` 把 macOS 与 arm64 变成
-`teyru build` 走得通的路径，重测完成之后这一页与平台表会一起更新。）
+（macOS 那一列是 W9 之后重测的（2026-09-17，`tests` @ `e4268a6`，编译器 `5ac017b`）；
+`linux/arm64` 那一列还是 W9 之前用包装方法量的，用 `TEYRU_TARGET` 的重测正在跑。）
 
 ---
 
