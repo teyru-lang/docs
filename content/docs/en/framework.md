@@ -90,10 +90,12 @@ are and there are several with no no-argument constructor, it is `TY-TYP-0105`.
 ### Lifecycle
 
 `refresh()` builds every singleton, so failures in construction and injection
-are reported at startup (rather than on the first request) — a missing bean is
-caught even earlier, as the compile-time `TY-TYP-0103`. Bean creation is
-recursive: to get A, the B it needs is built first. The `creating` flag blocks
-cycles.
+are reported at startup (rather than on the first request) — **a missing bean, two
+candidates for one type and a dependency cycle all fail here, not at compile time**:
+`@Service class Needs { Needs(NoAnno other) }` builds, and `refresh()` stops with
+`parameter 0 of Needs is neither @Value nor @Autowired` (Spring also finds out at
+startup, which is why `TY-TYP-0103` was removed). Bean creation is recursive: to get A,
+the B it needs is built first, and the `creating` flag blocks cycles.
 
 `@PostConstruct` is called by the generated injector after injection completes.
 `@PreDestroy` is declared but **not** executed — Teyru has no process shutdown

@@ -84,8 +84,11 @@ Spring 4.3 起的規則：只有一個建構子就用它，否則找標了 `@Aut
 ### 生命週期
 
 `refresh()` 會把每個 singleton 都建起來，所以建構與注入的失敗會在啟動時（而不是
-第一次請求時）報出來——缺 bean 更早就擋掉了，那是編譯期的 `TY-TYP-0103`。bean 的
-建立是遞迴的：要 A 就先建它需要的 B。`creating` 旗標擋住環。
+第一次請求時）報出來——**缺 bean、同一型別有兩個候選、相依成環都是這個時候才失敗**，
+不是編譯期：`@Service class Needs { Needs(NoAnno other) }` 這種寫法編得過，`refresh()` 時
+以 `parameter 0 of Needs is neither @Value nor @Autowired` 停下來（Spring 也是啟動時才
+發現，所以 `TY-TYP-0103` 已經移除）。bean 的建立是遞迴的：要 A 就先建它需要的 B，
+`creating` 旗標擋住環。
 
 `@PostConstruct` 由產生的注入器在注入完成後呼叫。`@PreDestroy` 已宣告但**沒有**
 執行——Teyru 沒有行程關閉鉤子，容器也沒有 `close()`。
