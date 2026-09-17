@@ -782,10 +782,14 @@ SHA-3 是因为 `getInstance` 宁可抛 `NoSuchAlgorithmException`，也不要�
 
     按 code unit 拆字符串的 API（`codePointAt`／`codePointCount`／`offsetByCodePoints`）与
     `Character.getType`／`isSurrogate`／`toCodePoint`／`charCount` 不存在，见 §13。
+13. **`char` 字面值只收一个 UTF-16 code unit，这里比 javac 严。** `'😀'` 是两个 code unit，
+    所以这里是 `TY-SYN-0008`（`tests/diagnostics/emojiCharLiteral`），而 **JDK 21 收下它**、
+    取代理对的第一个 code unit（打印 `55357`）。两边要不要一致还没有定案；在那之前把它读成
+    「我们拒绝、javac 接受」，而不是「双方一致」。
 
 ## 13. 尚未实现
 
-- checked exception 的编译期检查（`throws` 只被解析）
+- checked exception 的编译期检查（`throws` 只被解析；完全没有跟踪，JDK 差分里 javac 拒绝的 16 个案例有 8 个是这个原因，逐条写在 `tests/jdk-diff-allow.txt`。这是刻意保留的差异，不是待办）
 - `sealed` 的 `permits` 子句没有被验证：没有 `permits` 的 sealed 类型在
   switch 穷尽性上被视为不可判定而要求 `default`；switch **语句**的穷尽性
   仍从宽

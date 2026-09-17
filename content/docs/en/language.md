@@ -862,10 +862,15 @@ When you need your own native library, a `native` method can be implemented in C
     The APIs that split a string by code unit (`codePointAt`, `codePointCount`,
     `offsetByCodePoints`) and `Character.getType`/`isSurrogate`/`toCodePoint`/`charCount` do
     not exist, see §13.
+13. **A `char` literal is one UTF-16 code unit, and here we are stricter than javac.** `'😀'`
+    is two code units, so this is `TY-SYN-0008` (`tests/diagnostics/emojiCharLiteral`), while
+    **JDK 21 accepts it** and takes the surrogate pair's first code unit (it prints `55357`).
+    Whether the two should agree is undecided; until it is, read it as "we refuse, javac
+    accepts" rather than "the two agree".
 
 ## 13. Not yet implemented
 
-- Compile-time checking of checked exceptions (`throws` is only parsed)
+- Compile-time checking of checked exceptions (`throws` is only parsed; nothing is tracked at all, and 8 of the 16 programs javac refuses in the JDK differential are refused for this reason, one line each in `tests/jdk-diff-allow.txt`. That is a divergence kept on purpose, not a to-do)
 - A `sealed` type's `permits` clause is not verified: a sealed type without `permits` is
   treated as undecidable for switch exhaustiveness and requires a `default`; the
   exhaustiveness of a switch **statement** is still lenient

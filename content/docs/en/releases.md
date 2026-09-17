@@ -32,6 +32,10 @@ when it lands. When the release is cut, no "in progress" should be left on the p
 - **`make ci` / `make jdk-diff` / `make notices`**: everything a CI job would run, run here by hand.
   This repository has **one** workflow (`.github/workflows/release.yml`), and it calls them when a
   release is published.
+- **One process rule, because it happened**: a test pushed to main before the code it tests turns
+  the whole gate red an hour later (that is what `t196_string_bytes` and `t180_http_gzip` did). The
+  rule is now in the test repository's `README.md`: a test that arrives first carries a
+  `known-failures.txt` entry in the same commit, and the entry is deleted when the code lands.
 
 ### The HTTP server, hardened (W3 — in main)
 
@@ -97,9 +101,10 @@ boundary's test (`t196_string_bytes`) is in the test repository.
 - **`HashMap`/`HashSet` iteration order** matching JDK 21, and **fully-qualified exception names**
   (`java.lang.*`), are still in progress; until they land they are listed in §13.
 
-### Java source compatibility (W7 — in progress)
+### Java source compatibility (W7 — **not started**)
 
-The goal is to make "Java source compiles unchanged" true of a testable subset: semicolons optional,
+**Nothing has been claimed and nothing is on main**: the paragraph below is the goal, not a status,
+and there are no numbers to give. The goal is to make "Java source compiles unchanged" true of a testable subset: semicolons optional,
 `.java` files accepted as input, reachability and definite assignment by JLS §14.22 and Chapter 16
 (which fixes the `TY-TYP-0020` false positive on a method ending in a `switch`), the missing APIs,
 and the common generic inferences. Until it lands, this page does not claim that sentence — today's
@@ -107,9 +112,11 @@ differences are in [docs/language.md](/en/docs/language) §12 and §13, and
 [docs/index.md](/en/docs) says the syntax is "familiar to Java developers", not that Java source
 compiles unchanged.
 
-### The two back ends' semantic consistency (W8 — in progress)
+### The two back ends' semantic consistency (W8 — **not started**)
 
-The goal is a matrix that agrees everywhere — {C+clang, C+gcc, LLVM} × {`-O0`, `-O2`} — with the
+**Nobody has claimed this one and nothing is on main** (the `internal/codegen` it has to change was
+just touched by two large landings). The paragraph below is the goal, not a status. The goal is a
+matrix that agrees everywhere — {C+clang, C+gcc, LLVM} × {`-O0`, `-O2`} — with the
 rules for numeric promotion, compound assignment, shifts, string concatenation, boxing and checks
 lowered once and shared. The LLVM back end's present boundary (measured 2026-09-17: of 256 test
 programs, 159 build, 153 of those produce exactly the expected output, 93 are refused by name, 4 are
@@ -193,7 +200,14 @@ copy them; it gives the direction:
   next; 0.4's collector is still conservative mark-and-sweep.
 - **macOS running anything.** Those two rows stop at "compiles and links": no Mach-O executable has
   been run (there is no macOS here), and compiling is not running.
-- **Java source compiling unchanged** — not until W7 lands with `tests/java-compat/` behind it.
+- **Java source compiling unchanged** — W7 has not started.
+- **Agreeing with javac.** We do not: `'😀'` is `TY-SYN-0008` here (a `char` literal is one UTF-16
+  code unit), while **JDK 21 accepts it** and takes 55357 — that one is us being stricter, not us
+  being right.
+- **Tracking checked exceptions.** Nothing is tracked: `throws` is only parsed, and 8 of the 16
+  programs javac refuses in the JDK differential are refused for that reason (one line each in
+  `tests/jdk-diff-allow.txt`). The owner has decided to keep this as a documented divergence rather
+  than a to-do.
 - **Static initialisation as eager as Java's.** The compiler initialises the program's own classes
   before `main`; Java initialises on first use. The difference and its tests are in `AGENTS.md` §10.
 - **CI.** There is no CI on a push or a pull request (the owner's decision): the gate is a person
