@@ -143,7 +143,9 @@ two(f(1), f(2))     // f prints the order it was called in
 prints `1(1)2(2)` under clang (as javac does) and **`2(1)1(2)` under gcc** -- a wrong answer rather
 than a crash, and identical at `-O0`, `-O1` and `-O2`, so no optimiser is responsible. That is why
 the back-end matrix builds every program with both compilers: **with one compiler, this family of
-defect is invisible**. This one is still being fixed (temporaries to make the order explicit); when
+defect is invisible**. Its reach was not one program: the matrix compares clang's and gcc's stdout
+program by program, and **17 programs answered differently under gcc while matching the expectation
+under clang**. This one is still being fixed (temporaries to make the order explicit); when
 it lands this section becomes a plain statement of the rule, and the matrix keeps it pinned.
 
 ## Back Ends and Platforms
