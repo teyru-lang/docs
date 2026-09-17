@@ -267,7 +267,10 @@ Read from the configuration with these defaults; the property names are the keys
 | `server.teyru.websocket.idle-timeout-ms` | 60000 | a session that says nothing | 1001 |
 
 `server.max-http-request-header-size` is Spring Boot's own key and the rest are under
-`server.teyru.*`, in the shape `server.tomcat.*` writes its own. A value that is not a number
+`server.teyru.*`, in the shape `server.tomcat.*` writes its own. **The handshake is the
+asymmetry: it has a bound of its own and no key** — a TLS handshake is bounded at a fixed 10
+seconds (`handshakeTimeoutMs`, which is what `s.setSoTimeout` is given), a separate constant
+on the same clock as `header-timeout-ms`, so changing either property does not move it. A value that is not a number
 is the default rather than a refusal to start: the defaults are safe numbers by
 construction, and a server that will not boot over a typo in a limit is one nobody can
 correct from a phone.

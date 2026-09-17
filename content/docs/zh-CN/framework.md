@@ -236,7 +236,9 @@ keep-alive 请求全部 200；2 个工作线程／1 个队列的服务器回 503
 | `server.teyru.websocket.idle-timeout-ms` | 60000 | 什么都不说的会话 | 1001 |
 
 `server.max-http-request-header-size` 是 Spring Boot 自己的键，其余在 `server.teyru.*`
-底下，形状照 `server.tomcat.*`。不是数字的值等于用默认值，而不是拒绝启动：默认值在构造
+底下，形状照 `server.tomcat.*`。**握手是例外：它有自己的上限，而且没有键**——TLS 握手固定
+10 秒（`handshakeTimeoutMs`，`s.setSoTimeout` 用它），与 `header-timeout-ms` 是同一个时钟上
+的两个常数，所以调那两个属性不会动到握手。不是数字的值等于用默认值，而不是拒绝启动：默认值在构造
 上就是安全的数字，而一个因为打错一个上限就起不来的服务器，是没人在手机上修得好的服务器。
 
 每一个上限都在字节**到达时**检查，不是等收完才检查，所以拒绝发生在成本之前：一个
