@@ -481,7 +481,7 @@ teyru build --native impl.c program.teyru            # 一起編譯
 
 | 路徑 | 說明 |
 |---|---|
-| `cmd/teyru` | CLI 進入點（`build`／`run`／`emit`／`emit-llvm`／`get`／`mod`／`version`） |
+| `cmd/teyru` | CLI 進入點（`build`／`run`／`emit`／`emit-llvm`／`emit-java`／`get`／`mod`／`version`） |
 | `internal/driver` | 編譯流程：串起前後端、呼叫 C 編譯器、處理 native 來源與輸出選項 |
 | `internal/source` | 檔案、位置換算、診斷容器 |
 | `internal/lexer` | 詞法分析；換行不產生 token，只在 token 上標記「前面有換行」 |
@@ -557,6 +557,7 @@ teyru build [flags] <files...>                 編譯成原生執行檔
 teyru run   [flags] <files...> [-- args...]    編譯後直接執行
 teyru emit  [flags] <files...>                 印出產生的 C
 teyru emit-llvm [flags] <files...>             印出交給 LLVM 的 IR
+teyru emit-java [flags] <files...>             印出等效的 Java 原始碼
 teyru get <module>@<version>                   取得模組到快取並加入相依
 teyru mod init <module-path>                   為新模組寫出 teyru.mod
 teyru mod tidy                                 讓 teyru.mod 與 teyru.sum 對上原始碼
@@ -574,6 +575,7 @@ teyru help                                     說明
 | `--native <file.c>` | 加入 C 檔一起編譯，實作 native 方法（可重複） |
 | `--native-header <path>` | 產生 native 方法的宣告（見 [docs/native.md](/docs/native)） |
 | `--link <arg>` | 傳給連結步驟的參數，例如 `--link -lm` |
+| `--cc-flag <arg>` | 傳給 C 編譯步驟的參數（可重複），例如用 `-I <dir>` 把 `--native-header` 的輸出放進 include path |
 | `--no-lto` | 關閉 LTO（工具鏈不支援時會自動退回） |
 | `--target <os>/<arch>` | 編譯給哪個平台（預設是這台機器）；未知的目標會以名字被拒絕 |
 | `--backend <c\|llvm>` | 用哪個後端編譯程式（預設 `c`，見下面〈後端與平台〉） |

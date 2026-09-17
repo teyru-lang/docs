@@ -521,7 +521,7 @@ See [`docs/native.md`](/en/docs/native).
 
 | Path | Purpose |
 |---|---|
-| `cmd/teyru` | CLI entry point (`build`/`run`/`emit`/`emit-llvm`/`get`/`mod`/`version`) |
+| `cmd/teyru` | CLI entry point (`build`/`run`/`emit`/`emit-llvm`/`emit-java`/`get`/`mod`/`version`) |
 | `internal/driver` | Compile pipeline: wires the front end to the C back end, runs the C compiler, handles native sources and output options |
 | `internal/source` | Files, position mapping, diagnostics |
 | `internal/lexer` | Tokeniser; newlines are not tokens, each token carries a "newline before" flag |
@@ -607,6 +607,7 @@ teyru build [flags] <files...>                 compile to a native executable
 teyru run   [flags] <files...> [-- args...]    compile and run
 teyru emit  [flags] <files...>                 print the generated C
 teyru emit-llvm [flags] <files...>             print the LLVM IR
+teyru emit-java [flags] <files...>             print the equivalent Java source
 teyru get <module>@<version>                   fetch a module into the cache and require it
 teyru mod init <module-path>                   write teyru.mod for a new module
 teyru mod tidy                                 make teyru.mod and teyru.sum match the sources
@@ -624,6 +625,7 @@ teyru help                                     print usage
 | `--native <file.c>` | Compile a C file into the program, implementing native methods (repeatable) |
 | `--native-header <path>` | Write the declarations of the native methods (see [docs/native.md](/en/docs/native)) |
 | `--link <arg>` | Extra argument for the link step, such as `--link -lm` |
+| `--cc-flag <arg>` | Extra argument for the C compile step (repeatable), such as `-I <dir>` to put a `--native-header` on the include path |
 | `--no-lto` | Disable LTO (the build retries without it when the toolchain lacks support) |
 | `--target <os>/<arch>` | Which platform to build for (the default is this machine); an unknown target is refused by name |
 | `--backend <c\|llvm>` | Which back end compiles the program (the default is `c`, see "Back ends and platforms" below) |
