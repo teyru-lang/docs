@@ -49,25 +49,69 @@ into `opt`, `llc` or a custom pass; `./teyru emit` prints the generated C.
 
 ## Why it is faster than the JVM
 
-Measured on one machine (AMD Ryzen 7 5700X, Linux x86-64, clang 22.1.8, OpenJDK 21.0.11
-Temurin; produced by `RUNS=5 sh scripts/bench.sh`, best of 5 runs per row. The numbers are
-**wall-clock whole-program times, including process startup**):
+Measured on one machine (nobara-pc, AMD Ryzen 7 5700X (8c/16t), 31 GB, linux/amd64,
+clang 22.1.8, OpenJDK 21.0.11 Temurin at default flags; `RUNS=5 JAVA=1 sh scripts/bench.sh`,
+best of five per row, `-O2`, **whole-program wall clock including process start**, both sides
+given the same scale argument, compiler from `130565a`). The script now prints its own method
+header -- host, arch, core count, tree, `RUNS`/`JAVA`/`-O2`, and the 1/5/15-minute load entering
+and leaving -- so that output is the method of record and is not restated here.
 
-| Metric | Teyru (native) | Java (HotSpot) | Difference |
+**Short scale** (each program's own default; a large part of what this group measures is startup):
+
+| Program | Teyru | Java | Teyru/Java |
 |---|---|---|---|
-| 100 startups | **0.0769 s** (0.77 ms each) | 1.9982 s (20.0 ms each) | **~26x faster** |
-| Executable size (`-O2`, `wc -c`, see below) | **66,808 B** (about 65.2 KB) | — | — |
-| Peak RSS (hello) | **4232 kB** | 51124 kB | **~12.1x less** |
-| `bench_fib` recursion | **0.0062 s** | 0.0266 s | **~4.3x faster** |
-| `bench_loop` loops and integer math | **0.0243 s** | 0.0435 s | **~1.8x faster** |
-| `bench_oop` objects and virtual calls | **0.0051 s** | 0.0260 s | **~5.1x faster** |
-| `bench_string` string handling | **0.0153 s** | 0.0632 s | **~4.1x faster** |
-| `bench_alloc` short-lived allocation | **0.0278 s** | 0.0304 s | **~1.09x faster** |
-| `bench_invoke` 20M reflective calls (see `examples/bench_invoke.teyru`) | **0.6019 s** | 0.2543 s | **~2.4x slower** |
+| `bench_alloc` | 0.0371 s | 0.0312 s | 1.19x the time |
+| `bench_fib` | 0.0079 s | 0.0277 s | 0.29x |
+| `bench_invoke` | 0.4094 s | 0.2517 s | 1.63x |
+| `bench_loop` | 0.0249 s | 0.0467 s | 0.53x |
+| `bench_oop` | 0.0062 s | 0.0265 s | 0.23x |
+| `bench_string` | 0.0144 s | 0.0549 s | 0.26x |
+| `bench_string_cjk` | 0.0165 s | 0.0781 s | sides disagree; a time, not a comparison |
 
-The `bench_invoke` row is now measured by the same script as every other row. It was not before: the Java file's class name did not match its filename, so the harness silently skipped the run and printed `-` in the Java column. That was a real defect in the script, and it is fixed (commit `1ad9b8c`); the harness now also prints `!no-class` instead of `-` when a Java file produces no runnable class. The row shows that the `Method.invoke` path is still about 2.4x slower than HotSpot's.
+**Long scale** (at least a second of work per row; scales are fib 44, loop 1000000 rounds,
+oop 500000 rounds, string 16000000 joins, string_cjk 4000000, alloc 800000000 allocations,
+invoke 200000000 calls):
 
-`bench_loop` fell from about 2.2x in the previous revision to about 1.8x because every loop back-edge now carries a safepoint check — the deliberate cost of a stop-the-world collector, which is **cooperative** here, as [docs/language.md](/en/docs/language) §11 explains. It is not measurement noise.
+| Program | Teyru | Java | Teyru/Java | Peak RSS (Teyru) |
+|---|---|---|---|---|
+| `bench_alloc` | 1.3982 s | 0.2042 s | **6.85x the time** | 4,408 kB |
+| `bench_fib` | 1.8773 s | 1.7998 s | 1.04x (a tie) | 4,408 kB |
+| `bench_invoke` | 4.0655 s | 1.8586 s | **2.19x** | 9,400 kB |
+| `bench_loop` | 1.1335 s | 1.0068 s | 1.13x | 4,364 kB |
+| `bench_oop` | 1.0016 s | 0.3572 s | **2.80x** | 4,408 kB |
+| `bench_string` | 0.7496 s | 0.2848 s | **2.63x** | 8,732 kB |
+| `bench_string_cjk` | 0.2338 s | 0.1602 s | sides disagree | 8,844 kB |
+
+**Three numbers that are not programs:**
+
+| Metric | Teyru | Java | Difference |
+|---|---|---|---|
+| Startup, 100 runs | **0.0763 s** | 2.1093 s | **about 27.6x faster** |
+| hello executable (`-O2`, `wc -c`) | **66,808 B** | -- | -- |
+| Peak RSS (hello) | **4,348 kB** | 51,420 kB | **about 11.8x less** |
+
+**The long scale is the only group that can support a throughput claim, and what it says is that
+Teyru wins nothing.** `fib(44)` is a tie (Java 4% faster) and every other row is Java's:
+`loop` 1.13x faster, `string` 2.6x, `oop` 2.8x, `alloc` 6.8x, `invoke` 2.2x. The short group
+looks the other way round because a large part of a whole-program time is JVM startup (about
+20 ms against 0.77 ms on this machine) -- that is a difference in startup, not in throughput.
+
+**The `bench_alloc` row needs saying separately.** It used to read "it wins against HotSpot
+because of escape analysis": on the long scale (800M allocations) **Java is 6.8x faster**, and
+even on the short scale Teyru is already 1.19x slower. It is also **not** a measurement of the
+collector -- `TEYRU_GCTRACE=1` prints not one collection during that long run, because escape
+analysis keeps the `Cell` on the stack, so that path neither writes to the heap nor triggers a
+collection, and explaining its factor with "GC" is wrong.
+
+**An old peak-RSS number may be broken.** The harness used to run the program as
+`/usr/bin/time -v timeout LIMIT prog`, measuring the outer `timeout`, which floors every reading
+at about 9.9 MB (a real 12x difference would print as 9,904 kB against 50,832 kB). That is fixed
+today; the row above measures the program itself, and takes the **largest** of the five runs
+(a peak is a maximum, not a best).
+
+`bench_loop` is 0.53x on the short scale and 1.13x on the long one, the same startup difference
+again; both keep the cost of the safepoint check (one per loop back edge), which is the
+deliberate price of a stop-the-world collector -- see [docs/language.md](/docs/language) §11.
 
 **The size row is a strength again, and the reason for the number is specific.** It is the
 hello world from "Getting started" (`System.out.println("Hello, Teyru!")`) built with `-O2`
@@ -129,7 +173,11 @@ decide — and a wrong answer there is a jump to `NULL` rather than a wasted byt
 4. **Objects that do not need an allocation do not get one.** Escape analysis puts
    an object that stays inside its method on the C stack, and LLVM then promotes its
    fields to registers and deletes the object, the same result a JVM gets from scalar
-   replacement. That is what makes `bench_alloc` faster than HotSpot.
+   replacement. The evidence for that path is that `bench_alloc`'s long run under
+   `TEYRU_GCTRACE=1` prints **not one collection**; it does not make `bench_alloc` win on
+   time (Java is 6.8x faster on the long scale -- see the table above), because that row's
+   work is allocation itself, and HotSpot's TLAB bump plus generational collection do it
+   faster.
 5. **Allocation and bounds checks take an inlined fast path.** `ty_alloc` bumps a
    pointer inline in the header, array access only calls the slow path when it must,
    the collector releases chunks that are completely empty, and class initialisation
@@ -139,11 +187,13 @@ decide — and a wrong answer there is a jump to `NULL` rather than a wasted byt
 **The honest boundary.** Escape analysis only covers objects that stay inside the
 method that creates them. An object stored into a field, an array, a return value or
 another object still goes to the heap and the mark-and-sweep collector, and HotSpot's
-generational assumption wins on workloads where objects live long and are collected
-repeatedly. Every number above includes process startup, so the absolute values are
-small. Every number is reproducible with `sh scripts/bench.sh`, which measures the six
-programs, the 100 startups, the executable size and the peak RSS, best of `RUNS=5` on the
-machine above.
+generational assumption makes long-lived, repeatedly-collected objects its home ground.
+That is not a prediction: the long table above is that workload, and Teyru wins none of
+its six rows -- **everything a compiler can decide at compile time Teyru already decides;
+the gap that is left lives in the runtime's allocator and collector**. The short group's
+advantage is startup, not throughput. Every number is reproducible with
+`RUNS=5 JAVA=1 sh scripts/bench.sh`, which measures the seven programs, the 100 startups,
+the executable size and the peak RSS, best of five on the machine above.
 
 The size row measures a hello world, and its number is the one that will change when the
 pruning is in the compiler: what the script measures is what the compiler produced from the
