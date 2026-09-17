@@ -728,6 +728,21 @@ Three files in the test repository decide what counts as passing today (see `REA
 - `<part>/<case>.skip`: the platforms a case cannot run on (`windows`, `darwin/arm64`, or
   `!linux` for the one platform it can), with the reason after `#`.
 
+The make targets wrap these up (`make` on its own is `make build`):
+
+| target | what it does |
+|---|---|
+| `make check` | what to run before a commit: `lint` (`go vet` plus a `gofmt` diff check), `notices` (the third-party notices agree with the tree) and `test` |
+| `make ci` | everything a CI job would run, run here by hand instead: `lint`, the whole suite built once with clang and once with gcc, and the JDK differential when `TEYRU_JDK` is set. With only one C compiler installed, the gcc half says out loud that it did not run |
+| `make jdk-diff` | compile and run every translatable program in `tests/programs/` with JDK 21 and compare stdout and exit status; `TEYRU_JDK` must point at a JDK 21 home |
+| `make progen` | the random-program differential: `internal/tools/progen` generates 200 programs from fixed seeds and builds each spelling and diffs them |
+| `make notices` | check `THIRD-PARTY-NOTICES.md` against the tree (see [docs/legal.md](/en/docs/legal)) |
+| `make bench` / `make examples` | the performance comparison, and the examples |
+
+The runtime has two diagnostic switches for this work: `TEYRU_GC_STRESS=N` forces a
+collection every Nth allocation, and `TEYRU_GCTRACE=1` prints one line per collection —
+what asked for it, how long the pause was, and the heap size before and after.
+
 Please read [AGENTS.md](https://github.com/teyru-lang/Teyru/blob/main/AGENTS.md) before contributing.
 
 ---

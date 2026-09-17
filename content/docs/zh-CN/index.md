@@ -663,6 +663,20 @@ sh scripts/bench.sh       # 与 JVM 对照的性能测试（需要 java 才会�
 - `<part>/<案例>.skip`：这个案例不能在哪些平台上跑（`windows`、`darwin/arm64`，或
   `!linux` 表示只有那个平台能跑），`#` 之后写原因。
 
+仓库里的 make target 把这些包起来（`make` 本身等于 `make build`）：
+
+| target | 做什么 |
+|---|---|
+| `make check` | 提交前要跑的：`lint`（`go vet` ＋ `gofmt` 差异检查）＋ `notices`（第三方声明与树一致）＋ `test` |
+| `make ci` | 一次 CI job 会跑的东西，在这里由人跑：`lint`、整套测试分别用 clang 与 gcc 各构建一次，`TEYRU_JDK` 有设就再加上 JDK 差分。只装了一个 C 编译器时，gcc 那一半会明说它没跑 |
+| `make jdk-diff` | 把 `tests/programs/` 里能翻译的程序用 JDK 21 编译执行，比对 stdout 与结束状态；需要 `TEYRU_JDK` 指向 JDK 21 的家目录 |
+| `make progen` | 随机程序差分：`internal/tools/progen` 依固定种子生成 200 个程序，两种写法各编译一次再比对 |
+| `make notices` | 核对 `THIRD-PARTY-NOTICES.md` 与树一致（见 [docs/legal.md](/zh-CN/docs/legal)） |
+| `make bench`／`make examples` | 性能对照与示例 |
+
+运行时有两个诊断开关给这些工作用：`TEYRU_GC_STRESS=N` 让**每 N 次分配**强制收集一次，
+`TEYRU_GCTRACE=1` 每次收集打印一行——什么触发的、停顿多久、收集前后的堆大小。
+
 贡献前请读 [AGENTS.md](https://github.com/teyru-lang/Teyru/blob/main/AGENTS.md)。
 
 ---
