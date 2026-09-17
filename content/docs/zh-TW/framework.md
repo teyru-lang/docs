@@ -175,6 +175,10 @@ OpenSSL。伺服器與客戶端在同一個程式裡往返的測試是
 `tests/programs/t163_https_roundtrip.teyru`，一次 TLS 連線上的兩個請求與交握逾時是
 `t191_tls_keepalive.teyru` 與 `t192_tls_handshake_timeout.teyru`。
 
+**處理函式自己壞掉不會帶走伺服器。** 遞迴過深（見 [docs/index.md](/docs) 的〈執行期
+模型〉）在處理函式裡是該請求得到 500，伺服器繼續服務下一個請求，服務執行緒還活著——
+`tests/programs/t241_http_stack_overflow.teyru`。
+
 ### 並發模型
 
 伺服器有一條執行緒負責 accept，另一串執行緒負責回答。`accept()` 只屬於接收執行緒，別的

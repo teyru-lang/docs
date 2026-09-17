@@ -502,6 +502,17 @@ See [`docs/native.md`](/en/docs/native).
   (exactly like Java).
 - **Exceptions** use a handler chain built on `setjmp`/`longjmp`; `finally` is implemented
   with a nested handler so it runs on every path, including a throw from inside a catch.
+- **Stack overflow**: every generated function compares its own frame address against the
+  thread's `ty_stack_limit` (the stack bottom plus a **256 KB** margin) and throws the
+  `StackOverflowError` **preallocated for that thread** when it is below it, so the throw
+  path allocates nothing and recurses no further. It is catchable exactly as in Java
+  (`catch (Error)` and `catch (VirtualMachineError)` both reach it, and the message is
+  `null`), and the thread and the process carry on; uncaught, it prints
+  `Exception in thread "main" teyru.StackOverflowError` and exits 1. When native code
+  really does run the stack out, the SIGSEGV handler on its `sigaltstack` prints
+  `stack overflow in native code` and calls `abort()` — it does **not** `longjmp` out of a
+  signal handler. The tests are `t214` (caught, by parent class, as an `Error`, and on
+  another thread), `t215` and `t216`; a deep recursion inside a web handler is `t241`.
 - **GC** is conservative mark-and-sweep. Roots are the native stack (scanned
   conservatively), a registry of static field addresses, and registers spilled by
   `setjmp`. Objects never move, so C-level temporaries stay valid across a collection.

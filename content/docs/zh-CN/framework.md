@@ -174,6 +174,10 @@ enum 参数与返回值、`defaultValue`。
 `tests/programs/t163_https_roundtrip.teyru`，一次 TLS 连接上的两个请求与握手超时是
 `t191_tls_keepalive.teyru` 与 `t192_tls_handshake_timeout.teyru`。
 
+**处理函数自己坏掉不会带走服务器。** 递归过深（见 [docs/index.md](/zh-CN/docs) 的〈运行时
+模型〉）在处理函数里是该请求得到 500，服务器继续服务下一个请求，服务线程还活着——
+`tests/programs/t241_http_stack_overflow.teyru`。
+
 ### 并发模型
 
 服务器有一条线程负责 accept，另一串线程负责回应。`accept()` 只属于接收线程，别的都

@@ -196,6 +196,11 @@ client round tripping inside one program is `tests/programs/t163_https_roundtrip
 requests on one TLS connection, and the handshake timeout, are `t191_tls_keepalive.teyru` and
 `t192_tls_handshake_timeout.teyru`.
 
+**A handler that breaks itself does not take the server down.** A recursion that runs too
+deep (see "Runtime model" in [docs/index.md](/en/docs)) gives that request a 500, the server
+goes on serving the next one, and the serving thread is still alive —
+`tests/programs/t241_http_stack_overflow.teyru`.
+
 ### Concurrency
 
 A server has one thread that accepts and a pool that answers. `accept()` belongs to the

@@ -468,6 +468,15 @@ teyru build --native impl.c program.teyru            # 一起編譯
 - **泛型**：編譯期抹除，執行期沒有泛型資訊（與 Java 相同）。
 - **例外**：以 `setjmp`／`longjmp` 實作的 handler 鏈；`finally` 以巢狀 handler
   保證在任何路徑（含 catch 內再拋出）都執行。
+- **堆疊溢位**：每個產生的函式開頭拿自己的框架位址跟執行緒的 `ty_stack_limit` 比一次
+  （堆疊底端加 **256 KB** 餘裕），低於就丟出該執行緒**預先配置**的 `StackOverflowError`
+  ——所以丟出的路徑不再配置、不再深遞迴。它與 Java 一樣可以被攔截（`catch (Error)`
+  與 `catch (VirtualMachineError)` 都接得到，訊息是 `null`），執行緒與行程繼續跑；
+  未攔截時印出 `Exception in thread "main" teyru.StackOverflowError` 並以狀態 1 結束。
+  原生程式碼真的把堆疊寫壞時，`sigaltstack` 上的 SIGSEGV 處理器印出
+  `stack overflow in native code` 後 `abort()`——**不從訊號處理器 longjmp**。測試是
+  `t214`（捕獲、父類別、`Error`、另一條執行緒）、`t215`、`t216`；web 處理函式裡的深
+  遞迴是 `t241`。
 - **GC**：保守式標記清除。根包含原生堆疊（保守掃描）、靜態欄位註冊表與暫存器
   （`setjmp` 溢出）。物件不搬移，所以 C 端的暫存指標永遠有效。收集前會先停住每一條
   執行緒，再掃各自的堆疊（停止是世界性的，且是**合作式**的，見
