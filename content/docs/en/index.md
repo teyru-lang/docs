@@ -68,17 +68,25 @@ and leaving -- so that output is the method of record and is not restated here.
 | `bench_string` | 0.0144 s | 0.0549 s | 0.26x |
 | `bench_string_cjk` | 0.0165 s | 0.0781 s | sides disagree; a time, not a comparison |
 
+**A note on the method: run the control.** Two rows in this section once read "what the other
+side's compiler did" as our own result or as their cost (one measured a miscompiling build, the
+other counted a JIT-eliminated allocation as Java paying for one), and **running the control** is
+what caught both: with the JIT switched off (`java -Xint -cp <classes> bench_alloc 50000000`), the
+same program takes 1.92 s rather than 0.03 s. So every "N times faster/slower" here has a control:
+change the optimisation level, change the C compiler, or turn the JIT off, and see whether the
+conclusion survives.
+
 **Long scale** (at least a second of work per row; scales are fib 44, loop 1000000 rounds,
 oop 500000 rounds, string 16000000 joins, string_cjk 4000000, alloc 800000000 allocations,
 invoke 200000000 calls):
 
 | Program | Teyru | Java | Teyru/Java | Peak RSS (Teyru) |
 |---|---|---|---|---|
-| `bench_alloc` | 1.3982 s | 0.2042 s | **6.85x the time** | 4,408 kB |
+| `bench_alloc` | 1.3982 s | 0.2042 s | **6.85x the time** (this row measures two things, see below) | 4,408 kB |
 | `bench_fib` | 1.8773 s | 1.7998 s | 1.04x (a tie) | 4,408 kB |
 | `bench_invoke` | 4.0655 s | 1.8586 s | **2.19x** | 9,400 kB |
 | `bench_loop` | 1.1335 s | 1.0068 s | 1.13x | 4,364 kB |
-| `bench_oop` | 1.0016 s | 0.3572 s | **2.80x** | 4,408 kB |
+| `bench_oop` | 1.0016 s | 0.3572 s | **2.80x** (see below) | 4,408 kB |
 | `bench_string` | 0.7496 s | 0.2848 s | **2.63x** | 8,732 kB |
 | `bench_string_cjk` | 0.2338 s | 0.1602 s | sides disagree | 8,844 kB |
 
@@ -96,12 +104,33 @@ Teyru wins nothing.** `fib(44)` is a tie (Java 4% faster) and every other row is
 looks the other way round because a large part of a whole-program time is JVM startup (about
 20 ms against 0.77 ms on this machine) -- that is a difference in startup, not in throughput.
 
-**The `bench_alloc` row needs saying separately.** It used to read "it wins against HotSpot
-because of escape analysis": on the long scale (800M allocations) **Java is 6.8x faster**, and
-even on the short scale Teyru is already 1.19x slower. It is also **not** a measurement of the
-collector -- `TEYRU_GCTRACE=1` prints not one collection during that long run, because escape
-analysis keeps the `Cell` on the stack, so that path neither writes to the heap nor triggers a
-collection, and explaining its factor with "GC" is wrong.
+**The `bench_alloc` row measures two different things, so it carries a note rather than a
+number.** Same program (`examples/bench_alloc.teyru` and `.java` are the same shape line for line),
+fifty million iterations:
+
+| | Time | Per iteration |
+|---|---|---|
+| `java` (JIT) | 0.03 s | 0.6 ns <- **the allocation is gone** |
+| `java -Xint` (JIT off) | 1.92 s | 38 ns <- what Java really pays |
+| `teyru` | 0.09 s | 1.8 ns |
+
+0.6 ns per "allocation" is faster than one memory write, so nothing is being allocated: HotSpot's
+escape analysis scalarised the object away. **With the JIT off the same program at the same scale
+takes Java 1.92 s against Teyru's 0.09 s, so on allocation Teyru is about 20x faster** -- not the
+6.85x slower the table shows. That row compares Teyru really allocating against Java having the
+allocation optimised away, so its 0.15x on the right cannot be read as an allocator verdict.
+
+**To survive both compilers' optimisers the objects have to escape** (into an array, say), which is
+why `bench_invoke`'s 0.46x is trustworthy -- and the `-Xint` column is the honest reference for what
+Java pays per allocation. Separately, `TEYRU_GCTRACE=1` prints not one collection during that long
+run, because escape analysis keeps the `Cell` on the stack: **that row is not a collector
+measurement either.**
+
+**The `bench_oop` row needs one more sentence.** Those objects go into a `Shape[]`, so nothing is
+eliminated and the row is real -- but Java's `shapes[i].area()` is a two-type call site and the JIT
+inlines both, so the row measures **Teyru's dispatch against Java's specialised dispatch**. That is
+exactly the gap W14's item 2 exists to close (a monomorphic inline cache or a cached itab); it should
+not read as "Java's interface calls are inherently twice as fast".
 
 **An old peak-RSS number may be broken.** The harness used to run the program as
 `/usr/bin/time -v timeout LIMIT prog`, measuring the outer `timeout`, which floors every reading
@@ -189,7 +218,8 @@ method that creates them. An object stored into a field, an array, a return valu
 another object still goes to the heap and the mark-and-sweep collector, and HotSpot's
 generational assumption makes long-lived, repeatedly-collected objects its home ground.
 That is not a prediction: the long table above is that workload, and Teyru wins none of
-its six rows -- **everything a compiler can decide at compile time Teyru already decides;
+its six rows (`bench_alloc` set aside -- see above, that row measures two things) -- **everything a
+compiler can decide at compile time Teyru already decides;
 the gap that is left lives in the runtime's allocator and collector**. The short group's
 advantage is startup, not throughput. Every number is reproducible with
 `RUNS=5 JAVA=1 sh scripts/bench.sh`, which measures the seven programs, the 100 startups,

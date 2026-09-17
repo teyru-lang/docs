@@ -288,7 +288,10 @@ copy them; it gives the direction:
 - **Speed.** 0.4.0 is the correctness release: phase 5 of the plan (W13 compile speed, W14 runtime
   performance) is not in it, and W14 is marked optional in the plan itself. The regressions that were
   measured are written down above (`bench_fib`'s long run, 32%), and W10's long table is the evidence
-  for that position: Teyru wins none of its six rows. The exceptions are startup, executable size and
+  for that position: Teyru wins none of its six rows -- with `bench_alloc` set aside, because that row
+  measures Teyru really allocating against Java having the allocation optimised away, and with the JIT
+  off the same program is about 20x faster here (see [docs/index.md](/en/docs)). The exceptions are
+  startup, executable size and
   peak RSS -- those are measured, and they are what this release really wins on.
 - **A precise or generational collector.** The owner's order is "fix these, cut 0.4, and then move
   the server's runtime to a precise or generational collector", so that belongs to whatever comes
