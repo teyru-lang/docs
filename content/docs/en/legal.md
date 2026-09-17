@@ -130,20 +130,30 @@ it is dynamically linked, so the runtime files contain none of its code.
 
 ## 5. Unicode data and the generated tables
 
-`Character`'s character classification and case mappings need Unicode's data, and that data is
-**not in the repository yet** (until it is, classification and case mapping are ASCII-only, see §12 item 12 of the
-language reference). What will land is Unicode 15.0's data files
-(`UnicodeData.txt`, `SpecialCasing.txt`, `CaseFolding.txt`, `PropList.txt` and the other files of the same distribution)
-together with the two-level lookup tables generated from them. They are distributed under the
-**Unicode License v3** (UNICODE LICENSE V3, Copyright © 1991-2024 Unicode, Inc., terms at
-[https://www.unicode.org/license.txt](https://www.unicode.org/license.txt)), with the copyright notice retained
-alongside the files.
+`Character`'s classification and case mappings need Unicode's data, and that data is **in the
+repository now**: `internal/tools/genunicode/data/` holds Unicode 15.0's three standard files --
+`UnicodeData.txt` (categories, simple case mappings, numeric values), `SpecialCasing.txt` (the
+one-to-many full case mappings) and `PropList.txt` (`White_Space`, `Other_Uppercase`/
+`Other_Lowercase`/`Other_Alphabetic`, `Ideographic`) -- together with the two-level tables generated
+from them and committed alongside, `internal/runtime/src/tyrt_unicode.c`. The generator is
+`internal/tools/genunicode`, `make unicode-tables` re-runs it, and
+`go test ./internal/tools/genunicode` keeps the committed files and the data in agreement
+(re-running changes nothing). The `CaseFolding.txt` and `DerivedCoreProperties.txt` of the same
+distribution are **not** committed: this runtime needs no case folding and none of the properties
+derived through `DerivedCoreProperties`.
 
-The version is pinned to 15.0 to match the reference implementation: JDK 21 uses Unicode 15.0, so
-`Character.isLetter` and the case mappings answer as it does. `scripts/check-notices.sh` in the compiler
-repository requires the notices to name any data file that has landed.
+Those files are distributed under the **Unicode License v3** (UNICODE LICENSE V3, Copyright ©
+1991-2024 Unicode, Inc., terms at
+[https://www.unicode.org/license.txt](https://www.unicode.org/license.txt)), with the copyright
+notice retained alongside them. The version is pinned to 15.0 to match the reference implementation:
+JDK 21 uses Unicode 15.0, so `Character.isLetter` and the case mappings take their answers from it
+(`Character.isWhitespace` and `Character.digit` are not properties of any file -- they are the JDK's
+own answers, written down in the generator and checked code point by code point against the JDK by
+`tests/programs/t251_unicode_tables`).
 
----
+The compiler repository's `scripts/check-notices.sh` requires the notices to name these files once
+they are in the tree (it looks for the four names one by one).
+
 
 ## 6. Editor tooling ([`teyru-lang/editors`](https://github.com/teyru-lang/editors))
 

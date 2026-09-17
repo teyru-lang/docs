@@ -7,8 +7,13 @@ description: "Teyru 的版本：0.4.0 是正確性版本——改了什麼、量
 找出來的一批問題（計畫的 W1–W12），不是速度——速度是下一個階段的事。
 
 這一頁在 0.4.0 發佈前寫成，所以每一項都標了狀態：**已合入 main** 的項目就是讀者現在裝得到
-的行為；**部分進行中**、**尚未合入 main** 與**尚未開始**的項目各自附上 PR 或工作項，合入之後
-才改標記。發佈時整頁不該再有前三種以外的狀態。
+的行為；其餘的附上 PR 或工作項。**還沒收尾的只有 §3 與 §5 明列的那幾項。**
+
+**這一版的關卡第一次真的跑起來。** `.github/workflows/release.yml` 是這個倉庫**唯一**的
+工作流程，只在有 release 發佈時跑，而 0.4.0 是**第一次**有 release 讓它跑：它在 tag 上
+建置、跑整套測試、把執行檔附上 release，並依序呼叫六個檢查——`make build`、`make ci`、
+`make java-compat`、`make jdk-diff`、`make backend-matrix`、`make notices`。這一頁引用的
+數字就是那些指令在同一個 tag 上的輸出，每一列都註明它是怎麼量的。
 
 ---
 
@@ -63,33 +68,56 @@ description: "Teyru 的版本：0.4.0 是正確性版本——改了什麼、量
 在伺服器裡，處理函式的深遞迴是那一個請求得到 500，伺服器繼續服務下一個。代價是量到的：
 每個函式多一次檢查，`bench_fib` 長跑因此回退約 32%（owner 已裁決接受）。
 
-### 字串與 Unicode（W5，**尚未合入 main**）
+### 字串與 Unicode（W5，**已合入 main**）
 
-這一項**不在** 0.4.0 目前的主線上：第一部分的 PR 還是 draft，其餘部分還在後面。目標是讓
-字串的儲存與索引語意對齊 Java——`length`／`charAt`／`substring`／`indexOf`／`compareTo`／
-`hashCode` 以 UTF-16 code unit 計算（`"中文".length()` 是 2），`Character` 的分類與大小寫
-映射改用 Unicode 15.0 的資料與完整大小寫映射（`ß` → `SS`、希臘語詞尾 sigma），`strip` 認得
-全角空白，邊界上的非法 UTF-8 以 U+FFFD 取代、沒有夥伴的代理以 `?` 編出。內部儲存是
-WTF-8 加麵包屑（`tystr` 仍是 24 位元組），「改用 JDK 式 compact strings」那個備案還需要
-基準數據才能比較，所以這一版不下結論。
+**字串的索引語意現在是 Java 的。** `length`／`charAt`／`substring`／`indexOf`／`compareTo`／
+`hashCode`、`codePoint` 家族、`toCharArray`／`getChars`／`chars`／`codePoints`，以及
+`char[]` 與 `int[]` 建構子，全部以 **UTF-16 code unit** 計算；儲存仍是 WTF-8（ASCII 走快速
+路徑、麵包屑表首次用到才建，非法位元組以 U+FFFD 取代、沒有夥伴的代理以 `?` 編出）。
+讀者最常踩到的三件事：`substring` **可以切開一對代理**（那是 Java 的語意，不是缺陷）、
+`hashCode` 是 JDK 的，所以 `HashMap<String, …>` 走的是 JDK 的順序。計畫裡「改用 JDK 式
+compact strings」那個備案**由量測結案**：與位元組索引的版本相比 `bench_string` 0.994×、
+`bench_string_cjk` 0.949×，都在 10% 預算內，所以不換。
 
-在它合入之前，**今天的**行為與 JDK 的差別（含實測數字）寫在
-[docs/language.md](/docs/language) §12 第 12 條，缺的 API 在 §13；位元組邊界的測試
-（`t196_string_bytes`）在測試倉庫裡。
+**`Character` 與大小寫映射改用 Unicode 15.0**，資料是入庫的產生查表（產生器
+`internal/tools/genunicode`，`make unicode-tables` 重跑；重跑不會改動任何檔案）：
+`isLetter`／`isDigit`／`isAlphabetic`／`isWhitespace`／`isSpaceChar`／`getType`／`digit`／
+`getNumericValue`／代理判斷／`toCodePoint`／`charCount`；完整大小寫映射（`ß` → `SS`、
+希臘語詞尾 sigma）；`strip`／`isBlank` 走 `Character.isWhitespace`，所以 **U+3000 會被去掉**，
+而 `trim` 仍然只認 ≤ U+0020；`parseInt`／`parseLong` 收全角與其他 Nd 數字
+（`Integer.parseInt("１２３")` 是 `123`）。`StringBuilder`／`StringBuffer` 與 Java 一致，
+包括 `delete(start,end)` 的夾取與 `replace` 的 `NullPointerException`。
 
-### 裝箱、容器順序與例外名稱（W6，尚未合入 main）
+**兩件要說出來而不是埋起來的事。** 詞尾 sigma 的「詞」判定是這個執行期自己的：對 JDK 量過
+8,000 個產生的字串與每個測到的形狀都一致，AGENTS.md §10 記下那**一個**已知不同的形狀。
+locale 相關的映射（`tr`、`az`、`lt`）**沒有實作**。
+
+**這一項留下了兩條與 JDK 的差異**（都是刻意的，寫在
+[docs/language.md](/docs/language) §12）：regex 引擎逐 **code unit** 比對，所以
+`"😀a".matches(".a")` 在這裡是 `false`（JDK 的 `.` 吃一個 code point，是 `true`）；
+`String.offsetByCodePoints` 走出兩端時丟 `StringIndexOutOfBoundsException`（JDK 丟
+`IndexOutOfBoundsException`；前者是後者的子類別，所以 `catch (IndexOutOfBoundsException)`
+仍然攔得到）。
+
+**我怎麼驗的。** 在 `adf58e7`（`tests` 指標 `10ef6b2`）上，同一支程式寫兩次——`.teyru` 與
+Java——用 OpenJDK 21 跑再逐行比對：寫的那一半 **32 項逐位元組相同**；讀的那一半 41 項裡
+**39 項相同**，其餘兩項就是上面那兩條已聲明的差異（`ß`→`SS`、詞尾 sigma、`strip` 的
+U+3000、全角 `parseInt` 的接受與拒絕都在 39 項裡面）。語料
+`sh tests/run.sh java-compat` 是 **45 過、0 失敗**（我自己跑的，兩次）。
+
+### 裝箱、容器順序與例外名稱（W6，**已合入 main**）
 
 - **裝箱快取**（已合入）：`Integer`／`Short`／`Byte`／`Long` 快取 −128..127、`Character`
   快取 0..127、`Boolean` 只有兩個實例，所以 `Integer.valueOf(127) == Integer.valueOf(127)`
   與 Java 一樣是 `true`；跨過一次呼叫也不會壞（`t242_box_identity_across_call`，期望值由
   javac 產生）。
 - **越界訊息**（已合入）：`Index 5 out of bounds for length 3`（大寫 `I`，JDK 的句子）。
-- **容器順序**（`w6boxing`）：`HashMap`／`HashSet` 的迭代順序照 JDK 21 的版面（決策 D7）。
+- **容器順序**（已合入）：`HashMap`／`HashSet` 的迭代順序照 JDK 21 的版面（決策 D7）。
   實測程式是測試倉庫的 `t250_map_order`，期望值由 JDK 跑 `t250_map_order.java.ref` 產生：
   五個字串鍵（依序放入 `banana`、`apple`、`cherry`、`date`、`elderberry`）迭代出
   `banana, date, apple, cherry, elderberry`，與 JDK 逐字相同；同一桶保持插入序、第 13 個鍵
   擴容到 32 桶、複製建構子與 `putAll` 的事先定量、負載因子 0.6 的門檻加倍（9 → 18）各有一行。
-- **例外名稱與訊息**（`w6boxing`）：`Class.getName()` 報告 JDK 的全限定名（決策 D8），
+- **例外名稱與訊息**（已合入）：`Class.getName()` 報告 JDK 的全限定名（決策 D8），
   未捕捉的例外因此印 `Exception in thread "main" java.lang.IllegalStateException: boom`，
   與 JDK 相同（`t251_exception_names`、`t79_uncaught`）；`System.arraycopy` 的型別不符訊息
   也是 JDK 的 `arraycopy: type mismatch: can not copy long[] into byte[]`（`t65_arraycopy`）。
@@ -124,29 +152,29 @@ main 上的行為我自己重跑過：`.teyru` 的敘述寫了分號也編得過
 [docs/language.md](/docs/language) §12（語法層）與 §13（缺的 API 與被誤拒的寫法），
 而它們不是空的。
 
-### 兩個後端的語意一致性（W8，**矩陣已合入 main，語意統整還沒開始**）
+### 兩個後端的語意一致性（W8，**已合入 main**）
 
-**矩陣先落地了（#122）**：`scripts/backend-matrix.sh` 與 `make backend-matrix` 把 `tests/programs`
+**矩陣先落地（`#122`）**：`scripts/backend-matrix.sh` 與 `make backend-matrix` 把 `tests/programs`
 的每一支程式在**六個格子**裡建置並執行——{C＋clang、C＋gcc、LLVM} × {`-O0`、`-O2`}——每一格與
 `.expected`／`.exit`／`.experr` 比，格子之間再互相比；被驅動具名拒絕的建置（例如 LLVM 的
 `TY-INT-0100`）算「拒絕」而不是「編錯」。發佈的工作流程會呼叫它，與 `make ci`／`make jdk-diff`／
 `make notices` 並列。允許的跨格差異寫在 `scripts/backend-matrix-allow.txt`：沒有工作項與原因的
-條目不收，而已經不再分歧的條目會讓它失敗。
+條目不收，而已經不再分歧的條目會讓它失敗。矩陣量到的停止點數字（406 格、66 支程式六格齊全）
+留在 §2。
 
-跑了一半的數字（為了 W10 的量測窗口暫停）：**1572 格裡記下 406 格、66 支程式六格齊全**；clang
-那兩格 68/68 與 67/67 都符合套件，LLVM 44/44 符合而每格有 25 支被具名拒絕，gcc 那兩格 61/66 與
-62/67。這些是**停止點**的數字，不是總數。
+**它找到的兩個真實缺陷，兩個都修好了（`#129`、`#131`）。**
 
-矩陣已經找到兩個真實缺陷，都在 W8 點名的家族裡：**裝箱目標的複合指定兩個後端都不降階**
-（C 後端把運算子交給包裝參考：不合法的 C 或段錯誤；LLVM 後端對位元運算產生 `and ptr` 這種不合法
-的 IR，而 `1L <<= 33` 得到 2，JDK 是 8589934592——紅先測是 `t246`／`t247`／`t248`，列為 W8 的已知
-失敗）；以及 **`a + b + c` 的求值順序**：C 後端把它摺成同一個 C 運算式，而 C 沒有指定順序，所以
-gcc 由右而左、clang 由左而右，`f(1)+f(2)+f(3)` 在 javac 21 與 clang 是 `1(1)2(2)3(3)`、在 gcc 是
-`1(3)2(2)3(1)`，五支既有程式看得到——它還不能寫成 `tests/programs` 的案例，因為
-`known-failures.txt` 表達不了「只在 gcc 下失敗」。
+- **裝箱目標的複合指定**：兩個後端現在共用同一個降階（JLS 15.26.2 的拆箱→運算→裝箱），所以
+  `1L <<= 33` 是 `8589934592`（JDK 的答案），紅先測的 `t246`／`t247`／`t248` 現在通過——那三條
+  `known-failures.txt` 條目已經刪掉，這是它要求刪的。
+- **`a + b + c` 的求值順序**：C 後端不再把運算式摺成單一 C 運算式，所以 gcc 與 clang 都印
+  `1(1)2(2)3(3)=6`，與 javac 21 相同（我兩個 `--cc` 各建一次驗的）。
 
-語意統整本身（把數值提升、複合賦值、移位、串接、裝箱與檢查的規則下沉成共享的降階）**還沒
-開始**。
+**一件仍然不宣稱的事實說出來**：Java 的 `HashMap` 在表長到 64 格之後，同一個桶超過 8 個元素時
+會把它樹化，而樹化後的次序由 `System.identityHashCode` 決勝——那個值原則上不可重現。所以那個
+形狀的迭代順序我們**不宣稱**與 JDK 相同。**64 格以下不會樹化**，所以任何更小的表在任何鍵集合上
+都走 Java 的順序（我對照 JDK 驗過：六個字串鍵，以及 20 個只有 `hashCode` 的自訂鍵型別）。
+
 ### TLS 可達性與平台（W9，已合入 main）
 
 TLS 現在由**程式的呼叫圖**決定要不要連結，不再因為反射表而自動可達：一個不呼叫 `ssl()` 的
@@ -191,7 +219,9 @@ GraalVM 的 `native-image` 對照**未測**（這台機器上沒有 GraalVM）�
 | Windows 目標 | 195 支裡 179 支逐位元組相同（Wine 下跑） | 同上 |
 | macOS 兩列 | **只到「編譯並連結」**：257 支裡 240 支建得起來、9 支因 TLS 被具名拒絕、8 支那個版本的編譯器還不接受；產物是 Mach-O，**沒有任何一行被執行過** | `teyru build --cc <zig 包裝>`（`zig cc -target aarch64-macos`），見平台表 |
 | 遞迴過深的代價 | `bench_fib` 長跑回退約 32% | `scripts/bench.sh` 長跑前後，owner 已裁決接受 |
-| W7 的語料 | **45 支全過、0 失敗**（`tests/java-compat`；Teyru main `0e8e592` → `tests` `af41a7d`） | 在 Teyru main 的那個內容上跑 `sh tests/run.sh java-compat`（我自己跑過兩次；`make java-compat` 是同一件事） |
+| W7 的語料 | **45 支全過、0 失敗**（`tests/java-compat`；Teyru main `adf58e7` → `tests` `10ef6b2`） | `sh tests/run.sh java-compat`，在 main 上的那個內容跑（我自己跑的；`make java-compat` 是同一件事） |
+| 字串與 Unicode（W5）的 JDK 差分 | 寫的一半 **32/32 逐位元組相同**；讀的一半 **39/41**，其餘兩項是已聲明的差異 | 同一支程式寫兩次（`.teyru` 與 Java），`/opt/jdk21/jdk-21.0.11+10` 跑 Java 那一半再逐行 diff；於 `adf58e7` 上跑 |
+| W8 的兩個缺陷 | 裝箱複合指定 `1L <<= 33` → `8589934592`；`f(1)+f(2)+f(3)` 在 clang 與 gcc 都印 `1(1)2(2)3(3)=6` | `t246`–`t248`（已從 `known-failures.txt` 拿掉）與一支 `--cc` 各建一次的程式；與 javac 21 比對 |
 | 整套測試（main） | **324 過、1 失敗、10 已知失敗、0 跳過**（同一個內容；唯一的失敗是 `native/net_c_test` 的連結失敗，10 條已知失敗與 `known-failures.txt` 完全一致） | `sh tests/run.sh`；log 與名單見 PR [#128](https://github.com/teyru-lang/Teyru/pull/128) 的留言（這一列不是我自己跑的，語料那 45 支才是） |
 
 （macOS 那一列是 W9 之後重量的（2026-09-17，`tests` @ `e4268a6`，編譯器 `5ac017b`）；
@@ -207,7 +237,9 @@ GraalVM 的 `native-image` 對照**未測**（這台機器上沒有 GraalVM）�
 - checked exception 沒有編譯期檢查；
 - `sealed` 的 `permits` 子句沒有被驗證（switch 窮盡性因此要求 `default`）；
 - 反射沒有泛型型別參數，所有的陣列共用一個類別；
-- 與 Java 生態互通（JAR、JDK 類別庫、JNI）沒有，這是刻意的取捨。
+- 與 Java 生態互通（JAR、JDK 類別庫、JNI）沒有，這是刻意的取捨；
+- `Character.toChars` 還沒有（`Character.toString` 有，`lib/04_boxing.teyru` 用它）；
+- locale 相關的大小寫映射（`tr`、`az`、`lt`）沒有實作，`String.toUpperCase()` 一律走 root locale 的規則。
 
 ## 4. 這一版不宣稱什麼
 
@@ -219,6 +251,9 @@ GraalVM 的 `native-image` 對照**未測**（這台機器上沒有 GraalVM）�
   精確或分代的收集器」，所以那是下一個版本的事；0.4 的收集器仍然是保守式標記清除。
 - **macOS 可以跑**。那兩列只到「編譯並連結」：沒有任何 Mach-O 執行檔被執行過（這裡沒有
   一台 macOS），而「編譯成功」不等於「跑得起來」。
+- **`HashMap` 在那個形狀上的迭代順序**。表長到 64 格以後、同一個桶超過 8 個元素時 Java 會
+  樹化，而樹化後的次序由 `System.identityHashCode` 決勝——那個值原則上不可重現，所以那個
+  形狀我們不宣稱與 JDK 相同（64 格以下不會樹化，見 W8 那一節）。
 - **「Java 原始碼不改就能編」當成一句沒有範圍的話**。W7 已合入 main，未修改的 Java 在**測過的
   子集**上編得過（見上），但語料還沒進 main 的 submodule 指標，而 §12／§13 的差別也還在——
   所以這一版宣稱的是那個子集，不是那句話。

@@ -837,43 +837,38 @@ When you need your own native library, a `native` method can be implemented in C
     Java blocks through capture (`add` on a `? extends` container) are not blocked here; reads
     are no different (`list.get(0).doubleValue()` is accepted by javac too, so it is not
     capture conversion that holds it back).
-12. **Strings are sequences of UTF-8 bytes, not Java's UTF-16 code units, and character
-    classification and case mapping are ASCII-only.** `length`, `charAt`, `substring`,
-    `indexOf`, `compareTo` and `hashCode` all count bytes, so the same expression answers
-    differently here and on JDK 21. Measured (`teyru build`, then run; JDK 21 alongside):
+12. **Strings are sequences of UTF-16 code units, as in Java; the storage is WTF-8.**
+    `length`, `charAt`, `substring`, `indexOf`, `compareTo`, `hashCode`, the `codePoint` family,
+    `toCharArray`/`getChars`/`chars`/`codePoints` and the `char[]`/`int[]` constructors all count code
+    units, and `Character`'s classification and case mappings use the Unicode 15.0 data. Measured (one
+    program written twice, the Java half run by JDK 21; 39 of the 41 reading facts are identical
+    character for character, and all 32 writing facts are):
 
     | Expression | Teyru | JDK 21 |
     |---|---|---|
-    | `"中文".length()` | `6` | `2` |
-    | `(int) "中文".charAt(1)` | `184` | `25991` |
-    | `"😀".length()` | `4` | `2` |
-    | `"ab中c".indexOf("c")` | `5` | `3` |
-    | `"中".compareTo("文")` | `-1` | `-5978` |
-    | `"中文".hashCode()` | `-1887180642` | `646394` |
-    | `Character.isLetter('中')` | `false` | `true` |
-    | `Character.isWhitespace('\u3000')` | `false` | `true` |
-    | `Character.isDigit('１')` / `Character.digit('１', 10)` | `false` / `-1` | `true` / `1` |
-    | `"ß".toUpperCase()` | `ß` | `SS` |
-    | `"ΟΔΟΣ".toLowerCase()` | `ΟΔΟΣ` | `οδος` |
+    | `"中文".length()` | `2` | `2` |
+    | `(int) "中文".charAt(1)` | `25991` | `25991` |
+    | `"😀".length()` | `2` | `2` |
+    | `"中文abc".indexOf("a")` | `2` | `2` |
+    | `"中文".hashCode()` | `646394` | `646394` |
+    | `"ß".toUpperCase()` | `SS` | `SS` |
+    | `"ΟΔΟΣ".toLowerCase()` | `οδος` | `οδος` |
+    | `Character.isLetter('中')` / `isWhitespace('\u3000')` / `isDigit('１')` | `true` / `true` / `true` | same |
 
-    The APIs that split a string by code unit (`codePointAt`, `codePointCount`,
-    `offsetByCodePoints`) and `Character.getType`/`isSurrogate`/`toCodePoint`/`charCount` do
-    not exist, see §13.
-13. **A `char` literal is one UTF-16 code unit, and here we are stricter than javac.** `'😀'`
-    is two code units, so this is `TY-SYN-0008` (`tests/diagnostics/emojiCharLiteral`), while
-    **JDK 21 accepts it** and takes the surrogate pair's first code unit (it prints `55357`).
-    Whether the two should agree is undecided; until it is, read it as "we refuse, javac
-    accepts" rather than "the two agree".
-14. **An exception's class name and message (W6, decision D8: report the JDK's
-    fully-qualified names)**: `Class.getName()` reports the JDK's class, so an uncaught
-    exception prints `java.lang.NumberFormatException`, `java.lang.StackOverflowError`
-    (`t251_exception_names`, its expectation produced by the JDK), and the same holds for
-    `Throwable.toString()` and for every class name that appears in a message.
-    `Class.forName` still takes either spelling (`java.lang.String` and `teyru.String` are
-    the same class, because a class is looked up by its binary name). The messages are
-    aligned with the JDK one by one; the three that are not -- a cast's module/loader
-    parenthetical, the helpful NullPointerException message, and `ArrayStoreException`'s
-    element class -- are listed in the test repository's `known-failures.txt`.
+    **Two things still differ** (deliberately, not as pending work):
+
+    - the regex engine matches per **code unit**: `"😀a".matches(".a")` is `false` here and `true` in
+      the JDK (Java's `.` consumes a code point), and the offsets `Matcher` reports are code unit
+      indexes;
+    - `String.offsetByCodePoints` past either end throws `StringIndexOutOfBoundsException` where the
+      JDK throws `IndexOutOfBoundsException` (a subclass, so `catch (IndexOutOfBoundsException)`
+      still catches it).
+
+    **The storage is WTF-8 with a breadcrumb table** (an ASCII fast path, breadcrumbs built on first
+    use), so `String.length()` and `getBytes().length` part company above U+007F (`"中文"` is `2` and
+    `6`); an unpaired surrogate is a string this language holds, and `getBytes`/`println` encode it as
+    one `?` (the JDK's encoder does the same). The locale-sensitive case mappings (`tr`, `az`, `lt`)
+    are not implemented; see §13.
 
 ## 13. Not yet implemented
 
@@ -916,13 +911,12 @@ When you need your own native library, a `native` method can be implemented in C
 - An array's runtime element type is always `teyru.Array`, so `String[].class` and
   `int[].class` are the same object (in Java they are two)
 - **Known gaps in Java source compatibility** (javac accepts, this compiler refuses; all
-  measured): `String.codePointAt`, `codePointCount` and `offsetByCodePoints` do not exist
-  (`TY-TYP-0076`, cannot find method), and neither do `Character.getType`, `isSurrogate`,
-  `toCodePoint` and `charCount`; `new String(char[])` and
-  `new String(char[], int, int)` do not exist (`TY-TYP-0072`, no suitable constructor). W7 closed
-  two older gaps: a method that ends in a `switch` whose every branch (including `default`)
-  returns is no longer misreported as `TY-TYP-0020` (measured: `pick(2)` answers 20), and a
-  semicolon is no longer an error (see §12 item 1).
+  measured): `Character.toChars(int)` and `Character.toChars(int, char[], int)` do not exist
+  (`TY-TYP-0076`). W5 and W7 closed the rest: `String.codePointAt`/`codePointCount`/
+  `offsetByCodePoints`/`getChars`, `Character.getType`/`isSurrogate`/`toCodePoint`/`charCount` and
+  `new String(char[])`/`String(char[],int,int)`/`String(int[],int,int)` all exist, a method ending
+  in a `switch` whose every branch returns is no longer misreported as `TY-TYP-0020` (measured:
+  `pick(2)` answers 20), and a semicolon is no longer an error (see §12 item 1).
 - Standard library gaps: `String.format`'s `%t`/`%T` (date-time conversions) are not
   implemented, and hitting them stops with `ty_unimplemented` rather than printing
   something that looks reasonable; the rest are written where they belong, in §11's package

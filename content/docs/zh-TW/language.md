@@ -754,39 +754,35 @@ SHA-3 是因為 `getInstance` 寧可丟 `NoSuchAlgorithmException`，也不要�
 11. **沒有捕獲轉換**：`List<? extends Number>` 在這裡就是 `List<Number>`。Java 靠捕獲
     擋下的寫入（對 `? extends` 的容器 `add`）這裡擋不住；讀取則沒有差別
     （`list.get(0).doubleValue()` javac 也收，不是捕獲轉換擋的）。
-12. **字串以 UTF-8 位元組為單位，不是 Java 的 UTF-16 code unit；字元分類與大小寫映射
-    只認 ASCII。** `length`、`charAt`、`substring`、`indexOf`、`compareTo`、`hashCode`
-    都按位元組算，所以同樣的運算式在 JDK 21 與這裡答案不同。實測（`teyru build` 後執行；
-    JDK 21 的輸出並列）：
+12. **字串以 UTF-16 code unit 為單位，與 Java 相同；儲存是 WTF-8。** `length`、`charAt`、
+    `substring`、`indexOf`、`compareTo`、`hashCode`、`codePoint` 家族、`toCharArray`／
+    `getChars`／`chars`／`codePoints`，以及 `char[]`／`int[]` 建構子，都按 code unit 算；
+    `Character` 的分類與大小寫映射用 Unicode 15.0 的資料。實測（同一支程式寫兩次，Java 那一半
+    由 JDK 21 跑；讀的 41 項裡 39 項逐字相同，寫的 32 項全部相同）：
 
     | 運算式 | Teyru | JDK 21 |
     |---|---|---|
-    | `"中文".length()` | `6` | `2` |
-    | `(int) "中文".charAt(1)` | `184` | `25991` |
-    | `"😀".length()` | `4` | `2` |
-    | `"ab中c".indexOf("c")` | `5` | `3` |
-    | `"中".compareTo("文")` | `-1` | `-5978` |
-    | `"中文".hashCode()` | `-1887180642` | `646394` |
-    | `Character.isLetter('中')` | `false` | `true` |
-    | `Character.isWhitespace('\u3000')` | `false` | `true` |
-    | `Character.isDigit('１')`／`Character.digit('１', 10)` | `false`／`-1` | `true`／`1` |
-    | `"ß".toUpperCase()` | `ß` | `SS` |
-    | `"ΟΔΟΣ".toLowerCase()` | `ΟΔΟΣ` | `οδος` |
+    | `"中文".length()` | `2` | `2` |
+    | `(int) "中文".charAt(1)` | `25991` | `25991` |
+    | `"😀".length()` | `2` | `2` |
+    | `"中文abc".indexOf("a")` | `2` | `2` |
+    | `"中文".hashCode()` | `646394` | `646394` |
+    | `"ß".toUpperCase()` | `SS` | `SS` |
+    | `"ΟΔΟΣ".toLowerCase()` | `οδος` | `οδος` |
+    | `Character.isLetter('中')`／`isWhitespace('\u3000')`／`isDigit('１')` | `true`／`true`／`true` | 同 |
 
-    按 code unit 拆字串的 API（`codePointAt`／`codePointCount`／`offsetByCodePoints`）與
-    `Character.getType`／`isSurrogate`／`toCodePoint`／`charCount` 不存在，見 §13。
-13. **`char` 字面值只收一個 UTF-16 code unit，這裡比 javac 嚴。** `'😀'` 是兩個 code unit，
-    所以這裡是 `TY-SYN-0008`（`tests/diagnostics/emojiCharLiteral`），而 **JDK 21 收下它**、
-    取代理對的第一個 code unit（印出 `55357`）。兩邊要不要一致還沒定案；在那之前把它讀成
-    「我們拒絕、javac 接受」，而不是「雙方一致」。
-14. **例外的類別名與訊息（W6、決策 D8：報告 JDK 的全限定名）**：`Class.getName()` 報告
-    JDK 的類別，所以未捕捉的例外印 `java.lang.NumberFormatException`、
-    `java.lang.StackOverflowError`（`t251_exception_names`，期望值由 JDK 產生），
-    `Throwable.toString()` 與訊息裡出現的類別名也一樣；`Class.forName` 兩種寫法都收
-    （`java.lang.String` 與 `teyru.String` 是同一類別，因為查的是二元名）。訊息本身逐條
-    對齊 JDK，還沒對齊的三條——cast 的 module／loader 括號、有幫助的
-    NullPointerException 訊息、`ArrayStoreException` 的元素類別——都列在測試倉庫的
-    `known-failures.txt`。
+    **仍然不同的兩項**（刻意的，不是待辦）：
+
+    - regex 引擎逐 **code unit** 比對：`"😀a".matches(".a")` 在這裡是 `false`，JDK 是 `true`
+      （Java 的 `.` 吃一個 code point）；`Matcher` 回報的位移也是 code unit 索引。
+    - `String.offsetByCodePoints` 走出兩端時丟 `StringIndexOutOfBoundsException`，JDK 丟
+      `IndexOutOfBoundsException`（前者是後者的子類別，所以 `catch (IndexOutOfBoundsException)`
+      仍然攔得到）。
+
+    **儲存是 WTF-8 加麵包屑表**（ASCII 走快速路徑，麵包屑首次用到才建），所以
+    `String.length()` 與 `getBytes().length` 在 U+007F 以上會分開（`"中文"` 是 `2` 與 `6`）；
+    沒有夥伴的代理是這個語言存得下的字串，而 `getBytes`／`println` 把它編成一個 `?`
+    （JDK 的編碼器也是這樣）。locale 相關的大小寫映射（`tr`、`az`、`lt`）沒有實作，見 §13。
 
 ## 13. 尚未實作
 
@@ -819,12 +815,12 @@ SHA-3 是因為 `getInstance` 寧可丟 `NoSuchAlgorithmException`，也不要�
   64 桶以下的表不會樹化。`LinkedHashMap` 的插入序與 `TreeMap` 的鍵序照 JDK（見 §11）。
 - 陣列的執行期元素型別一律是 `teyru.Array`，所以 `String[].class` 與
   `int[].class` 是同一個物件（Java 是兩個）
-- **Java 原始碼相容的已知缺口**（`javac` 收、這裡拒絕，都是實測）：`String.codePointAt`／
-  `codePointCount`／`offsetByCodePoints` 不存在（`TY-TYP-0076` 找不到方法），
-  `Character.getType`／`isSurrogate`／`toCodePoint`／`charCount` 同理、
-  `new String(char[])` 與 `new String(char[], int, int)` 不存在（`TY-TYP-0072` 找不到
-  建構子）。W7 收掉了兩條舊缺口：以 `switch` 結尾、每條分支（含 `default`）都 `return` 的
-  方法不再被誤報 `TY-TYP-0020`（實測 `pick(2)` 得到 20），而分號也不再是錯誤（見 §12 第 1 條）。
+- **Java 原始碼相容的已知缺口**（`javac` 收、這裡拒絕，都是實測）：`Character.toChars(int)`
+  與 `Character.toChars(int, char[], int)` 不存在（`TY-TYP-0076`）。W5 與 W7 收掉了其餘的：
+  `String.codePointAt`／`codePointCount`／`offsetByCodePoints`／`getChars`、`Character.getType`／
+  `isSurrogate`／`toCodePoint`／`charCount`、`new String(char[])`／`String(char[],int,int)`／
+  `String(int[],int,int)` 都存在，以 `switch` 結尾而每條分支都 `return` 的方法不再被誤報
+  `TY-TYP-0020`（實測 `pick(2)` 得到 20），分號也不再是錯誤（見 §12 第 1 條）。
 - 標準程式庫缺口：`String.format` 的 `%t`／`%T`（日期時間轉換）未實作，遇到會以
   `ty_unimplemented` 停止而不是印出看起來合理的東西；其餘缺口寫在 §11 的套件表與
   〈並行工具〉（`Scanner` 只讀一個 `String`、`MessageDigest` 沒有 SHA-3 與

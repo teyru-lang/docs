@@ -139,7 +139,7 @@ int32_t f = me->f_factor;
 |---|---|
 | `ty_str_new(const char *bytes, int64_t len)` | 建立字串 |
 | `ty_str_concat(tystr *a, tystr *b)` | 串接 |
-| `ty_str_len(tystr *s)` | **位元組**長度（`blen`）；儲存是 WTF-8、位元組接在標頭後面（`TY_STR_DATA(s)`，沒有第二個指標），見〈語言參考〉§12 第 12 條。**今天 `String.length()` 也是位元組數**，所以兩者回同一個數；W5 的第二部分會把 `String.length()` 改成 UTF-16 code unit 數（標頭的 `ulen`），那之後這個欄位才是逐位元組的程式碼在用的那一個 |
+| `ty_str_len(tystr *s)` | **UTF-16 code unit** 數（`ulen`），也就是 `String.length()` 回的那個數；要在原生程式碼裡走位元組時用的是 `ty_str_blen(s)`（`blen`）。儲存是 WTF-8、位元組接在標頭後面（`TY_STR_DATA(s)`，沒有第二個指標），見〈語言參考〉§12 第 12 條。沒有夥伴的代理是三個位元組的形狀，而 `getBytes`／`println` 會把它寫成一個 `?` |
 | `ty_array_new(int64_t len, int64_t elemsize)` | 建立陣列 |
 | `ty_array_len(tyarr *a)` | 陣列長度 |
 | `ty_alloc(size_t)` | 從 GC 堆積配置（會自動被回收） |

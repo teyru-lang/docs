@@ -578,8 +578,9 @@ See [`docs/native.md`](/en/docs/native).
   **WTF-8** bytes **inline after the header** (`TY_STR_DATA`, there is no second pointer): `blen` is
   the byte length and `ulen` the UTF-16 code unit count. A non-ASCII string also grows a breadcrumb
   table after the terminating NUL (one entry per 64 code units, built on first use, so a string that
-  is never indexed pays nothing). `String.length()` still counts **bytes** today (W5's second piece
-  is what turns it into code units); literals are static objects that never enter the heap.
+  is never indexed pays nothing). **`String.length()` counts `ulen`** (UTF-16 code units;
+  `getBytes().length` is `blen`, and the two part company above U+007F); literals are static objects
+  that never enter the heap.
 - **Arrays** are `tyarr { tyobj; len; data; esize; refs }` with the elements stored inline.
 
 ---
@@ -868,6 +869,7 @@ The make targets wrap these up (`make` on its own is `make build`):
 | `make ci` | everything a CI job would run, run here by hand instead: `lint`, the whole suite built once with clang and once with gcc, and the JDK differential when `TEYRU_JDK` is set. With only one C compiler installed, the gcc half says out loud that it did not run |
 | `make jdk-diff` | compile and run every translatable program in `tests/programs/` with JDK 21 and compare stdout and exit status; `TEYRU_JDK` must point at a JDK 21 home |
 | `make java-compat` | compile and run every **unmodified Java** program in `tests/java-compat/` and compare with `.expected` (the corpus and its cases are described in `teyru-lang/tests`) |
+| `make unicode-tables` | re-run the generator over the Unicode 15.0 data in `internal/tools/genunicode/data/`, writing `internal/runtime/src/tyrt_unicode.c` (re-running changes nothing) |
 | `make progen` | the random-program differential: `internal/tools/progen` generates 200 programs from fixed seeds and builds each spelling and diffs them |
 | `make backend-matrix` | every program × six back-end cells (C+clang, C+gcc, LLVM at `-O0` and `-O2`), each cell compared with the suite and the cells with each other; the divergences allowed are in `scripts/backend-matrix-allow.txt` |
 | `make notices` | check `THIRD-PARTY-NOTICES.md` against the tree (see [docs/legal.md](/en/docs/legal)) |

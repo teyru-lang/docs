@@ -148,7 +148,7 @@ The common utilities the runtime offers to native code (all in `tyrt.h`):
 |---|---|
 | `ty_str_new(const char *bytes, int64_t len)` | Create a string |
 | `ty_str_concat(tystr *a, tystr *b)` | Concatenate |
-| `ty_str_len(tystr *s)` | Length **in bytes** (`blen`); the storage is WTF-8 with the bytes inline after the header (`TY_STR_DATA(s)`, no second pointer) -- see §12 item 12. **`String.length()` also counts bytes today**, so the two answer the same number; W5's second piece turns `String.length()` into a code unit count (`ulen` in the header), and after that this is the accessor byte-oriented code wants |
+| `ty_str_len(tystr *s)` | The **UTF-16 code unit** count (`ulen`), which is what `String.length()` answers; native code that walks or writes bytes wants `ty_str_blen(s)` (`blen`) instead. The storage is WTF-8 with the bytes inline after the header (`TY_STR_DATA(s)`, no second pointer) -- see §12 item 12. An unpaired surrogate is the three-byte form, and `getBytes`/`println` write it as one `?` |
 | `ty_array_new(int64_t len, int64_t elemsize)` | Create an array |
 | `ty_array_len(tyarr *a)` | Array length |
 | `ty_alloc(size_t)` | Allocate from the GC heap (collected automatically) |

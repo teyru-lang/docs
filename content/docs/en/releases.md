@@ -8,9 +8,15 @@ the set of problems an external review and a round of measurement found (the pla
 is not about speed — speed is the next phase.
 
 It is written before 0.4.0 is cut, so every item carries its status: **in main** is behaviour a
-reader can install today, and **partly in progress**, **not in main yet** and **not started** each
-name the pull request or work item and change marker when they land. When the release is cut, none
-of the last three should be left on the page.
+reader can install today, and everything else names its pull request or work item. **What is still
+open is only what §3 and §5 list.**
+
+**This release is the first time the gates actually run.** `.github/workflows/release.yml` is this
+repository's **only** workflow and it runs when a release is published, so 0.4.0 is the **first**
+release that gives it something to do: it builds the tag, runs the whole suite, attaches the
+executables to the release, and calls six checks in order -- `make build`, `make ci`,
+`make java-compat`, `make jdk-diff`, `make backend-matrix`, `make notices`. The numbers on this page
+are those commands' output on that tag, and every row says how it was measured.
 
 ---
 
@@ -76,23 +82,47 @@ In a server, a deep recursion inside a handler is a 500 for that request and the
 serving. The cost is measured: one check per function, and `bench_fib`'s long run is about 32%
 slower for it (the owner has decided to accept that).
 
-### Strings and Unicode (W5 — **not in main yet**)
+### Strings and Unicode (W5 -- **in main**)
 
-This is **not** on 0.4.0's main line today: the first piece's pull request is still a draft and the
-rest is behind it. The goal is to make string storage and indexing agree with Java — `length`,
-`charAt`, `substring`, `indexOf`, `compareTo` and `hashCode` counting UTF-16 code units
-(`"中文".length()` is 2), character classification and case mapping from Unicode 15.0's data with the
-full case mappings (`ß` → `SS`, the Greek final sigma), `strip` recognising the ideographic space,
-ill-formed UTF-8 replaced with U+FFFD at the byte boundary and a surrogate with no partner encoded as
-`?`. The internal storage is WTF-8 with breadcrumbs (`tystr` stays 24 bytes), and the fallback to
-JDK-style compact strings still needs benchmark data before it can be compared, so this release does
-not conclude on it.
+**A string is now indexed the way Java indexes one.** `length`, `charAt`, `substring`, `indexOf`,
+`compareTo`, `hashCode`, the `codePoint` family, `toCharArray`/`getChars`/`chars`/`codePoints` and the
+`char[]` and `int[]` constructors all count **UTF-16 code units**; the storage is still WTF-8 (an ASCII
+fast path, breadcrumbs built on first use, ill-formed bytes replaced with U+FFFD and an unpaired
+surrogate encoded as `?`). Three things a reader meets first: `substring` **can split a surrogate
+pair** (that is Java's semantics, not a defect), `hashCode` is the JDK's, and therefore
+`HashMap<String, ...>` walks in the JDK's order. The plan's "switch to JDK-style compact strings"
+fallback is **settled by measurement**: against the byte-indexed build, `bench_string` is 0.994x and
+`bench_string_cjk` 0.949x, both inside the 10% budget, so the storage does not change.
 
-Until it lands, the differences between **today's** behaviour and the JDK — with the measurements —
-are in [docs/language.md](/en/docs/language) §12 item 12, the missing APIs in §13, and the byte
-boundary's test (`t196_string_bytes`) is in the test repository.
+**`Character` and the case mappings are Unicode 15.0**, from generated tables that ship in the
+repository (the generator is `internal/tools/genunicode`, `make unicode-tables` re-runs it, and
+re-running it changes no file): `isLetter`, `isDigit`, `isAlphabetic`, `isWhitespace`, `isSpaceChar`,
+`getType`, `digit`, `getNumericValue`, the surrogate predicates, `toCodePoint`, `charCount`; full case
+mapping (`ß` -> `SS`, the Greek final sigma); `strip`/`isBlank` go through `Character.isWhitespace`, so
+**U+3000 is stripped** while `trim` still only knows <= U+0020; `parseInt`/`parseLong` accept the
+full-width and other Nd digits (`Integer.parseInt("１２３")` is `123`). `StringBuilder`/`StringBuffer`
+match Java now, including `delete(start,end)`'s clamping and `replace`'s `NullPointerException`.
 
-### Boxing, container order and exception names (W6 -- not in main yet)
+**Two things stated rather than buried.** The final-sigma word predicate is this runtime's own: it was
+measured against the JDK over 8,000 generated strings and every shape that was tested, and AGENTS.md
+§10 records the **one** shape where it differs. The locale-sensitive mappings (`tr`, `az`, `lt`) are
+**not implemented**.
+
+**The work left two differences from the JDK** (both deliberate, both written up in
+[docs/language.md](/en/docs/language) §12): the regex engine matches per **code unit**, so
+`"😀a".matches(".a")` is `false` here (the JDK's `.` consumes a code point and answers
+`true`); and `String.offsetByCodePoints` past either end throws `StringIndexOutOfBoundsException` where
+the JDK throws `IndexOutOfBoundsException` (a subclass, so `catch (IndexOutOfBoundsException)` still
+catches it).
+
+**How I verified it.** On `adf58e7` (`tests` at `10ef6b2`), one program written twice -- as `.teyru`
+and as Java -- run against OpenJDK 21 and diffed line by line: the writing half is **32 of 32
+byte-identical**; the reading half is **39 of 41**, and the two that differ are exactly the divergences
+above (the `ß`/`SS` mapping, the final sigma, `strip` over U+3000 and the full-width `parseInt`
+acceptances and rejections are all inside the 39). The corpus, `sh tests/run.sh java-compat`, is **45
+passed, 0 failed** (my own runs, twice).
+
+### Boxing, container order and exception names (W6 -- **in main**)
 
 - **The boxing caches** (in main): `Integer`, `Short`, `Byte` and `Long` cache −128..127, `Character`
   caches 0..127, and `Boolean` has exactly two instances, so
@@ -106,7 +136,7 @@ boundary's test (`t196_string_bytes`) is in the test repository.
   apple, cherry, elderberry`, character for character as the JDK does. A bucket keeping insert
   order, the 13th key growing the table to 32 slots, the copy constructor and `putAll`
   pre-sizing, and the threshold doubling under a 0.6 load factor (9 then 18) each have a line.
-- **Exception names and messages** (`w6boxing`): `Class.getName()` reports the JDK's
+- **Exception names and messages** (in main): `Class.getName()` reports the JDK's
   fully-qualified name (decision D8), so an uncaught exception prints `Exception in thread
   "main" java.lang.IllegalStateException: boom`, as the JDK does (`t251_exception_names`,
   `t79_uncaught`); `System.arraycopy`'s type-mismatch message is the JDK's too
@@ -146,34 +176,34 @@ main set; I re-ran the 45 corpus cases myself, and the suite line has the source
 [docs/language.md](/en/docs/language) §12 (the syntax) and §13 (the APIs that are missing and the
 forms that are refused), and they are not empty.
 
-### The two back ends' semantic consistency (W8 — **the matrix is in main, the unification has not started**)
+### The two back ends' semantic consistency (W8 -- **in main**)
 
-**The matrix landed first (#122)**: `scripts/backend-matrix.sh` and `make backend-matrix` build and run
-every program in `tests/programs` in **six cells** — {C+clang, C+gcc, LLVM} × {`-O0`, `-O2`} — compare
-each cell against `.expected`/`.exit`/`.experr`, and then compare the cells with each other. A build
-the driver refuses by name (the LLVM back end's `TY-INT-0100`, for instance) counts as `refused`
-rather than as a miscompile. The release workflow calls it, beside `make ci`, `make jdk-diff` and
-`make notices`. The divergences it is allowed to find live in `scripts/backend-matrix-allow.txt`,
-where an entry without a work item and a reason is not accepted and an entry whose program has
-stopped diverging fails the run.
+**The matrix landed first (`#122`)**: `scripts/backend-matrix.sh` and `make backend-matrix` build and
+run every program in `tests/programs` in **six cells** -- {C+clang, C+gcc, LLVM} x {`-O0`, `-O2`} --
+compare each cell with `.expected`/`.exit`/`.experr` and the cells with each other, and count a
+build the driver refuses by name (LLVM's `TY-INT-0100`, say) as a refusal rather than a miscompile.
+The release workflow calls it alongside `make ci`/`make jdk-diff`/`make notices`. The cross-cell
+differences that are allowed live in `scripts/backend-matrix-allow.txt`: an entry without a work item
+and a reason is not accepted, and an entry that no longer diverges fails the matrix. The numbers it
+reached at the stop (406 cells, 66 programs complete across all six) are in §2.
 
-The numbers at the stop (it is paused for W10's benchmark window): **406 of 1572 cells recorded,
-66 programs complete across all six cells**; the two clang cells meet the suite 68/68 and 67/67, the
-LLVM cells meet it 44/44 with 25 programs per cell refused by name, and the two gcc cells 61/66 and
-62/67. Those are the numbers at the stop, not totals.
+**Both defects it found are fixed (`#129`, `#131`).**
 
-It has already found two real defects, both in the families W8 names. **A compound assignment to a
-boxed target is lowered by neither back end** (the C back end hands the operator the wrapper
-reference — invalid C, or a segfault; the LLVM back end emits `and ptr`, which is not valid IR, and
-`1L <<= 33` answers 2 where the JDK says 8589934592; the red-first cases are `t246`/`t247`/`t248`,
-known failures under W8). And **`a + b + c` has no evaluation order**: the C back end folds it into
-one C expression and C leaves the order unspecified, so gcc evaluates right to left and clang left
-to right — `f(1)+f(2)+f(3)` is `1(1)2(2)3(3)` under javac 21 and clang and `1(3)2(2)3(1)` under gcc,
-visible in five existing programs. It cannot be a `tests/programs` case yet, because
-`known-failures.txt` cannot say "fails under gcc only".
+- **A compound assignment to a boxed target**: the two back ends now share one lowering (JLS 15.26.2's
+  unbox, operate, box), so `1L <<= 33` is `8589934592` (the JDK's answer) and the red-first cases
+  `t246`/`t247`/`t248` pass -- their `known-failures.txt` entries are gone, which is what the mechanism
+  demands.
+- **The evaluation order of `a + b + c`**: the C back end no longer folds the expression into one C
+  expression, so gcc and clang both print `1(1)2(2)3(3)=6`, as javac 21 does (I built it once with each
+  `--cc` to check).
 
-The unification itself — pushing the rules for numeric promotion, compound assignment, shifts,
-concatenation, boxing and the checks down into shared lowering — **has not started**.
+**One thing this release still does not claim, said out loud**: Java treeifies a `HashMap` bin of eight
+or more entries once the table reaches 64 slots, and the order after treeification is settled by
+`System.identityHashCode`, which is not reproducible in principle. So we do not claim the JDK's
+iteration order **for that shape**. **Below 64 slots nothing treeifies**, so every smaller table walks
+in Java's order for any key set (I checked against the JDK with six string keys and with 20 keys of a
+custom hashCode-only type).
+
 ### TLS reachability, and the platforms (W9 — in main)
 
 TLS is now linked by **the program's call graph** rather than being reachable through the reflection
@@ -226,7 +256,9 @@ ones this release is about:
 | The Windows target | 179 of 195 programs byte-identical (run under Wine) | same table |
 | The two macOS rows | **compile and link only**: 240 of 257 programs build, 9 are refused by name for TLS and 8 are not accepted by the compiler used; the artifact is Mach-O and **not one line has been executed** | `teyru build --cc <zig wrapper>` (`zig cc -target aarch64-macos`); same table |
 | What deep recursion costs | `bench_fib`'s long run is about 32% slower | `scripts/bench.sh`, long run, before and after; the owner has accepted it |
-| W7's corpus | **45 passed, 0 failed** (`tests/java-compat`; Teyru main `0e8e592` → `tests` `af41a7d`) | `sh tests/run.sh java-compat` on that content (I ran it twice; `make java-compat` is the same thing) |
+| W7's corpus | **45 passed, 0 failed** (`tests/java-compat`; Teyru main `adf58e7` → `tests` `10ef6b2`) | `sh tests/run.sh java-compat` on that content (my own run; `make java-compat` is the same thing) |
+| Strings and Unicode (W5), JDK differential | writing half **32 of 32 byte-identical**; reading half **39 of 41**, the other two being the stated divergences | one program written twice (`.teyru` and Java), the Java half run with `/opt/jdk21/jdk-21.0.11+10`, then diffed line by line; on `adf58e7` |
+| W8's two defects | boxed compound assignment `1L <<= 33` is `8589934592`; `f(1)+f(2)+f(3)` prints `1(1)2(2)3(3)=6` under both clang and gcc | `t246`-`t248` (whose `known-failures.txt` entries are gone) and one program built once with each `--cc`; compared with javac 21 |
 | The full suite (main) | **324 passed, 1 failed, 10 known, 0 skipped** (same content; the one failure is `native/net_c_test`'s link failure, and the ten known match `known-failures.txt` exactly) | `sh tests/run.sh`; the log and the list are in a comment on PR [#128](https://github.com/teyru-lang/Teyru/pull/128) (this row is not my run; the 45 corpus cases are) |
 
 (The macOS row was re-measured after W9 (2026-09-17, `tests` at `e4268a6`, compiler at
@@ -245,6 +277,9 @@ copy them; it gives the direction:
 - `sealed`'s `permits` clause is not verified, which is why switch exhaustiveness asks for a
   `default`;
 - reflection has no generic type parameters, and all arrays share one class;
+- `Character.toChars` is not there yet (`Character.toString` is, and `lib/04_boxing.teyru` uses it);
+- the locale-sensitive case mappings (`tr`, `az`, `lt`) are not implemented, so `String.toUpperCase()`
+  always follows the root locale;
 - there is no interoperability with the Java ecosystem (JARs, JDK class libraries, JNI), which is a
   deliberate trade.
 
@@ -260,6 +295,10 @@ copy them; it gives the direction:
   next; 0.4's collector is still conservative mark-and-sweep.
 - **macOS running anything.** Those two rows stop at "compiles and links": no Mach-O executable has
   been run (there is no macOS here), and compiling is not running.
+- **A `HashMap`'s iteration order in that one shape.** Once the table reaches 64 slots, Java treeifies
+  a bin of eight or more entries, and the order after treeification is settled by
+  `System.identityHashCode`, which is not reproducible in principle -- so that shape is not claimed to
+  match the JDK (below 64 slots nothing treeifies; see the W8 section).
 - **"Java source compiles unchanged" as a sentence with no bounds.** W7 is in main and unmodified
   Java compiles on **the subset that has been tested** (above), but the corpus is not in main's
   submodule pointer and the §12/§13 differences are still there -- so this release claims the

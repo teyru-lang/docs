@@ -530,8 +530,9 @@ teyru build --native impl.c program.teyru            # 一起编译
 - **字符串**：`tystr { tyobj obj; int64_t blen; int32_t ulen; uint32_t flags }`——**WTF-8**
   字节**接在头后面**（`TY_STR_DATA`，没有第二个指针），`blen` 是字节数、`ulen` 是 UTF-16
   code unit 数；非 ASCII 的字符串还会在结尾的 NUL 之后长出一张面包屑表（每 64 个 code unit 一格，
-  首次用到才建，所以没有索引过的字符串不必付这个成本）。今天的 `String.length()` 仍然是**字节**数
-  （W5 的第二部分才把它改成 code unit）；字面量是静态对象，不经过 GC。
+  首次用到才建，所以没有索引过的字符串不必付这个成本）。**`String.length()` 数的是 `ulen`**
+  （UTF-16 code unit；`getBytes().length` 才是 `blen` 的字节数，两者在 U+007F 以上分开）；
+  字面量是静态对象，不经过 GC。
 - **数组**：`tyarr { tyobj; len; data; esize; refs }`，元素内嵌在对象后方。
 
 ---
@@ -746,6 +747,7 @@ sh scripts/bench.sh       # 与 JVM 对照的性能测试（需要 java 才会�
 | `make ci` | 一次 CI job 会跑的东西，在这里由人跑：`lint`、整套测试分别用 clang 与 gcc 各构建一次，`TEYRU_JDK` 有设就再加上 JDK 差分。只装了一个 C 编译器时，gcc 那一半会明说它没跑 |
 | `make jdk-diff` | 把 `tests/programs/` 里能翻译的程序用 JDK 21 编译执行，比对 stdout 与结束状态；需要 `TEYRU_JDK` 指向 JDK 21 的家目录 |
 | `make java-compat` | 把 `tests/java-compat/` 里**未经修改的 Java 源代码**逐支编译、运行，再与 `.expected` 比（语料与案例说明在 `teyru-lang/tests`） |
+| `make unicode-tables` | 从 `internal/tools/genunicode/data/` 的 Unicode 15.0 数据重跑生成器，写出 `internal/runtime/src/tyrt_unicode.c`（重跑不会改动文件） |
 | `make progen` | 随机程序差分：`internal/tools/progen` 依固定种子生成 200 个程序，两种写法各编译一次再比对 |
 | `make backend-matrix` | 每一支程序 × 六个后端格子（C＋clang、C＋gcc、LLVM × `-O0`、`-O2`），逐格与套件比、格子之间再互相比；允许的跨格差异写在 `scripts/backend-matrix-allow.txt` |
 | `make notices` | 核对 `THIRD-PARTY-NOTICES.md` 与树一致（见 [docs/legal.md](/zh-CN/docs/legal)） |

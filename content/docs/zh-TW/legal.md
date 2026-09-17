@@ -127,19 +127,25 @@ tzdata；其餘的區域在沒有 tzdata 的主機（Windows，或沒裝 tzdata 
 
 ## 5. Unicode 資料與產生的查表
 
-`Character` 的字元分類與大小寫映射需要 Unicode 的資料，而那份資料**目前還沒有隨編譯器入庫**
-（在那之前分類與映射只認 ASCII，見〈語言參考〉§12 第 12 條）。要入庫的是 Unicode 15.0 的資料
-檔（`UnicodeData.txt`、`SpecialCasing.txt`、`CaseFolding.txt`、`PropList.txt` 與同批的其他
-檔案）以及由它們產生、一併入庫的兩級查表；這些檔案依 **Unicode License v3**（UNICODE LICENSE V3，
-Copyright © 1991-2024 Unicode, Inc.，條文見
-[https://www.unicode.org/license.txt](https://www.unicode.org/license.txt)）散布，著作權聲明
-隨檔案保留。
+`Character` 的字元分類與大小寫映射需要 Unicode 的資料，而那份資料**現在隨編譯器入庫**：
+`internal/tools/genunicode/data/` 底下是 Unicode 15.0 的三個標準資料檔——`UnicodeData.txt`
+（類別、簡單大小寫映射、數字值）、`SpecialCasing.txt`（一對多的完整大小寫映射）與
+`PropList.txt`（`White_Space`、`Other_Uppercase`／`Other_Lowercase`／`Other_Alphabetic`、
+`Ideographic`）——以及由它們產生、一併入庫的兩級查表
+`internal/runtime/src/tyrt_unicode.c`。產生器是 `internal/tools/genunicode`，
+`make unicode-tables` 重跑它，`go test ./internal/tools/genunicode` 盯著樹裡的檔案與資料一致
+（重跑不會改動任何檔案）。同批的 `CaseFolding.txt` 與 `DerivedCoreProperties.txt` **沒有入庫**：
+這個執行期不需要 case folding，也不需要用 `DerivedCoreProperties` 推導的性質。
 
-版本固定 15.0 是為了與參考實作對齊：JDK 21 用的是 Unicode 15.0，所以 `Character.isLetter`
-與大小寫映射的答案以它為準。編譯器倉庫的 `scripts/check-notices.sh` 會在資料檔出現時要求
-聲明檔已經列名。
+這些檔案依 **Unicode License v3**（UNICODE LICENSE V3，Copyright © 1991-2024 Unicode, Inc.，
+條文見 [https://www.unicode.org/license.txt](https://www.unicode.org/license.txt)）散布，
+著作權聲明隨檔案保留。版本固定 15.0 是為了與參考實作對齊：JDK 21 用的是 Unicode 15.0，所以
+`Character.isLetter` 與大小寫映射的答案以它為準（`Character.isWhitespace` 與 `Character.digit`
+不是任何一個檔案的性質，是 JDK 自己的答案，在產生器裡寫明並由 `tests/programs/t251_unicode_tables`
+對 JDK 逐個碼點驗證）。
 
----
+編譯器倉庫的 `scripts/check-notices.sh` 會在這些資料檔出現時要求聲明檔已經列名（四個名字逐個查）。
+
 
 ## 6. 編輯器工具（[`teyru-lang/editors`](https://github.com/teyru-lang/editors)）
 

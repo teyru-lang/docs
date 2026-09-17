@@ -139,7 +139,7 @@ int32_t f = me->f_factor;
 |---|---|
 | `ty_str_new(const char *bytes, int64_t len)` | 创建字符串 |
 | `ty_str_concat(tystr *a, tystr *b)` | 拼接 |
-| `ty_str_len(tystr *s)` | **字节**长度（`blen`）；存储是 WTF-8、字节接在头后面（`TY_STR_DATA(s)`，没有第二个指针），见〈语言参考〉§12 第 12 条。**今天 `String.length()` 也是字节数**，所以两者回同一个数；W5 的第二部分会把 `String.length()` 改成 UTF-16 code unit 数（头里的 `ulen`），那之后这个字段才是逐字节代码在用的那一个 |
+| `ty_str_len(tystr *s)` | **UTF-16 code unit** 数（`ulen`），也就是 `String.length()` 回的那个数；要在原生代码里走字节时用的是 `ty_str_blen(s)`（`blen`）。存储是 WTF-8、字节接在头后面（`TY_STR_DATA(s)`，没有第二个指针），见〈语言参考〉§12 第 12 条。没有伙伴的代理是三个字节的形状，而 `getBytes`／`println` 会把它写成一个 `?` |
 | `ty_array_new(int64_t len, int64_t elemsize)` | 创建数组 |
 | `ty_array_len(tyarr *a)` | 数组长度 |
 | `ty_alloc(size_t)` | 从 GC 堆分配（会被自动回收） |
