@@ -867,6 +867,10 @@ When you need your own native library, a `native` method can be implemented in C
     **JDK 21 accepts it** and takes the surrogate pair's first code unit (it prints `55357`).
     Whether the two should agree is undecided; until it is, read it as "we refuse, javac
     accepts" rather than "the two agree".
+14. **An uncaught exception prints Teyru's class name**: `teyru.NumberFormatException`,
+    `teyru.StackOverflowError`, not `java.lang.*`. `Class.getName()` answers the same way (see
+    the reflection paragraph in §11), while `Class.forName` takes either spelling. Whether the
+    standard library should report the JDK's fully-qualified names is undecided.
 
 ## 13. Not yet implemented
 

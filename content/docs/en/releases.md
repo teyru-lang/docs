@@ -8,8 +8,9 @@ the set of problems an external review and a round of measurement found (the pla
 is not about speed — speed is the next phase.
 
 It is written before 0.4.0 is cut, so every item carries its status: **in main** is behaviour a
-reader can install today, **in progress** names the pull request or work item and loses its marker
-when it lands. When the release is cut, no "in progress" should be left on the page.
+reader can install today, and **partly in progress**, **not in main yet** and **not started** each
+name the pull request or work item and change marker when they land. When the release is cut, none
+of the last three should be left on the page.
 
 ---
 
@@ -98,8 +99,9 @@ boundary's test (`t196_string_bytes`) is in the test repository.
   `Integer.valueOf(127) == Integer.valueOf(127)` is `true` as it is in Java — and it survives a call
   (`t242_box_identity_across_call`, its expectation produced by javac).
 - **The bounds message** (in main): `Index 5 out of bounds for length 3`, with the JDK's capital `I`.
-- **`HashMap`/`HashSet` iteration order** matching JDK 21, and **fully-qualified exception names**
-  (`java.lang.*`), are still in progress; until they land they are listed in §13.
+- **Two parts not done**: `HashMap`/`HashSet` iteration order matching JDK 21, and
+  fully-qualified exception names (`java.lang.*` rather than `teyru.*`). Both are listed in §13,
+  with the iteration-order measurement in that entry and the class-name difference in §12 item 14.
 
 ### Java source compatibility (W7 — **not started**)
 
@@ -114,8 +116,9 @@ compiles unchanged.
 
 ### The two back ends' semantic consistency (W8 — **not started**)
 
-**Nobody has claimed this one and nothing is on main** (the `internal/codegen` it has to change was
-just touched by two large landings). The paragraph below is the goal, not a status. The goal is a
+**This one has just been taken (BackendMatrix) and nothing is on main yet** (the `internal/codegen`
+it has to change was just touched by two large landings). The paragraph below is the goal, not a
+status. The goal is a
 matrix that agrees everywhere — {C+clang, C+gcc, LLVM} × {`-O0`, `-O2`} — with the
 rules for numeric promotion, compound assignment, shifts, string concatenation, boxing and checks
 lowered once and shared. The LLVM back end's present boundary (measured 2026-09-17: of 256 test

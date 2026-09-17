@@ -782,6 +782,10 @@ SHA-3 是因為 `getInstance` 寧可丟 `NoSuchAlgorithmException`，也不要�
     所以這裡是 `TY-SYN-0008`（`tests/diagnostics/emojiCharLiteral`），而 **JDK 21 收下它**、
     取代理對的第一個 code unit（印出 `55357`）。兩邊要不要一致還沒定案；在那之前把它讀成
     「我們拒絕、javac 接受」，而不是「雙方一致」。
+14. **未捕捉的例外印的是 Teyru 的類別名**：`teyru.NumberFormatException`、
+    `teyru.StackOverflowError`，而不是 `java.lang.*`。`Class.getName()` 也一樣（見 §11 的
+    反射那一段），而 `Class.forName` 兩種寫法都收。標準程式庫要不要改用 JDK 的全限定名
+    還沒有定案。
 
 ## 13. 尚未實作
 
