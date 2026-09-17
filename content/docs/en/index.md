@@ -588,12 +588,23 @@ back end that emits **the program's own LLVM IR module**: the runtime is still C
 only assembles and links. It refuses what it cannot lower rather than quietly falling back
 to the C back end — a refusal is a `TY-INT-0100` diagnostic naming the construct.
 
-That boundary is measured, not guessed: a sweep over `tests/programs` comes out at **76
-byte-identical, 0 producing wrong output, 119 refused by the emitter, and 0 modules clang
-rejects**. The refused ones, in the order the milestone lists them: closures (lambdas and
-method references, plus local and anonymous classes), the members records, enums and
-annotations synthesize, type patterns and guarded switch cases, inner classes, and the
-rest. It compiles for linux/amd64 only, and refuses every other target with `TY-INT-0101`.
+That boundary is measured, not guessed: on 2026-09-17 a sweep over `tests/programs` with the
+compiler built from main (256 programs, `teyru build --backend=llvm`, every program that
+builds then run and compared byte for byte with its `.expected`, plus `exit` and `experr`)
+comes out at **159 that build**, of which **153 produce exactly the expected output** and
+**6 differ** (those six are the W5/W6 JDK probes, whose expectations came from the JDK and
+which are listed in `known-failures.txt`; the difference is what those work items are for),
+**93 refused by the emitter with `TY-INT-0100`**, **4 refused by the semantic analysis before
+the back end is reached** (also probes in `known-failures.txt`) and **0 modules clang
+rejects**. The refusals by count: an annotation on the program's own declaration (38 — the
+Lombok, Spring and Gson declarations that only exist because of an annotation), a switch
+case with a type pattern, a guard or `null` (12), an `instanceof` pattern that binds a
+variable (8), a thread (8), an inner class (7, local ones included; the message is that the
+enclosing-instance chain is not lowered), a reflective call (7), try-with-resources (5),
+`synchronized` (3), boxing a `void` (2), and interface `super` calls and the rest (2).
+**Lambdas and method references are no longer among the reasons** (this list used to put
+them first). It compiles for linux/amd64 only, and refuses every other target with
+`TY-INT-0101`.
 
 **The platform layer.** Everything the runtime asks of the operating system goes through
 `internal/runtime/src/tyrt_plat.h`: time and CPU, mutexes and condition variables, threads,

@@ -546,11 +546,19 @@ teyru help                                     說明
 程式自己的 LLVM IR**：執行期仍然是 C，clang 只負責組譯與連結。它拒絕它降不下去的
 東西，不會安靜地退回 C 後端——拒絕是一個 `TY-INT-0100` 診斷，指出是哪個建構。
 
-那條界線是量出來的，不是猜的：`tests/programs` 掃過一輪的結果是
-**76 支逐位元組相同、0 支輸出錯誤、119 支被 emitter 以診斷拒絕、0 個模組 clang 不收**。
-被拒絕的那些按順序是：閉包（lambda 與方法參照，以及區域類別與匿名類別）、
-record／enum／註解合成出來的成員、型別 pattern 與帶守衛的 switch、內部類別，然後是
-其餘。它目前只編 linux/amd64，其他目標以 `TY-INT-0101` 拒絕。
+那條界線是量出來的，不是猜的：2026-09-17 用 main 的編譯器對 `tests/programs` 的
+**256 支**掃過一輪（`teyru build --backend=llvm`，建得起來的每一支都跑起來與 `.expected`
+逐位元組比，`exit` 與 `experr` 也比）：**159 支建得起來**，其中 **153 支輸出完全相同**、
+**6 支不同**（那 6 支是 W5／W6 的 JDK 探針，期望值來自 JDK，正列在 `known-failures.txt`
+裡，差異就是那些工作項要修的）；**93 支被 emitter 以 `TY-INT-0100` 具名拒絕**；
+**4 支在建到後端之前就被語意分析拒絕**（同樣是 `known-failures.txt` 的探針）；
+**0 個模組 clang 不收**。被拒絕的按數量是：程式自己宣告上的註解（38——Lombok、Spring
+與 Gson 那些要靠註解才成立的宣告）、帶型別 pattern／守衛／`null` 的 `switch` case（12）、
+綁定變數的 `instanceof` pattern（8）、執行緒（8）、內部類別（7，含區域類別；訊息是
+不降階 enclosing-instance 鏈）、反射呼叫（7）、try-with-resources（5）、`synchronized`
+（3）、boxing `void`（2）、介面的 `super` 呼叫與其他（2）。**lambda 與方法參照已經不在
+被拒絕的理由裡**（這份清單以前把它們排在第一位）；它目前只編 linux/amd64，其他目標以
+`TY-INT-0101` 拒絕。
 
 **平台層。** 執行期對作業系統的呼叫都走 `internal/runtime/src/tyrt_plat.h`：
 時間與 CPU、mutex 與 condition variable、執行緒、啟動、socket、檔案，共四十個

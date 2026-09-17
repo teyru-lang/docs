@@ -544,11 +544,19 @@ teyru help                                     帮助
 **这个程序自己的 LLVM IR**：运行期仍然是 C，clang 只负责汇编与链接。它拒绝它降不下去
 的东西，不会安静地退回 C 后端——拒绝是一个 `TY-INT-0100` 诊断，指出是哪个构造。
 
-那条界线是量出来的，不是猜的：`tests/programs` 扫过一轮的结果是
-**76 支逐字节相同、0 支输出错误、119 支被 emitter 以诊断拒绝、0 个模块 clang 不收**。
-被拒绝的那些按顺序是：闭包（lambda 与方法引用，以及局部类与匿名类）、
-record／enum／注解合成出来的成员、类型 pattern 与带守卫的 switch、内部类，然后是
-其余。它目前只编 linux/amd64，其他目标以 `TY-INT-0101` 拒绝。
+那条界线是量出来的，不是猜的：2026-09-17 用 main 的编译器对 `tests/programs` 的
+**256 支**扫过一轮（`teyru build --backend=llvm`，建得起来的每一支都跑起来与 `.expected`
+逐字节比，`exit` 与 `experr` 也比）：**159 支建得起来**，其中 **153 支输出完全相同**、
+**6 支不同**（那 6 支是 W5／W6 的 JDK 探针，期望值来自 JDK，正列在 `known-failures.txt`
+里，差异就是那些工作项要修的）；**93 支被 emitter 以 `TY-INT-0100` 具名拒绝**；
+**4 支在建到后端之前就被语义分析拒绝**（同样是 `known-failures.txt` 的探针）；
+**0 个模块 clang 不收**。被拒绝的按数量是：程序自己声明上的注解（38——Lombok、Spring
+与 Gson 那些要靠注解才成立的声明）、带类型 pattern／守卫／`null` 的 `switch` case（12）、
+绑定变量的 `instanceof` pattern（8）、线程（8）、内部类（7，含局部类；消息是
+不降阶 enclosing-instance 链）、反射调用（7）、try-with-resources（5）、`synchronized`
+（3）、boxing `void`（2）、接口的 `super` 调用与其他（2）。**lambda 与方法引用已经不在
+被拒绝的理由里**（这份清单以前把它们排在第一位）；它目前只编 linux/amd64，其他目标以
+`TY-INT-0101` 拒绝。
 
 **平台层。** 运行期对操作系统的调用都走 `internal/runtime/src/tyrt_plat.h`：
 时间与 CPU、mutex 与 condition variable、线程、启动、socket、文件，共四十个
