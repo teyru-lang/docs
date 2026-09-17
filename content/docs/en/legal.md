@@ -130,15 +130,18 @@ it is dynamically linked, so the runtime files contain none of its code.
 
 ## 5. Unicode data and the generated tables
 
-`Character` and the case mappings need Unicode's data, so the repository carries Unicode 15.0's data files
+`Character`'s character classification and case mappings need Unicode's data, and that data is
+**not in the repository yet** (until it is, classification and case mapping are ASCII-only, see §12 item 12 of the
+language reference). What will land is Unicode 15.0's data files
 (`UnicodeData.txt`, `SpecialCasing.txt`, `CaseFolding.txt`, `PropList.txt` and the other files of the same distribution)
-together with the two-level lookup tables generated from them and committed. These files are distributed under the
+together with the two-level lookup tables generated from them. They are distributed under the
 **Unicode License v3** (UNICODE LICENSE V3, Copyright © 1991-2024 Unicode, Inc., terms at
 [https://www.unicode.org/license.txt](https://www.unicode.org/license.txt)), with the copyright notice retained
 alongside the files.
 
 The version is pinned to 15.0 to match the reference implementation: JDK 21 uses Unicode 15.0, so
-`Character.isLetter` and the case mappings answer as it does.
+`Character.isLetter` and the case mappings answer as it does. `scripts/check-notices.sh` in the compiler
+repository requires the notices to name any data file that has landed.
 
 ---
 

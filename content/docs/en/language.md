@@ -505,10 +505,9 @@ in with one on-demand import: `import teyru.*` (using only one class, `import te
 works the same way). The Java-style `import java.util.*` and `import java.util.List` are
 accepted just as well: a `java.*` name resolves to the class of that name in the standard
 library, see "How names are found" below. **That is not the same thing as "Java source code
-compiles unchanged".** A semicolon is not a legal token (`TY-SYN-0001`, §1), so Java source
-has to have its semicolons removed to compile; the other syntax differences are in §12 and
-the missing APIs and misreported forms are in §13. Whether a semicolon becomes optional is
-undecided.
+compiles unchanged".** The differences are in §12 (the syntax) and §13 (the APIs that are
+missing and the forms that are refused), and those two sections are what such a claim would
+have to be limited to. They are not empty today.
 
 ### java.lang (`lib/01`–`lib/07`)
 

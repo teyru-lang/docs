@@ -365,13 +365,11 @@ and checked together with every program. It is one Teyru package (`teyru`), so a
 is one line: `import teyru.*` (or `import teyru.List` when a single class is all you
 name). Java's spelling (`import java.util.*`, `import java.util.List`) is accepted too —
 what is Java-compatible is **the import**. "Java source compiles unchanged" is **not**
-true today, so it is not written here: a semicolon is not a legal token
-(`TY-SYN-0001`, see §1 and §12 of the language reference), so Java source has to have its
-semicolons removed to compile, and there are a few forms javac accepts and this compiler
-refuses (`"a😀b".codePointCount(0, …)` is `TY-TYP-0076`, `new String(char[])` is
-`TY-TYP-0072`, and a method that ends in a `switch` whose every branch returns is
-`TY-TYP-0020`; the list is in §13 of the language reference). Whether a semicolon becomes
-optional is undecided; until it is decided, this page says what is true:
+claimed here: the differences between Java source and this compiler are listed in §12 of
+the language reference (the syntax, whose first item is the semicolon) and §13 (the APIs
+that are missing and the forms that are refused), and those two sections are what such a
+claim would have to be limited to. They are not empty today. The claim becomes someone's
+to write once those entries are gone and `tests/` programs stand behind it:
 
 | Package | Contents |
 |---|---|

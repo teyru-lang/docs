@@ -127,15 +127,17 @@ tzdata；其余的区域在没有 tzdata 的主机（Windows，或没装 tzdata 
 
 ## 5. Unicode 数据与生成的查表
 
-`Character` 与大小写映射需要 Unicode 的数据，所以仓库会带着 Unicode 15.0 的数据文件
-（`UnicodeData.txt`、`SpecialCasing.txt`、`CaseFolding.txt`、`PropList.txt` 与同批的其他文件）
-以及由它们生成、入库的两级查表。这些文件依 **Unicode License v3**（UNICODE LICENSE V3，
+`Character` 的字符分类与大小写映射需要 Unicode 的数据，而那份数据**目前还没有随编译器入库**
+（在那之前分类与映射只认 ASCII，见〈语言参考〉§12 第 12 条）。要入库的是 Unicode 15.0 的数据
+文件（`UnicodeData.txt`、`SpecialCasing.txt`、`CaseFolding.txt`、`PropList.txt` 与同批的其他
+文件）以及由它们生成、一并入库的两级查表；这些文件依 **Unicode License v3**（UNICODE LICENSE V3，
 Copyright © 1991-2024 Unicode, Inc.，条款见
 [https://www.unicode.org/license.txt](https://www.unicode.org/license.txt)）分发，著作权声明
 随文件保留。
 
 版本固定 15.0 是为了与参考实现对齐：JDK 21 用的是 Unicode 15.0，所以 `Character.isLetter`
-与大小写映射的答案以它为准。
+与大小写映射的答案以它为准。编译器仓库的 `scripts/check-notices.sh` 会在数据文件出现时要求
+声明文件已经列名。
 
 ---
 
