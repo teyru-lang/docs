@@ -210,6 +210,12 @@ copy them; it gives the direction:
   than a to-do.
 - **Static initialisation as eager as Java's.** The compiler initialises the program's own classes
   before `main`; Java initialises on first use. The difference and its tests are in `AGENTS.md` §10.
+- **The LLVM back end being at parity with the C back end.** It is **not** what a release build
+  uses (C is the default), and the two are not equivalent: measured on 2026-09-17 over 256 test
+  programs, 159 build, 153 of those produce exactly the expected output, 6 differ (the JDK probes,
+  listed in `known-failures.txt`), 93 are refused by name, and 0 modules are rejected by clang.
+  Lambdas and method references are no longer among the refusals; annotations on the program's own
+  declaration are, first by count (38). The full breakdown is in [docs/index.md](/en/docs).
 - **CI.** There is no CI on a push or a pull request (the owner's decision): the gate is a person
   running `make ci` on this machine, and the one workflow is the one that publishes a release.
 
