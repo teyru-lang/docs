@@ -4,8 +4,9 @@ description: "Teyru 0.2 的语法与语义：源文件与词法、类型、声�
 ---
 
 本文档描述 Teyru 0.2 的语法与语义。文档以实现为准：这里写的每一项语言特性都在
-`tests/programs/` 有对应的测试，`go test ./...` 会逐项验证；标准库的 API 则只
-覆盖一部分（例如 `Map.putAll`、`String.getBytes` 还没有测试用到），测试覆盖范围仍不完整。
+`tests/programs/` 有对应的测试，`go test ./...` 会逐项验证；标准库的 API 则只覆盖
+一部分——`tests/programs/` 用到哪些就验哪些，没用到的（例如 `Map.putAll`）就没有测试
+盯着它，测试覆盖范围仍不完整。
 
 - [1. 源文件与词法](#1-源文件与词法)
 - [2. 换行与语句终止](#2-换行与语句终止)
@@ -474,8 +475,10 @@ try {
 标准库是**一个** Teyru 包：`teyru`。其中的类取 Java 的名字，所以 Teyru
 代码用一行按需导入就能把它整个带进来：`import teyru.*`（只用到单个类时
 `import teyru.List` 也一样）。Java 风格的 `import java.util.*` 与
-`import java.util.List` 照样接受——那是“Java 源代码不改就能编译”的那条路，见下面的
-“名称怎么找”。
+`import java.util.List` 照样接受：`java.*` 的名字对到标准库里同名的类，见下面的
+“名称怎么找”。**这不等于“Java 源代码不改就能编译”**：分号不是合法 token
+（`TY-SYN-0001`，§1），带分号的 Java 源代码要先去掉分号才能编译，语法层的其余差异在
+§12、缺的 API 与误报在 §13。分号是否变成可选还没有定案。
 
 ### java.lang（`lib/01`–`lib/07`）
 
@@ -781,7 +784,12 @@ SHA-3 是因为 `getInstance` 宁可抛 `NoSuchAlgorithmException`，也不要�
 - 模块系统的语义（`import module X` 会被解析后忽略，运行时没有模块系统；`module-info` 不支持）
 - 数组的运行时元素类型一律是 `teyru.Array`，所以 `String[].class` 与
   `int[].class` 是同一个对象（Java 是两个）
-- 标准库缺失：`String.format` 的 `%t`／`%T`（日期时间转换）未实现，遇到会以
+- **Java 源代码相容的已知缺口**（`javac` 收、这里拒绝，都是实测）：`String.codePointAt`／
+  `codePointCount`／`offsetByCodePoints` 不存在（`TY-TYP-0076` 找不到方法）、
+  `new String(char[])` 与 `new String(char[], int, int)` 不存在（`TY-TYP-0072` 找不到
+  构造函数）、每条分支（含 `default`）都 `return` 却以 `switch` 结尾的方法被误报
+  `TY-TYP-0020` missing return；分号见 §12 第 1 条
+- 标准库缺口：`String.format` 的 `%t`／`%T`（日期时间转换）未实现，遇到会以
   `ty_unimplemented` 停止而不是打印出看起来合理的东西；其余缺口写在 §11 的包表与
   〈并发工具〉（`Scanner` 只读一个 `String`、`MessageDigest` 没有 SHA-3 与
   SHA-512/256、`java.util.concurrent` 只有执行器与四个同步器、闰秒没有、没有 tzdata 的主机上时区是具名拒绝）

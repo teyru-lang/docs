@@ -343,7 +343,13 @@ class Main {
 标准库以 **Teyru 本身**编写（`lib/*.teyru`），每次编译都和使用者程序一起被编译与
 检查。标准库是一个 Teyru 包（`teyru`），所以导入写成一行
 `import teyru.*`（只用到单个类时也可以写 `import teyru.List`）；Java 写法的
-`import java.util.*` 和 `import java.util.List` 也照样接受，Java 源码不改就能编译：
+`import java.util.*` 和 `import java.util.List` 也照样接受——相容的是**导入**这一层。
+「Java 源码不改就能编译」**不是**目前的实况，所以这里不这样写：分号不是合法 token
+（`TY-SYN-0001`，见〈语言参考〉§1 与 §12），带分号的 Java 源码要先去掉分号才能编译；
+javac 收、这里拒绝的写法也还有几处（`"a😀b".codePointCount(0, …)` 是 `TY-TYP-0076`、
+`new String(char[])` 是 `TY-TYP-0072`、每条分支都 `return` 却以 `switch` 结尾的方法是
+`TY-TYP-0020`，清单在〈语言参考〉§13）。分号是否变成可选还没有定案，定案之前这里只写
+今天的行动：
 
 | 包 | 内容 |
 |---|---|

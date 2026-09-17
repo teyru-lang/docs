@@ -5,9 +5,9 @@ description: "The syntax and semantics of Teyru 0.2: source files and lexing, ty
 
 This document describes the syntax and semantics of Teyru 0.2. It follows the implementation:
 every language feature written here has a corresponding test in `tests/programs/`, and
-`go test ./...` verifies each one; the standard library API, however, is only partially covered
-(for example `Map.putAll` and `String.getBytes` are not yet exercised by any test), so test
-coverage is still incomplete.
+`go test ./...` verifies each one; the standard library API, however, is only partially covered —
+whatever `tests/programs/` exercises is verified, and what it does not exercise (for example
+`Map.putAll`) has no test watching it, so test coverage is still incomplete.
 
 - [1. Source files and lexing](#1-source-files-and-lexing)
 - [2. Newlines and statement termination](#2-newlines-and-statement-termination)
@@ -503,8 +503,12 @@ under `lib/` are ordinary programs written in Teyru. The standard library is **o
 package: `teyru`. The classes inside it take Java's names, so Teyru code brings the whole thing
 in with one on-demand import: `import teyru.*` (using only one class, `import teyru.List`,
 works the same way). The Java-style `import java.util.*` and `import java.util.List` are
-accepted just as well — that is the path where "Java source code compiles unchanged", see
-"How names are found" below.
+accepted just as well: a `java.*` name resolves to the class of that name in the standard
+library, see "How names are found" below. **That is not the same thing as "Java source code
+compiles unchanged".** A semicolon is not a legal token (`TY-SYN-0001`, §1), so Java source
+has to have its semicolons removed to compile; the other syntax differences are in §12 and
+the missing APIs and misreported forms are in §13. Whether a semicolon becomes optional is
+undecided.
 
 ### java.lang (`lib/01`–`lib/07`)
 
@@ -863,6 +867,12 @@ When you need your own native library, a `native` method can be implemented in C
   module system at runtime; `module-info` is not supported)
 - An array's runtime element type is always `teyru.Array`, so `String[].class` and
   `int[].class` are the same object (in Java they are two)
+- **Known gaps in Java source compatibility** (javac accepts, this compiler refuses; all
+  measured): `String.codePointAt`, `codePointCount` and `offsetByCodePoints` do not exist
+  (`TY-TYP-0076`, cannot find method), `new String(char[])` and
+  `new String(char[], int, int)` do not exist (`TY-TYP-0072`, no suitable constructor), and
+  a method that ends in a `switch` whose every branch (including `default`) returns is
+  misreported as `TY-TYP-0020` missing return; the semicolon is §12 item 1
 - Standard library gaps: `String.format`'s `%t`/`%T` (date-time conversions) are not
   implemented, and hitting them stops with `ty_unimplemented` rather than printing
   something that looks reasonable; the rest are written where they belong, in §11's package

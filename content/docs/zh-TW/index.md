@@ -345,7 +345,13 @@ class Main {
 標準程式庫以 **Teyru 本身**撰寫（`lib/*.teyru`），每次編譯都與使用者程式
 一起被編譯與檢查。標準程式庫是一個 Teyru 套件（`teyru`），所以匯入寫成一行
 `import teyru.*`（只用到一個類別時也可以寫 `import teyru.List`）；Java 風格的
-`import java.util.*` 與 `import java.util.List` 也照樣收，Java 原始碼不改就能編：
+`import java.util.*` 與 `import java.util.List` 也照樣收——相容的是**匯入**這一層。
+「Java 原始碼不改就能編」**不是**目前的實況，所以這裡不這樣寫：分號不是合法 token
+（`TY-SYN-0001`，見〈語言參考〉§1 與 §12），帶分號的 Java 原始碼要先去掉分號才能編；
+javac 收、這裡拒絕的寫法也還有幾處（`"a😀b".codePointCount(0, …)` 是 `TY-TYP-0076`、
+`new String(char[])` 是 `TY-TYP-0072`、每條分支都 `return` 卻以 `switch` 結尾的方法是
+`TY-TYP-0020`，清單在〈語言參考〉§13）。分號是否變成可選還沒有定案，定案之前這裡只寫
+今天的行為：
 
 | 套件 | 內容 |
 |---|---|
