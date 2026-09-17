@@ -580,8 +580,8 @@ teyru help                                     說明
 | `darwin/amd64`、`darwin/arm64` | ⚠️ **只到「編譯並連結」**：`teyru build --target darwin/arm64 --cc <zig 包裝>`（W9 之後 `resolveTarget` 看的是這次建置真的會跑的編譯器）在 `tests/programs` 的 **257 支**裡 **240 支建得起來並連結**、9 支因 TLS 被**具名拒絕**、8 支那個版本的編譯器編不過（W5／W7 之後才落地的 API 與檢查器），產物是 Mach-O；**沒有任何一行被執行過**（見下） | ❌ 這裡沒有 macOS，所以沒有任何人跑過它們 |
 
 證據是分開量的，因為「編得出來」與「跑得起來」不同，而這次新增的量測是 `linux/arm64` 與
-macOS 這兩列。**表裡的數字要連著量測當時的樹讀**：`linux/amd64` 與 `linux/arm64` 的套件數字
-是 2026-09-17 量的，那時 `tests/programs` 有 222 支程式、整套 250 項；那個目錄現在更多
+macOS 這兩列。**表裡的數字要連著量測當時的樹讀**：`linux/amd64`、`windows/amd64` 與 `linux/arm64`
+的套件數字都是 2026-09-17 量的，那時 `tests/programs` 有 222 支程式、整套 250 項；那個目錄現在更多
 （257 支），所以那兩個數字是當時的紀錄，不是今天的計數。W9 之後 arm64 與 macOS 這兩列正在用
 `TEYRU_TARGET` 與 `--cc` 重測，重測完成前它們標的是 W9 之前的量測。
 

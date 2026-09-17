@@ -630,8 +630,8 @@ other's cell is claiming a measurement that was never taken:
 
 The evidence is measured separately, because "it builds" and "it runs" are different
 questions, and the rows added here are `linux/arm64` and macOS. **Read the table's numbers with
-the tree they were measured on**: the suite figures for `linux/amd64` and `linux/arm64` were
-measured on 2026-09-17, when `tests/programs` held 222 programs and the whole suite was 250
+the tree they were measured on**: the suite figures for `linux/amd64`, `windows/amd64` and `linux/arm64`
+were all measured on 2026-09-17, when `tests/programs` held 222 programs and the whole suite was 250
 cases; that directory holds more now (257), so those two are records of that day rather than
 today's count. After W9 the arm64 and macOS rows are being re-measured with `TEYRU_TARGET` and `--cc`,
 and until that run lands they carry the pre-W9 measurement.
