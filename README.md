@@ -103,6 +103,12 @@ build command 是 `npm run build`，輸出目錄交給 Vercel 自動判斷即可
 實際的設定：
 
 - Vercel 專案 `teyru-docs`（team `langyas-projects`），production 部署就是線上版本。
+- **今天（2026-09-17）是手動部署的**：專案的 `link` 欄位是空的，也就是**沒有接 Git**；
+  每一筆 production 部署的來源都是 `cli`、建立者是 owner 的帳號（`vercel ls teyru-docs`
+  可見）。所以 **push 到這個倉庫不會部署任何東西**，線上站會停在最後一次手動部署的版本
+  ——實際落後過：`main` 上已有的「窄化轉換」、「越界繼承階層」、「TLS」三節當時線上還沒有。
+  改了文件就要跑下面的 `vercel deploy --prod`，編譯器倉庫的 `AGENTS.md` §9 與送出前檢查
+  清單也寫了這一步。
 - 網域 `docs.teyru.dev` 在 Cloudflare 的 zone 裡是一筆 **DNS-only** 的
   `CNAME docs.teyru.dev -> cname.vercel-dns.com`：不要開代理，憑證交給 Vercel 簽。
 - **每次 push 自動部署**要把 Vercel 的 GitHub App 授權給 `teyru-lang` 組織
