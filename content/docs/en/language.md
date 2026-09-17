@@ -653,6 +653,13 @@ the offset in force before the transition, and offsets in POSIX's inverted sense
 +08:00 east of UT); one it cannot read raises `ZoneRulesException` naming the source (a file
 path, or `TZ=...`) and the part it could not read.
 
+**A known defect, not yet fixed**: a negative-DST zone — `Europe/Dublin`'s standard time is +01 and
+its winter is GMT with `isdst=1`, and `Africa/Casablanca` is the same shape — currently reports `dst`
+as `std`. That is why `t189_timezone_lookup` and `t190_timezone_tzif` are red on a newer host tzdata
+and green on this machine; the fix is filed as its own work item and goes out in `v0.4.1`. **This is
+not a case of "different data, different answer"**: the expectation is Java's answer and the reading
+side is what is wrong.
+
 **What is deliberately absent**: `java.util.TimeZone` is not implemented *by decision* — this
 library's whole date and time layer is java.time's, there is no `Date` and no `Calendar` for
 it to serve, and the three things it would be asked for (`getAvailableZoneIds`,

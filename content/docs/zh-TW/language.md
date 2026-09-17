@@ -603,6 +603,12 @@ fork/join、`CompletionService`、`ThreadFactory`、`CyclicBarrier`／`Semaphore
 +08:00 以東）；讀不下去的會丟 `ZoneRulesException`，訊息指名來源（檔案路徑或 `TZ=...`）
 與唸不下去的地方。
 
+**已知缺陷（未修）**：負 DST 的時區——`Europe/Dublin` 的標準時間是 +01、冬天是 GMT 而
+`isdst=1`，`Africa/Casablanca` 同理——目前把 `dst` 報成 `std`。`t189_timezone_lookup` 與
+`t190_timezone_tzif` 在較新的宿主 tzdata 上就是這樣紅的（同一台主機上綠），修正列為獨立工作項，
+出在 `v0.4.1`。**這不是「資料不同所以答案不同」的藉口**：期望值是 Java 的答案，錯的是讀檔案
+的那一邊。
+
 **刻意沒有的東西**：`java.util.TimeZone` 是**決定不做**——這個標準程式庫的日期時間層
 整套是 java.time 的，沒有 `Date`／`Calendar` 給它服務，而它會被要的三件事
 `getAvailableZoneIds`／`systemDefault`／`getOffset` 都在；規則的**物件**那一面

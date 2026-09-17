@@ -20,6 +20,13 @@ description: "Teyru 的版本：0.4.0 是正确性版本——改了什么、量
 输出，不改数字：`notices` 与树一致、默认编译器那一条 `ok 801.427s`、**gcc 那一条 `ok 931.287s`**、
 **JDK differential `PASS`（`ok 284.091s`）**，整体 `EXIT=0`。
 
+**但这四行是「手跑绿」，不是「工作流绿」——这一版两者不是同一件事。** 工作流程在同一棵树
+`3cd9c70` 上的**首跑失败**在两支时区测试（`TestPrograms/t189_timezone_lookup`、
+`t190_timezone_tzif`）：**负 DST** 的时区（`Europe/Dublin` 的标准时间是 +01、冬天是 GMT 而
+`isdst=1`；`Africa/Casablanca` 同理）在这台机器上绿、在 runner 较新的**宿主 tzdata** 上红——
+差别不在代码，在它读的数据版本。测试的期望值是对的（是 `lib/46_timezone.teyru` 把 `dst` 报成
+`std`），已列为独立工作项，修正之后会走 `v0.4.1`。
+
 ---
 
 ## 1. 改了什么

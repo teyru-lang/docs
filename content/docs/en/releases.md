@@ -24,6 +24,15 @@ first run is still in progress. The four lines are `make ci`'s own output, copie
 number: `notices` consistent with the tree, the default compiler leg `ok 801.427s`, **the gcc leg
 `ok 931.287s`**, and **the JDK differential `PASS` (`ok 284.091s`)**, with `EXIT=0` overall.
 
+**But those four lines are "green when run by hand", not "green in the workflow" -- in this release
+they are not the same thing.** The workflow's **first run failed** on the same tree, `3cd9c70`, in
+two time zone tests (`TestPrograms/t189_timezone_lookup` and `t190_timezone_tzif`): a **negative-DST**
+zone (`Europe/Dublin`'s standard time is +01 and its winter is GMT with `isdst=1`; `Africa/Casablanca`
+likewise) is green on this machine and red on the runner's newer **host tzdata** -- the difference is
+not in the code but in the data version it reads. The tests' expectations are right (it is
+`lib/46_timezone.teyru` reporting `dst` as `std`), it is filed as its own work item, and the fix goes
+out as `v0.4.1`.
+
 ---
 
 ## 1. What changed
