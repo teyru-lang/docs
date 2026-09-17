@@ -542,8 +542,9 @@ the compiler emits per class, so a lookup is an array walk and nothing is built 
 time. The member tables ship only when a program can reach reflection: one that can carries
 all of them (a hello world with one extra `Class.forName` and `getDeclaredFields()` call goes
 from 54.6 KB to about 4.6 MB at `-O2`), and one that cannot carries none. Where they differ from Java:
-the class names are Teyru's (`String.class.getName()`
-is `teyru.String`, and `forName` takes either spelling), annotations are reflectable but
+the class names are the JDK's (`String.class.getName()`
+is `java.lang.String`, `Map.Entry` is `java.util.Map$Entry`, and `forName` takes either
+spelling because it looks a class up by its binary name), annotations are reflectable but
 their elements are read **by name** (`ann.stringValue("value")`, not Java's `ann.value()`),
 all arrays share one class (so there is no `getComponentType`), there is no reflection of
 generic type arguments, the primitive getters take an exactly matching box rather than
@@ -863,10 +864,16 @@ When you need your own native library, a `native` method can be implemented in C
     **JDK 21 accepts it** and takes the surrogate pair's first code unit (it prints `55357`).
     Whether the two should agree is undecided; until it is, read it as "we refuse, javac
     accepts" rather than "the two agree".
-14. **An uncaught exception prints Teyru's class name**: `teyru.NumberFormatException`,
-    `teyru.StackOverflowError`, not `java.lang.*`. `Class.getName()` answers the same way (see
-    the reflection paragraph in §11), while `Class.forName` takes either spelling. Whether the
-    standard library should report the JDK's fully-qualified names is undecided.
+14. **An exception's class name and message (W6, decision D8: report the JDK's
+    fully-qualified names)**: `Class.getName()` reports the JDK's class, so an uncaught
+    exception prints `java.lang.NumberFormatException`, `java.lang.StackOverflowError`
+    (`t251_exception_names`, its expectation produced by the JDK), and the same holds for
+    `Throwable.toString()` and for every class name that appears in a message.
+    `Class.forName` still takes either spelling (`java.lang.String` and `teyru.String` are
+    the same class, because a class is looked up by its binary name). The messages are
+    aligned with the JDK one by one; the three that are not -- a cast's module/loader
+    parenthetical, the helpful NullPointerException message, and `ArrayStoreException`'s
+    element class -- are listed in the test repository's `known-failures.txt`.
 
 ## 13. Not yet implemented
 
@@ -892,13 +899,20 @@ When you need your own native library, a `native` method can be implemented in C
   onto the generated members and has no runtime effect whatsoever
 - The semantics of the module system (`import module X` is parsed and then ignored, there is no
   module system at runtime; `module-info` is not supported)
-- **`HashMap`/`HashSet` iteration order is not JDK 21's**: with five keys inserted
-  (`banana`, `apple`, `cherry`, `date`, `elderberry`) this iterates them as `banana, apple,
-  cherry, date, elderberry` where the JDK gives `banana, date, apple, cherry, elderberry`.
-  The JDK's algorithm (`h ^ (h >>> 16)` mixing, power-of-two capacity, 0.75 load factor, the
-  lo/hi split that keeps relative order on resize) is not implemented yet; `LinkedHashMap`'s
-  insertion order and `TreeMap`'s key order do follow the JDK (see §11). The program that
-  measures it is `t234_probe_collections` in the test repository.
+- **Treeifying a `HashMap`/`HashSet` bucket**: the iteration order follows the JDK 21
+  layout (W6, decision D7: `h ^ (h >>> 16)` mixing, power-of-two capacity, 0.75 load factor,
+  new entries appended to the tail of their bucket, the lo/hi split that keeps relative order
+  on resize, a threshold that doubles on resize, and `putMapEntries` pre-sizing a map that has
+  no table yet), so `toString`, `keySet`, `values`, `entrySet` and `HashSet` walk in the JDK's
+  order character for character (`t250_map_order`, its expectation produced by running
+  `t250_map_order.java.ref` on the JDK: five string keys walk as `banana, date, apple, cherry,
+  elderberry`). **What is not implemented is treeification**: once a bucket holds eight or
+  more entries and the table has 64 slots, Java treeifies that bucket, and `treeifyBin` moves
+  the tree's root to the front of it, so that bucket's walk order is the tree's shape. For
+  keys that are neither Comparable nor separable by hash, Java breaks the tie with
+  `System.identityHashCode`, which is not reproducible in principle. No table below 64 slots
+  treeifies. `LinkedHashMap`'s insertion order and `TreeMap`'s key order do follow the JDK
+  (see §11).
 - An array's runtime element type is always `teyru.Array`, so `String[].class` and
   `int[].class` are the same object (in Java they are two)
 - **Known gaps in Java source compatibility** (javac accepts, this compiler refuses; all

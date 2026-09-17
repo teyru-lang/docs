@@ -92,16 +92,28 @@ Until it lands, the differences between **today's** behaviour and the JDK — wi
 are in [docs/language.md](/en/docs/language) §12 item 12, the missing APIs in §13, and the byte
 boundary's test (`t196_string_bytes`) is in the test repository.
 
-### Boxing, container order and exception names (W6 — partly in progress)
+### Boxing, container order and exception names (W6 -- not in main yet)
 
 - **The boxing caches** (in main): `Integer`, `Short`, `Byte` and `Long` cache −128..127, `Character`
   caches 0..127, and `Boolean` has exactly two instances, so
   `Integer.valueOf(127) == Integer.valueOf(127)` is `true` as it is in Java — and it survives a call
   (`t242_box_identity_across_call`, its expectation produced by javac).
 - **The bounds message** (in main): `Index 5 out of bounds for length 3`, with the JDK's capital `I`.
-- **Two parts not done**: `HashMap`/`HashSet` iteration order matching JDK 21, and
-  fully-qualified exception names (`java.lang.*` rather than `teyru.*`). Both are listed in §13,
-  with the iteration-order measurement in that entry and the class-name difference in §12 item 14.
+- **Container order** (`w6boxing`): `HashMap`/`HashSet` iteration order follows the JDK 21
+  layout (decision D7). The program that measures it is `t250_map_order` in the test repository,
+  and its expectation came from running `t250_map_order.java.ref` on the JDK: the five string
+  keys (inserted as `banana`, `apple`, `cherry`, `date`, `elderberry`) walk as `banana, date,
+  apple, cherry, elderberry`, character for character as the JDK does. A bucket keeping insert
+  order, the 13th key growing the table to 32 slots, the copy constructor and `putAll`
+  pre-sizing, and the threshold doubling under a 0.6 load factor (9 then 18) each have a line.
+- **Exception names and messages** (`w6boxing`): `Class.getName()` reports the JDK's
+  fully-qualified name (decision D8), so an uncaught exception prints `Exception in thread
+  "main" java.lang.IllegalStateException: boom`, as the JDK does (`t251_exception_names`,
+  `t79_uncaught`); `System.arraycopy`'s type-mismatch message is the JDK's too
+  (`arraycopy: type mismatch: can not copy long[] into byte[]`, `t65_arraycopy`). The three
+  messages that are not aligned -- a cast's module/loader parenthetical, the helpful
+  NullPointerException message, and `ArrayStoreException`'s element class -- are listed in the
+  test repository's `known-failures.txt`.
 
 ### Java source compatibility (W7 -- **in main**)
 

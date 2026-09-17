@@ -511,8 +511,9 @@ try {
 `Modifier`、`Array` 與六個反射用例外；它們讀的是編譯器為每個類別產生的靜態表，
 查一次資料是走一次陣列，執行期不建表。成員表只在程式真的會用到反射時
 才寫進執行檔（用到時整份都會帶上：同一支 hello world 多一次 `Class.forName` 與
-`getDeclaredFields()` 的呼叫，同一支在 `-O2` 下的執行檔就從 54.6 KB 變成約 4.6 MB；沒用到的一行都不帶）。與 Java 的差異：類別名是 Teyru 的
-（`String.class.getName()` 是 `teyru.String`，`forName` 兩種名字都收）、註解可以反射，但元素是**按名字讀**（`ann.stringValue("value")`，不是 Java 的 `ann.value()`）；所有陣列共用一個類別（所以沒有 `getComponentType`）、沒有泛型型別參數的
+`getDeclaredFields()` 的呼叫，同一支在 `-O2` 下的執行檔就從 54.6 KB 變成約 4.6 MB；沒用到的一行都不帶）。與 Java 的差異：類別名報告的是 JDK 的
+（`String.class.getName()` 是 `java.lang.String`、`Map.Entry` 是 `java.util.Map$Entry`；
+`forName` 兩種寫法都收，因為它查的是二元名）、註解可以反射，但元素是**按名字讀**（`ann.stringValue("value")`，不是 Java 的 `ann.value()`）；所有陣列共用一個類別（所以沒有 `getComponentType`）、沒有泛型型別參數的
 反射、原生型別取值器只收完全相符的裝箱型別、不檢查存取控制（只有 final 會攔）。
 `java.util.function`（`lib/09`）提供 `Function`／`BiFunction`／`Consumer`／
 `Supplier`／`Predicate`／`Runnable`／`Comparator`。
@@ -778,10 +779,14 @@ SHA-3 是因為 `getInstance` 寧可丟 `NoSuchAlgorithmException`，也不要�
     所以這裡是 `TY-SYN-0008`（`tests/diagnostics/emojiCharLiteral`），而 **JDK 21 收下它**、
     取代理對的第一個 code unit（印出 `55357`）。兩邊要不要一致還沒定案；在那之前把它讀成
     「我們拒絕、javac 接受」，而不是「雙方一致」。
-14. **未捕捉的例外印的是 Teyru 的類別名**：`teyru.NumberFormatException`、
-    `teyru.StackOverflowError`，而不是 `java.lang.*`。`Class.getName()` 也一樣（見 §11 的
-    反射那一段），而 `Class.forName` 兩種寫法都收。標準程式庫要不要改用 JDK 的全限定名
-    還沒有定案。
+14. **例外的類別名與訊息（W6、決策 D8：報告 JDK 的全限定名）**：`Class.getName()` 報告
+    JDK 的類別，所以未捕捉的例外印 `java.lang.NumberFormatException`、
+    `java.lang.StackOverflowError`（`t251_exception_names`，期望值由 JDK 產生），
+    `Throwable.toString()` 與訊息裡出現的類別名也一樣；`Class.forName` 兩種寫法都收
+    （`java.lang.String` 與 `teyru.String` 是同一類別，因為查的是二元名）。訊息本身逐條
+    對齊 JDK，還沒對齊的三條——cast 的 module／loader 括號、有幫助的
+    NullPointerException 訊息、`ArrayStoreException` 的元素類別——都列在測試倉庫的
+    `known-failures.txt`。
 
 ## 13. 尚未實作
 
@@ -803,12 +808,15 @@ SHA-3 是因為 `getInstance` 寧可丟 `NoSuchAlgorithmException`，也不要�
 - `java.lang.annotation` 套件（註解反射本身有，見 §11）：`@Retention` 收得下但沒有
   作用；Lombok 的 `@onX` 只把註解複製到產生的成員上，不會有任何執行期效果
 - 模組系統的語意（`import module X` 會被剖析後忽略，執行期沒有模組系統；`module-info` 不支援）
-- **`HashMap`／`HashSet` 的迭代順序不是 JDK 21 的**：實測五個鍵（依序放入 `banana`、
-  `apple`、`cherry`、`date`、`elderberry`）在這裡迭代出 `banana, apple, cherry, date,
-  elderberry`，JDK 是 `banana, date, apple, cherry, elderberry`。JDK 的演算法（`h ^ (h >>> 16)`
-  擾動、2 的冪容量、0.75 負載因子、擴容時 lo/hi 拆分並保持相對順序）還沒有實作；
-  `LinkedHashMap` 的插入序與 `TreeMap` 的鍵序照 JDK（見 §11）。實測程式是測試倉庫的
-  `t234_probe_collections`。
+- **`HashMap`／`HashSet` 的桶內樹化**：迭代順序照 JDK 21 的版面（W6、決策 D7：`h ^ (h >>> 16)`
+  擾動、容量為 2 的冪、0.75 負載因子、新項目追加到桶尾、擴容時 lo／hi 拆分並保持相對順序、
+  擴容時門檻加倍、`putMapEntries` 對還沒有表的 map 依來源大小事先定量），所以 `toString`／
+  `keySet`／`values`／`entrySet` 與 `HashSet` 的迭代順序與 JDK 逐字相同（`t250_map_order`，
+  期望值由 JDK 跑 `t250_map_order.java.ref` 產生：五個字串鍵迭代出 `banana, date, apple,
+  cherry, elderberry`）。**未實作的是樹化**：桶裡有 8 個以上項目、且表已達 64 桶時 Java 會
+  樹化該桶，而 `treeifyBin` 把樹根搬到桶的前端，於是那個桶的走訪順序取決於樹的形狀；非
+  Comparable、雜湊又分不出高低的鍵用 `System.identityHashCode` 決勝，原理上不可重現。
+  64 桶以下的表不會樹化。`LinkedHashMap` 的插入序與 `TreeMap` 的鍵序照 JDK（見 §11）。
 - 陣列的執行期元素型別一律是 `teyru.Array`，所以 `String[].class` 與
   `int[].class` 是同一個物件（Java 是兩個）
 - **Java 原始碼相容的已知缺口**（`javac` 收、這裡拒絕，都是實測）：`String.codePointAt`／

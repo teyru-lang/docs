@@ -77,16 +77,24 @@ obs-fold、冒号前空白、非十六进制的 chunk……）一律拒绝并关
 [docs/language.md](/zh-CN/docs/language) §12 第 12 条，缺的 API 在 §13；字节边界的测试
 （`t196_string_bytes`）在测试仓库里。
 
-### 装箱、容器顺序与异常名称（W6，部分进行中）
+### 装箱、容器顺序与异常名称（W6，尚未合入 main）
 
 - **装箱缓存**（已合入）：`Integer`／`Short`／`Byte`／`Long` 缓存 −128..127、`Character`
   缓存 0..127、`Boolean` 只有两个实例，所以 `Integer.valueOf(127) == Integer.valueOf(127)`
   与 Java 一样是 `true`；跨过一次调用也不会坏（`t242_box_identity_across_call`，期望值由
   javac 生成）。
 - **越界消息**（已合入）：`Index 5 out of bounds for length 3`（大写 `I`，JDK 的句子）。
-- **还没做的两项**：`HashMap`／`HashSet` 的迭代顺序对齐 JDK 21，以及异常的全限定名
-  （`java.lang.*` 而不是 `teyru.*`）。两者都列在 §13，迭代顺序的实测写在 §13 那一条，
-  类名的差异写在 §12 第 14 条。
+- **容器顺序**（`w6boxing`）：`HashMap`／`HashSet` 的迭代顺序照 JDK 21 的版面（决策 D7）。
+  实测程序是测试仓库的 `t250_map_order`，期望值由 JDK 跑 `t250_map_order.java.ref` 生成：
+  五个字符串键（依次放入 `banana`、`apple`、`cherry`、`date`、`elderberry`）迭代出
+  `banana, date, apple, cherry, elderberry`，与 JDK 逐字相同；同一桶保持插入顺序、第 13 个键
+  扩容到 32 桶、复制构造与 `putAll` 的预先定量、负载因子 0.6 的阈值加倍（9 → 18）各有一行。
+- **异常名称与消息**（`w6boxing`）：`Class.getName()` 报告 JDK 的全限定名（决策 D8），
+  未捕获的异常因此打印 `Exception in thread "main" java.lang.IllegalStateException: boom`，
+  与 JDK 相同（`t251_exception_names`、`t79_uncaught`）；`System.arraycopy` 的类型不符消息
+  也是 JDK 的 `arraycopy: type mismatch: can not copy long[] into byte[]`（`t65_arraycopy`）。
+  还没对齐的三条消息（cast 的 module／loader 括号、有帮助的 NullPointerException 消息、
+  `ArrayStoreException` 的元素类）写在测试仓库的 `known-failures.txt`。
 
 ### Java 源代码相容（W7，**已合入 main**）
 

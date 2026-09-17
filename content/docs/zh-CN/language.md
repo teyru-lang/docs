@@ -511,8 +511,9 @@ JLS §14.22、常见的泛型推断），但那句话本身没有范围——§1
 `Modifier`、`Array` 与六个反射用异常；它们读的是编译器为每个类生成的静态表，
 查一次数据是走一次数组，运行期不建表。成员表只在程序真的会用到反射时
 才写进可执行文件（用到时整份都会带上：同一支 hello world 多一次 `Class.forName` 与
-`getDeclaredFields()` 的调用，同一支在 `-O2` 下的可执行文件就从 54.6 KB 变成约 4.6 MB；没用到的程序一行都不带）。与 Java 的差异：类名是 Teyru 的
-（`String.class.getName()` 是 `teyru.String`，`forName` 两种名字都收）、注解可以
+`getDeclaredFields()` 的调用，同一支在 `-O2` 下的可执行文件就从 54.6 KB 变成约 4.6 MB；没用到的程序一行都不带）。与 Java 的差异：类名报告的是 JDK 的
+（`String.class.getName()` 是 `java.lang.String`、`Map.Entry` 是 `java.util.Map$Entry`；
+`forName` 两种写法都收，因为它查的是二进制名）、注解可以
 反射，但元素是**按名字读**（`ann.stringValue("value")`，不是 Java 的
 `ann.value()`）、所有数组共用一个类（所以没有 `getComponentType`）、没有泛型类型参数的
 反射、原生类型取值器只收完全相符的包装类型、不检查访问控制（只有 final 会拦）。
@@ -782,10 +783,14 @@ SHA-3 是因为 `getInstance` 宁可抛 `NoSuchAlgorithmException`，也不要�
     所以这里是 `TY-SYN-0008`（`tests/diagnostics/emojiCharLiteral`），而 **JDK 21 收下它**、
     取代理对的第一个 code unit（打印 `55357`）。两边要不要一致还没有定案；在那之前把它读成
     「我们拒绝、javac 接受」，而不是「双方一致」。
-14. **未捕获的异常打印的是 Teyru 的类名**：`teyru.NumberFormatException`、
-    `teyru.StackOverflowError`，而不是 `java.lang.*`。`Class.getName()` 也一样（见 §11 的
-    反射那一段），而 `Class.forName` 两种写法都收。标准库要不要改用 JDK 的全限定名
-    还没有定案。
+14. **异常的类名与消息（W6、决策 D8：报告 JDK 的全限定名）**：`Class.getName()` 报告
+    JDK 的类，所以未捕获的异常打印 `java.lang.NumberFormatException`、
+    `java.lang.StackOverflowError`（`t251_exception_names`，期望值由 JDK 生成），
+    `Throwable.toString()` 与消息里出现的类名也一样；`Class.forName` 两种写法都收
+    （`java.lang.String` 与 `teyru.String` 是同一个类，因为查的是二进制名）。消息本身逐条
+    对齐 JDK，还没对齐的三条——cast 的 module／loader 括号、有帮助的
+    NullPointerException 消息、`ArrayStoreException` 的元素类——都列在测试仓库的
+    `known-failures.txt`。
 
 ## 13. 尚未实现
 
@@ -807,12 +812,15 @@ SHA-3 是因为 `getInstance` 宁可抛 `NoSuchAlgorithmException`，也不要�
 - `java.lang.annotation` 包（注解反射本身有，见 §11）：`@Retention` 收得下但没有
   作用；Lombok 的 `@onX` 只把注解复制到生成的成员上，不会有任何运行时效果
 - 模块系统的语义（`import module X` 会被解析后忽略，运行时没有模块系统；`module-info` 不支持）
-- **`HashMap`／`HashSet` 的迭代顺序不是 JDK 21 的**：实测五个键（依次放入 `banana`、
-  `apple`、`cherry`、`date`、`elderberry`）在这里迭代出 `banana, apple, cherry, date,
-  elderberry`，JDK 是 `banana, date, apple, cherry, elderberry`。JDK 的算法（`h ^ (h >>> 16)`
-  扰动、2 的幂容量、0.75 负载因子、扩容时 lo/hi 拆分并保持相对顺序）还没有实现；
-  `LinkedHashMap` 的插入序与 `TreeMap` 的键序照 JDK（见 §11）。实测程序是测试仓库的
-  `t234_probe_collections`。
+- **`HashMap`／`HashSet` 的桶内树化**：迭代顺序照 JDK 21 的版面（W6、决策 D7：`h ^ (h >>> 16)`
+  扰动、容量为 2 的幂、0.75 负载因子、新项目追加到桶尾、扩容时 lo／hi 拆分并保持相对顺序、
+  扩容时阈值加倍、`putMapEntries` 对还没有表的 map 按来源大小预先定量），所以 `toString`／
+  `keySet`／`values`／`entrySet` 与 `HashSet` 的迭代顺序与 JDK 逐字相同（`t250_map_order`，
+  期望值由 JDK 跑 `t250_map_order.java.ref` 生成：五个字符串键迭代出 `banana, date, apple,
+  cherry, elderberry`）。**没有实现的是树化**：桶里有 8 个以上条目、且表已达 64 桶时 Java 会
+  树化那个桶，而 `treeifyBin` 把树根搬到桶的前端，于是那个桶的遍历顺序取决于树的形状；非
+  Comparable、哈希又分不出高低的键用 `System.identityHashCode` 决胜，原理上不可重现。
+  64 桶以下的表不会树化。`LinkedHashMap` 的插入序与 `TreeMap` 的键序照 JDK（见 §11）。
 - 数组的运行时元素类型一律是 `teyru.Array`，所以 `String[].class` 与
   `int[].class` 是同一个对象（Java 是两个）
 - **Java 源代码相容的已知缺口**（`javac` 收、这里拒绝，都是实测）：`String.codePointAt`／

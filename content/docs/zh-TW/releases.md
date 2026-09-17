@@ -77,16 +77,24 @@ WTF-8 加麵包屑（`tystr` 仍是 24 位元組），「改用 JDK 式 compact 
 [docs/language.md](/docs/language) §12 第 12 條，缺的 API 在 §13；位元組邊界的測試
 （`t196_string_bytes`）在測試倉庫裡。
 
-### 裝箱、容器順序與例外名稱（W6，部分進行中）
+### 裝箱、容器順序與例外名稱（W6，尚未合入 main）
 
 - **裝箱快取**（已合入）：`Integer`／`Short`／`Byte`／`Long` 快取 −128..127、`Character`
   快取 0..127、`Boolean` 只有兩個實例，所以 `Integer.valueOf(127) == Integer.valueOf(127)`
   與 Java 一樣是 `true`；跨過一次呼叫也不會壞（`t242_box_identity_across_call`，期望值由
   javac 產生）。
 - **越界訊息**（已合入）：`Index 5 out of bounds for length 3`（大寫 `I`，JDK 的句子）。
-- **還沒做的兩項**：`HashMap`／`HashSet` 的迭代順序對齊 JDK 21，以及例外的全限定名
-  （`java.lang.*` 而不是 `teyru.*`）。兩者都列在 §13，迭代順序的實測寫在 §13 那一條，
-  類別名的差異寫在 §12 第 14 條。
+- **容器順序**（`w6boxing`）：`HashMap`／`HashSet` 的迭代順序照 JDK 21 的版面（決策 D7）。
+  實測程式是測試倉庫的 `t250_map_order`，期望值由 JDK 跑 `t250_map_order.java.ref` 產生：
+  五個字串鍵（依序放入 `banana`、`apple`、`cherry`、`date`、`elderberry`）迭代出
+  `banana, date, apple, cherry, elderberry`，與 JDK 逐字相同；同一桶保持插入序、第 13 個鍵
+  擴容到 32 桶、複製建構子與 `putAll` 的事先定量、負載因子 0.6 的門檻加倍（9 → 18）各有一行。
+- **例外名稱與訊息**（`w6boxing`）：`Class.getName()` 報告 JDK 的全限定名（決策 D8），
+  未捕捉的例外因此印 `Exception in thread "main" java.lang.IllegalStateException: boom`，
+  與 JDK 相同（`t251_exception_names`、`t79_uncaught`）；`System.arraycopy` 的型別不符訊息
+  也是 JDK 的 `arraycopy: type mismatch: can not copy long[] into byte[]`（`t65_arraycopy`）。
+  還沒對齊的三條訊息（cast 的 module／loader 括號、有幫助的 NullPointerException 訊息、
+  `ArrayStoreException` 的元素類別）寫在測試倉庫的 `known-failures.txt`。
 
 ### Java 原始碼相容（W7，**已合入 main**）
 
