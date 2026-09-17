@@ -776,6 +776,10 @@ Three files in the test repository decide what counts as passing today (see `REA
   an explicit `none`, is not accepted.
 - `<part>/<case>.skip`: the platforms a case cannot run on (`windows`, `darwin/arm64`, or
   `!linux` for the one platform it can), with the reason after `#`.
+- `scripts/backend-matrix-allow.txt` (in the Teyru repository): the divergences **between back
+  ends** that the matrix is allowed to find, one `<program> <work item> <reason>` per line. Same
+  mechanism as `known-failures.txt`; what is different is what it excuses, because the suite's own
+  drivers build one back end and so cannot see two of them disagree.
 
 The make targets wrap these up (`make` on its own is `make build`):
 
@@ -785,6 +789,7 @@ The make targets wrap these up (`make` on its own is `make build`):
 | `make ci` | everything a CI job would run, run here by hand instead: `lint`, the whole suite built once with clang and once with gcc, and the JDK differential when `TEYRU_JDK` is set. With only one C compiler installed, the gcc half says out loud that it did not run |
 | `make jdk-diff` | compile and run every translatable program in `tests/programs/` with JDK 21 and compare stdout and exit status; `TEYRU_JDK` must point at a JDK 21 home |
 | `make progen` | the random-program differential: `internal/tools/progen` generates 200 programs from fixed seeds and builds each spelling and diffs them |
+| `make backend-matrix` | every program × six back-end cells (C+clang, C+gcc, LLVM at `-O0` and `-O2`), each cell compared with the suite and the cells with each other; the divergences allowed are in `scripts/backend-matrix-allow.txt` |
 | `make notices` | check `THIRD-PARTY-NOTICES.md` against the tree (see [docs/legal.md](/en/docs/legal)) |
 | `make bench` / `make examples` | the performance comparison, and the examples |
 

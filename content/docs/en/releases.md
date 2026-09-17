@@ -103,10 +103,13 @@ boundary's test (`t196_string_bytes`) is in the test repository.
   fully-qualified exception names (`java.lang.*` rather than `teyru.*`). Both are listed in §13,
   with the iteration-order measurement in that entry and the class-name difference in §12 item 14.
 
-### Java source compatibility (W7 — **not started**)
+### Java source compatibility (W7 — **not in main yet**)
 
-**Nothing has been claimed and nothing is on main**: the paragraph below is the goal, not a status,
-and there are no numbers to give. The goal is to make "Java source compiles unchanged" true of a testable subset: semicolons optional,
+**JavaCompat is working on this one and nothing is on main yet**: the paragraph below is the goal,
+not a status, and there are no numbers to give. The corpus (`tests/java-compat/`) is **45**
+unmodified Java programs today, and it will not land a claim its corpus disagrees with — one half
+of the inference work (checking a nested call's argument against the parameter it is passed to)
+regresses two existing programs, so that half is off until it returns, and the PR opens after that. The goal is to make "Java source compiles unchanged" true of a testable subset: semicolons optional,
 `.java` files accepted as input, reachability and definite assignment by JLS §14.22 and Chapter 16
 (which fixes the `TY-TYP-0020` false positive on a method ending in a `switch`), the missing APIs,
 and the common generic inferences. Until it lands, this page does not claim that sentence — today's
@@ -114,18 +117,34 @@ differences are in [docs/language.md](/en/docs/language) §12 and §13, and
 [docs/index.md](/en/docs) says the syntax is "familiar to Java developers", not that Java source
 compiles unchanged.
 
-### The two back ends' semantic consistency (W8 — **not started**)
+### The two back ends' semantic consistency (W8 — **the matrix is in main, the unification has not started**)
 
-**This one has just been taken (BackendMatrix) and nothing is on main yet** (the `internal/codegen`
-it has to change was just touched by two large landings). The paragraph below is the goal, not a
-status. The goal is a
-matrix that agrees everywhere — {C+clang, C+gcc, LLVM} × {`-O0`, `-O2`} — with the
-rules for numeric promotion, compound assignment, shifts, string concatenation, boxing and checks
-lowered once and shared. The LLVM back end's present boundary (measured 2026-09-17: of 256 test
-programs, 159 build, 153 of those produce exactly the expected output, 93 are refused by name, 4 are
-refused before the back end and 0 modules are rejected by clang) is in
-[docs/index.md](/en/docs), under "Back ends and platforms".
+**The matrix landed first (#122)**: `scripts/backend-matrix.sh` and `make backend-matrix` build and run
+every program in `tests/programs` in **six cells** — {C+clang, C+gcc, LLVM} × {`-O0`, `-O2`} — compare
+each cell against `.expected`/`.exit`/`.experr`, and then compare the cells with each other. A build
+the driver refuses by name (the LLVM back end's `TY-INT-0100`, for instance) counts as `refused`
+rather than as a miscompile. The release workflow calls it, beside `make ci`, `make jdk-diff` and
+`make notices`. The divergences it is allowed to find live in `scripts/backend-matrix-allow.txt`,
+where an entry without a work item and a reason is not accepted and an entry whose program has
+stopped diverging fails the run.
 
+The numbers at the stop (it is paused for W10's benchmark window): **406 of 1572 cells recorded,
+66 programs complete across all six cells**; the two clang cells meet the suite 68/68 and 67/67, the
+LLVM cells meet it 44/44 with 25 programs per cell refused by name, and the two gcc cells 61/66 and
+62/67. Those are the numbers at the stop, not totals.
+
+It has already found two real defects, both in the families W8 names. **A compound assignment to a
+boxed target is lowered by neither back end** (the C back end hands the operator the wrapper
+reference — invalid C, or a segfault; the LLVM back end emits `and ptr`, which is not valid IR, and
+`1L <<= 33` answers 2 where the JDK says 8589934592; the red-first cases are `t246`/`t247`/`t248`,
+known failures under W8). And **`a + b + c` has no evaluation order**: the C back end folds it into
+one C expression and C leaves the order unspecified, so gcc evaluates right to left and clang left
+to right — `f(1)+f(2)+f(3)` is `1(1)2(2)3(3)` under javac 21 and clang and `1(3)2(2)3(1)` under gcc,
+visible in five existing programs. It cannot be a `tests/programs` case yet, because
+`known-failures.txt` cannot say "fails under gcc only".
+
+The unification itself — pushing the rules for numeric promotion, compound assignment, shifts,
+concatenation, boxing and the checks down into shared lowering — **has not started**.
 ### TLS reachability, and the platforms (W9 — in main)
 
 TLS is now linked by **the program's call graph** rather than being reachable through the reflection

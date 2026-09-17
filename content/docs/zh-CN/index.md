@@ -667,6 +667,9 @@ sh scripts/bench.sh       # 与 JVM 对照的性能测试（需要 java 才会�
   差异（或 Java 写不出来的东西）。没有工作项（或明确写 `none`）的条目不收。
 - `<part>/<案例>.skip`：这个案例不能在哪些平台上跑（`windows`、`darwin/arm64`，或
   `!linux` 表示只有那个平台能跑），`#` 之后写原因。
+- `scripts/backend-matrix-allow.txt`（在 Teyru 仓库）：后端矩阵**允许**的跨格差异，一行一个
+  `<程序> <工作项> <原因>`。它与 `known-failures.txt` 的机制相同，不同的是它原谅的是
+  **两个后端彼此不一致**——那是套件自己的 driver 看不到的，因为它们只建一个后端。
 
 仓库里的 make target 把这些包起来（`make` 本身等于 `make build`）：
 
@@ -676,6 +679,7 @@ sh scripts/bench.sh       # 与 JVM 对照的性能测试（需要 java 才会�
 | `make ci` | 一次 CI job 会跑的东西，在这里由人跑：`lint`、整套测试分别用 clang 与 gcc 各构建一次，`TEYRU_JDK` 有设就再加上 JDK 差分。只装了一个 C 编译器时，gcc 那一半会明说它没跑 |
 | `make jdk-diff` | 把 `tests/programs/` 里能翻译的程序用 JDK 21 编译执行，比对 stdout 与结束状态；需要 `TEYRU_JDK` 指向 JDK 21 的家目录 |
 | `make progen` | 随机程序差分：`internal/tools/progen` 依固定种子生成 200 个程序，两种写法各编译一次再比对 |
+| `make backend-matrix` | 每一支程序 × 六个后端格子（C＋clang、C＋gcc、LLVM × `-O0`、`-O2`），逐格与套件比、格子之间再互相比；允许的跨格差异写在 `scripts/backend-matrix-allow.txt` |
 | `make notices` | 核对 `THIRD-PARTY-NOTICES.md` 与树一致（见 [docs/legal.md](/zh-CN/docs/legal)） |
 | `make bench`／`make examples` | 性能对照与示例 |
 
