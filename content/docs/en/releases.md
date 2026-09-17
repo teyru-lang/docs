@@ -196,14 +196,14 @@ ones this release is about:
 |---|---|---|
 | Executable size (hello world, `-O2`) | **66,808 B** (`-O1` 85,440, `-O3` 70,248) | `wc -c`; larger than the 55,920 of the 0.2 era — 6,016 for the boxing caches, 2,256 for the stack check, 120 for W9's TLS link; the arithmetic is in [docs/index.md](/en/docs) |
 | The LLVM back end's boundary | of 256 programs (`tests/programs` at `34584f2`), 159 build, 153 produce the expected output, 93 refused by name | 2026-09-17, `teyru build --backend=llvm` per program, compared against each `.expected` (the full breakdown is in [docs/index.md](/en/docs)) |
-| `linux/arm64`, the whole suite | **250 cases pass, 0 differ** (qemu-aarch64, with a sysroot built in the container) | `sh tests/run.sh`; see the platform table in [docs/index.md](/en/docs) |
+| `linux/arm64`, the whole suite | **250 cases pass, 0 differ** (qemu-aarch64, with a sysroot built in the container); re-measured after W9 under `TEYRU_TARGET`: **271 passed, 5 failed, 10 known of 286**, and all five fail **natively too** | `sh tests/run.sh`, and `TEYRU_TARGET=linux/arm64 ... sh run.sh`; see the platform table in [docs/index.md](/en/docs) |
 | The Windows target | 179 of 195 programs byte-identical (run under Wine) | same table |
 | The two macOS rows | **compile and link only**: 240 of 257 programs build, 9 are refused by name for TLS and 8 are not accepted by the compiler used; the artifact is Mach-O and **not one line has been executed** | `teyru build --cc <zig wrapper>` (`zig cc -target aarch64-macos`); same table |
 | What deep recursion costs | `bench_fib`'s long run is about 32% slower | `scripts/bench.sh`, long run, before and after; the owner has accepted it |
 
 (The macOS row was re-measured after W9 (2026-09-17, `tests` at `e4268a6`, compiler at
-`5ac017b`); the `linux/arm64` row is still the pre-W9 wrapper measurement, and the
-`TEYRU_TARGET` re-run is in progress.)
+`5ac017b`), and the `linux/arm64` row's `TEYRU_TARGET` re-run has finished, so both of its
+numbers are in the table above.)
 
 ---
 

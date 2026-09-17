@@ -677,7 +677,7 @@ other's cell is claiming a measurement that was never taken:
 |---|---|---|
 | `linux/amd64` | ✅ | ✅ The full suite, natively on this machine: `go test ./...` and `TEYRU=<compiler> sh tests/run.sh` (250 cases) |
 | `windows/amd64` | ✅ Cross-compiled with `x86_64-w64-mingw32-gcc`; **except a program that can reach TLS** (see below) | ✅ Run under Wine: 179 of the 195 test programs of the time were byte-identical (14 of the 16 that were not also failed on Linux with gcc under the pre-change compiler, and 2 were Windows path and filename facts) |
-| `linux/arm64` | ✅ Cross-compiled with `aarch64-linux-gnu-gcc`; that target's sysroot had to be installed first (see below) | ✅ The full suite under qemu-aarch64: **all 250 cases passed** — all 222 test programs built, ran and were byte-identical, as were the 3 packages, the 23 rejection cases and the 2 native cases |
+| `linux/arm64` | ✅ Cross-compiled with `aarch64-linux-gnu-gcc`; that target's sysroot had to be installed first (see below) | ✅ The full suite under qemu-aarch64 (the pre-W9 pair: **all 250 cases passed**). Re-measured after W9 with `TEYRU_TARGET=linux/arm64`: **271 passed, 5 failed, 10 known out of 286** -- and **every one of the five fails identically when built natively on this machine** (checked case by case), so none of them is an arm64 failure (see below) |
 | `darwin/amd64`, `darwin/arm64` | ⚠️ **Compile and link only**: `teyru build --target darwin/arm64 --cc <zig wrapper>` (after W9, `resolveTarget` checks the compiler the build will actually run) builds and links **240 of the 257** programs in `tests/programs`, refuses **9 by name** for TLS and is refused by that compiler for **8** (APIs and checker work that landed after it). **The two architectures agree program for program**: `darwin/amd64` measured the same 240/9/8 with the same script, and the refused and rejected programs are the same seventeen, to the program. The product is a Mach-O executable and **not one line has been executed** (see below) | ❌ Nothing here can run macOS, so no one has run them |
 
 The evidence is measured separately, because "it builds" and "it runs" are different
@@ -685,10 +685,10 @@ questions, and the rows added here are `linux/arm64` and macOS. **Read the table
 the tree they were measured on**: the suite figures for `linux/amd64`, `windows/amd64` and `linux/arm64`
 were all measured on 2026-09-17, when `tests/programs` held 222 programs and the whole suite was 250
 cases; that directory holds more now (257), so those two are records of that day rather than
-today's count. The macOS rows have been re-measured with `--cc` (below); the `linux/arm64` row is
-still a pre-W9 measurement -- the re-run under `TEYRU_TARGET` only reached part of the suite
-(65 cases, 0 mismatches, including `t138`/`t140`/`t141`, three programs that did not build before
-W9), so that row keeps the older numbers.
+today's count. The macOS rows have been re-measured with `--cc` (below), and the `linux/arm64` row
+now carries both numbers: the pre-W9 run with all 250 cases passing, and the post-W9 run under
+`TEYRU_TARGET` with 286 cases (271 passed, 5 failed -- each of the five fails natively too, see
+below).
 
 **How `linux/arm64` was measured.** This machine had `aarch64-linux-gnu-gcc`, but its sysroot
 was empty — not the wrong headers, no headers at all (`fatal error: stdint.h`). So the
@@ -716,11 +716,21 @@ so were the 3 packages, the 23 rejection cases and the 2 native cases (the nativ
 built for arm64 and run under qemu).
 
 The post-W9 re-run takes the other route (`TEYRU_TARGET=linux/arm64 CC=aarch64-linux-gnu-gcc
-QEMU_LD_PREFIX=/usr/aarch64-linux-gnu/sys-root sh run.sh`, with no compiler wrapper) and is
-still running: the record so far is **65 cases, 0 failed, 0 known, 0 skipped**, and it includes
-the three programs that could not be **built** for arm64 at all before W9 —
-`t138_request_mapping_forms`, `t140_json_binding_edges` and `t141_web_param_errors` — which now
-PASS.
+QEMU_LD_PREFIX=/usr/aarch64-linux-gnu/sys-root sh run.sh`, with no compiler wrapper) and it has
+finished: **271 passed, 5 failed, 10 known, 0 skipped out of 286 cases** (`tests` at `e4268a6`,
+compiler `5ac017b`, 2026-09-17). The three programs that could not be **built** for arm64 at all
+before W9 — `t138_request_mapping_forms`, `t140_json_binding_edges` and
+`t141_web_param_errors` — all PASS now.
+
+**None of the five failures is an arm64 failure, and each one was checked natively on this same
+machine:** `t226`, `t227` and `t241` want `RawClient.ask(String)`, which W5 and W7 bring (a native
+`teyru build` refuses them with the same `TY-TYP-0076`); `t240_progen_array_bounds` is **that
+compiler's** wording of the message (a lowercase `index ...`) against the JDK's capital `Index ...` in
+`tests` -- that fix is on main (W6), and rebuilding the same program with main prints `Index 7 out of
+bounds for length 3` on amd64 and on arm64 and passes on both; and `native/net_c_test` is
+that C test failing to link `TY_UNSUP`/`ty_make_ex`/`ty_throw` (the same `undefined reference`
+natively). The ten known failures are the W5/W7 entries `known-failures.txt` lists (`t196` and the
+`t230`-`t239` probes): they are expected to fail and are recorded, not ignored.
 
 **The macOS rows reach "compiles and links", and how they got there matters.** `teyru build`
 is the route now: the Apple rows of the target table have no C compiler, but `resolveTarget`

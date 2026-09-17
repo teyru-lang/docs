@@ -619,16 +619,15 @@ teyru help                                     說明
 |---|---|---|
 | `linux/amd64` | ✅ | ✅ 這台機器上原生跑完整套件：`go test ./...` 與 `TEYRU=<compiler> sh tests/run.sh`（250 項） |
 | `windows/amd64` | ✅ 以 `x86_64-w64-mingw32-gcc` 交叉編譯；**碰得到 TLS 的程式除外**（見下） | ✅ 在 Wine 下跑：當時 195 支測試程式有 179 支逐位元組相同（16 支不符裡 14 支在改動前的編譯器上用 gcc 編 Linux 也一樣失敗，2 支是 Windows 的路徑與檔名事實） |
-| `linux/arm64` | ✅ 以 `aarch64-linux-gnu-gcc` 交叉編譯；那個目標的 sysroot 是另外裝上去的（見下） | ✅ 在 qemu-aarch64 下跑完整套件：**250 項全過**——222 支測試程式全部建置、執行、逐位元組相同，3 個套件、23 個拒絕案例與 2 個 native 案例也全過 |
+| `linux/arm64` | ✅ 以 `aarch64-linux-gnu-gcc` 交叉編譯；那個目標的 sysroot 是另外裝上去的（見下） | ✅ 在 qemu-aarch64 下跑完整套件（W9 之前那一對：**250 項全過**）。W9 之後用 `TEYRU_TARGET=linux/arm64` 重測：**286 項裡 271 過、5 失敗、10 已知失敗**；那 5 項**每一項在原生 amd64 上也一樣失敗**（逐項驗過），所以沒有一項是 arm64 的問題（見下） |
 | `darwin/amd64`、`darwin/arm64` | ⚠️ **只到「編譯並連結」**：`teyru build --target darwin/arm64 --cc <zig 包裝>`（W9 之後 `resolveTarget` 看的是這次建置真的會跑的編譯器）在 `tests/programs` 的 **257 支**裡 **240 支建得起來並連結**、9 支因 TLS 被**具名拒絕**、8 支那個版本的編譯器編不過（W5／W7 之後才落地的 API 與檢查器）。**兩個架構逐支相同**：`darwin/amd64` 用同一支腳本量出同樣的 240／9／8，拒絕與編不過的是**同一批 17 支程式**（一個不差），所以這兩列共用一句話。產物是 Mach-O，**沒有任何一行被執行過**（見下） | ❌ 這裡沒有 macOS，所以沒有任何人跑過它們 |
 
 證據是分開量的，因為「編得出來」與「跑得起來」不同，而這次新增的量測是 `linux/arm64` 與
 macOS 這兩列。**表裡的數字要連著量測當時的樹讀**：`linux/amd64`、`windows/amd64` 與 `linux/arm64`
 的套件數字都是 2026-09-17 量的，那時 `tests/programs` 有 222 支程式、整套 250 項；那個目錄現在更多
 （257 支），所以那兩個數字是當時的紀錄，不是今天的計數。macOS 那兩列已經用 `--cc` 重測完
-（見下），`linux/arm64` 那一列還是 W9 之前的量測——用 `TEYRU_TARGET` 的重測只跑到一部分
-（65 項、0 項不符，其中 `t138`／`t140`／`t141` 三支在 W9 之前是編不過的），所以它標的仍是
-W9 之前的數字。
+（見下），`linux/arm64` 那一列現在兩個量測都有：W9 之前的 250 項全過，以及 W9 之後用
+`TEYRU_TARGET` 跑完的 286 項（271 過、5 失敗——每一項原生也失敗，見下）。
 
 **`linux/arm64` 是這樣量的。** 這台機器原本有 `aarch64-linux-gnu-gcc`，但它的 sysroot 是
 空的——不是標頭不對，是根本沒有標頭（`fatal error: stdint.h`）。先把那個 sysroot 裝起來：
@@ -649,10 +648,19 @@ handler，arm64 的執行檔直接執行就會被 qemu 接手，但那支 qemu �
 全過（native 那支 C 測試是編成 arm64 在 qemu 下跑的）。
 
 W9 之後的重測走另一條路（`TEYRU_TARGET=linux/arm64 CC=aarch64-linux-gnu-gcc
-QEMU_LD_PREFIX=/usr/aarch64-linux-gnu/sys-root sh run.sh`，不用編譯器包裝），它還在跑：跑到
-一半的紀錄是 **65 個案例、0 失敗、0 已知失敗、0 跳過**，其中包含 W9 之前在 arm64 上**根本
-建不起來**的三支——`t138_request_mapping_forms`、`t140_json_binding_edges`、
-`t141_web_param_errors`——這三支現在是 PASS。
+QEMU_LD_PREFIX=/usr/aarch64-linux-gnu/sys-root sh run.sh`，不用編譯器包裝），而且已經跑完：
+**286 個案例裡 271 過、5 失敗、10 已知失敗、0 跳過**（`tests` @ `e4268a6`、編譯器 `5ac017b`，
+2026-09-17）。W9 之前在 arm64 上**根本建不起來**的三支——`t138_request_mapping_forms`、
+`t140_json_binding_edges`、`t141_web_param_errors`——現在都是 PASS。
+
+**那 5 個失敗沒有一個是 arm64 的問題，而且每一項都在同一台機器上原生驗過：** `t226`／`t227`／
+`t241` 三支要的是 `RawClient.ask(String)`，那是 W5／W7 才帶進來的 API（原生 `teyru build` 一樣以
+`TY-TYP-0076` 拒絕）；`t240_progen_array_bounds` 是**那個編譯器**的訊息用小寫 `index ...`，而
+`tests` 的期望值是 JDK 的大寫 `Index ...`（那條修正在 main 上，W6）：用 main 重編同一支程式，
+amd64 與 arm64 都印出 `Index 7 out of bounds for length 3`、兩邊都過；`native/net_c_test` 是那支 C 測試在
+連結時找不到 `TY_UNSUP`／`ty_make_ex`／`ty_throw`（原生編譯同樣的 `undefined reference`）。
+10 個已知失敗是 `known-failures.txt` 列出的 W5／W7 項目（`t196`、`t230`–`t239` 的探針），它們
+失敗是預期的、而且被記錄，不是被忽略。
 
 **macOS 那兩列只到「編譯並連結」，而且要說清楚是怎麼到的。** 現在它走得通 `teyru build`：目標表上 Apple 那兩列沒有 C 編譯器，但 `resolveTarget` 看的是這次建置真的會跑的編譯器，所以呼叫端給的 `--cc` 算數。沒有 `--cc` 時仍然是具名拒絕（`teyru: no C compiler for darwin/arm64 on a linux/amd64 host: building for it needs a compiler that runs here and targets it, and neither this table nor --cc names one`）；給了之後——例如一個兩行的包裝 `exec …/zig cc -target aarch64-macos "$@"`——
 `teyru build --target darwin/arm64 --cc <包裝> -o hello-darwin hello.teyru` 產出 Mach-O 64-bit arm64 執行檔。連結時 zig 對 `-flto` 回 `LTO requires using LLD`；編譯器本來就會對沒有 LTO 的工具鏈退回不帶 `-flto` 的第二次嘗試，成功的是那一次，不是預設那條。
