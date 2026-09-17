@@ -155,13 +155,18 @@ reflection gets a named, catchable `UnsupportedOperationException` instead of a 
 `tests/run.sh` and `go test` both read `TEYRU_TARGET`, and `resolveTarget` honours the caller's
 `--cc`, so `darwin/amd64` and `darwin/arm64` can be built through `teyru build` with `zig cc`.
 
-### Benchmarks, and the claims that match them (W10 — partly in progress)
+### Benchmarks, and the claims that match them (W10)
 
 `examples/bench_*.teyru` and their `.java` counterparts now read their scale from the command line,
 so `scripts/bench.sh` prints **two tables, short and long**, and there is a new `bench_string_cjk`
-(non-ASCII concatenation, `charAt` walking, `substring`) alongside peak RSS. This page does not
-restate performance numbers, because the numbers on that page only mean something together with the
-method: see [docs/index.md](/en/docs), "Why it is faster than the JVM".
+(non-ASCII concatenation, `charAt` walking, `substring`) alongside peak RSS. The measurement window
+ran to completion (`RUNS=5 JAVA=1`, `-O2`, tree `130565a`, no 1-minute load sample above 1 while it
+ran). **The long table is the only group that can support a throughput claim, and it says Teyru wins
+none of its six rows** (`fib` is a tie; Java is 1.13x to 6.8x faster on the rest) -- the short
+group's advantage is startup, not throughput. This page does not restate the numbers, because they
+only mean something together with the method: see [docs/index.md](/en/docs), "Why it is faster than
+the JVM". The GraalVM `native-image` comparison was **not measured** (there is no GraalVM in this
+image) and is recorded as not measured rather than guessed at.
 
 ### Third-party notices, and the rules (W11, W12 — in main)
 
@@ -216,7 +221,9 @@ copy them; it gives the direction:
 
 - **Speed.** 0.4.0 is the correctness release: phase 5 of the plan (W13 compile speed, W14 runtime
   performance) is not in it, and W14 is marked optional in the plan itself. The regressions that were
-  measured are written down above (`bench_fib`'s long run, 32%).
+  measured are written down above (`bench_fib`'s long run, 32%), and W10's long table is the evidence
+  for that position: Teyru wins none of its six rows. The exceptions are startup, executable size and
+  peak RSS -- those are measured, and they are what this release really wins on.
 - **A precise or generational collector.** The owner's order is "fix these, cut 0.4, and then move
   the server's runtime to a precise or generational collector", so that belongs to whatever comes
   next; 0.4's collector is still conservative mark-and-sweep.
