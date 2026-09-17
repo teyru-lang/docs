@@ -523,8 +523,11 @@ teyru build --native impl.c program.teyru            # 一起編譯
   （`setjmp` 溢出）。物件不搬移，所以 C 端的暫存指標永遠有效。收集前會先停住每一條
   執行緒，再掃各自的堆疊（停止是世界性的，且是**合作式**的，見
   [docs/language.md](/docs/language) §11）。
-- **字串**：UTF-8 `tystr { tyobj obj; int64 len; char* data }`；字面值是靜態物件，
-  不經 GC。
+- **字串**：`tystr { tyobj obj; int64_t blen; int32_t ulen; uint32_t flags }`——**WTF-8**
+  位元組**接在標頭後面**（`TY_STR_DATA`，沒有第二個指標），`blen` 是位元組數、`ulen` 是 UTF-16
+  code unit 數；非 ASCII 的字串還會在結尾的 NUL 之後長出一張麵包屑表（每 64 個 code unit 一格，
+  首次用到才建，所以沒有索引過的字串不必付這個成本）。今天的 `String.length()` 仍然是**位元組**數
+  （W5 的第二部分才把它改成 code unit）；字面值是靜態物件，不經 GC。
 - **陣列**：`tyarr { tyobj; len; data; esize; refs }`，元素內嵌在物件後方。
 
 ---

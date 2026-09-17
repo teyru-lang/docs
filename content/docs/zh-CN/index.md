@@ -522,8 +522,11 @@ teyru build --native impl.c program.teyru            # 一起编译
   （`setjmp` 溢出）。对象不移动，所以 C 端的临时指针永远有效。收集前会先停住每一条
   线程，再扫各自的栈（停止是世界性的，且是**合作式**的，见
   [docs/language.md](/zh-CN/docs/language) §11）。
-- **字符串**：UTF-8 `tystr { tyobj obj; int64 len; char* data }`；字面量是静态对象，
-  不经过 GC。
+- **字符串**：`tystr { tyobj obj; int64_t blen; int32_t ulen; uint32_t flags }`——**WTF-8**
+  字节**接在头后面**（`TY_STR_DATA`，没有第二个指针），`blen` 是字节数、`ulen` 是 UTF-16
+  code unit 数；非 ASCII 的字符串还会在结尾的 NUL 之后长出一张面包屑表（每 64 个 code unit 一格，
+  首次用到才建，所以没有索引过的字符串不必付这个成本）。今天的 `String.length()` 仍然是**字节**数
+  （W5 的第二部分才把它改成 code unit）；字面量是静态对象，不经过 GC。
 - **数组**：`tyarr { tyobj; len; data; esize; refs }`，元素内嵌在对象后方。
 
 ---

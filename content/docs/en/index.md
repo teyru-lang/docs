@@ -569,8 +569,12 @@ See [`docs/native.md`](/en/docs/native).
   `setjmp`. Objects never move, so C-level temporaries stay valid across a collection.
   A collection stops every thread first and walks each stack (the stop is
   world-wide and **cooperative**, see [docs/language.md](/en/docs/language) §11).
-- **Strings** are UTF-8 `tystr { tyobj obj; int64 len; char* data }`; literals are static
-  objects that never enter the heap.
+- **Strings** are `tystr { tyobj obj; int64_t blen; int32_t ulen; uint32_t flags }` with the
+  **WTF-8** bytes **inline after the header** (`TY_STR_DATA`, there is no second pointer): `blen` is
+  the byte length and `ulen` the UTF-16 code unit count. A non-ASCII string also grows a breadcrumb
+  table after the terminating NUL (one entry per 64 code units, built on first use, so a string that
+  is never indexed pays nothing). `String.length()` still counts **bytes** today (W5's second piece
+  is what turns it into code units); literals are static objects that never enter the heap.
 - **Arrays** are `tyarr { tyobj; len; data; esize; refs }` with the elements stored inline.
 
 ---
