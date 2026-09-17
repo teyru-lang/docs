@@ -577,7 +577,7 @@ teyru help                                     說明
 | `linux/amd64` | ✅ | ✅ 這台機器上原生跑完整套件：`go test ./...` 與 `TEYRU=<compiler> sh tests/run.sh`（250 項） |
 | `windows/amd64` | ✅ 以 `x86_64-w64-mingw32-gcc` 交叉編譯；**碰得到 TLS 的程式除外**（見下） | ✅ 在 Wine 下跑：當時 195 支測試程式有 179 支逐位元組相同（16 支不符裡 14 支在改動前的編譯器上用 gcc 編 Linux 也一樣失敗，2 支是 Windows 的路徑與檔名事實） |
 | `linux/arm64` | ✅ 以 `aarch64-linux-gnu-gcc` 交叉編譯；那個目標的 sysroot 是另外裝上去的（見下） | ✅ 在 qemu-aarch64 下跑完整套件：**250 項全過**——222 支測試程式全部建置、執行、逐位元組相同，3 個套件、23 個拒絕案例與 2 個 native 案例也全過 |
-| `darwin/amd64`、`darwin/arm64` | ⚠️ **只到「編譯並連結」**：`teyru build --target darwin/arm64 --cc <zig 包裝>` 現在走得通（`resolveTarget` 看的是這次建置真的會跑的編譯器，所以目標表沒有編譯器而呼叫端給了 `--cc` 時不再拒絕），產物是 Mach-O 執行檔；**沒有任何一行被執行過**。W9 之前那兩個數字（不碰 TLS 的 188 支建得起來、碰得到 TLS 的 34 支不行）正在重測——碰得到 TLS 的程式現在是在 C 編譯器**之前**由驅動具名拒絕，而不是 `openssl/err.h` 找不到 | ❌ 這裡沒有 macOS，所以沒有任何人跑過它們 |
+| `darwin/amd64`、`darwin/arm64` | ⚠️ **只到「編譯並連結」**：`teyru build --target darwin/arm64 --cc <zig 包裝>`（W9 之後 `resolveTarget` 看的是這次建置真的會跑的編譯器）在 `tests/programs` 的 **257 支**裡 **240 支建得起來並連結**、9 支因 TLS 被**具名拒絕**、8 支那個版本的編譯器編不過（W5／W7 之後才落地的 API 與檢查器），產物是 Mach-O；**沒有任何一行被執行過**（見下） | ❌ 這裡沒有 macOS，所以沒有任何人跑過它們 |
 
 證據是分開量的，因為「編得出來」與「跑得起來」不同，而這次新增的量測是 `linux/arm64` 與
 macOS 這兩列。**表裡的數字要連著量測當時的樹讀**：`linux/amd64` 與 `linux/arm64` 的套件數字
@@ -608,7 +608,9 @@ handler，arm64 的執行檔直接執行就會被 qemu 接手，但那支 qemu �
 
 碰得到 TLS 的程式在 darwin 上是**驅動的具名拒絕，發生在 C 編譯器之前**（`teyru: TLS is not available for darwin/arm64: macOS ships SecureTransport rather than OpenSSL, …`），而不是從前那種 `tyrt_tls.c: openssl/err.h` 找不到。
 
-W9 之前那條繞道（`teyru emit` 的 C 加上執行期六個檔案交給 `zig cc`）與它量到的兩個數字（不碰 TLS 的 188 支全部編譯並連結成功、碰得到 TLS 的 34 支不行）在這裡保留為歷史：那 34 支現在改由驅動拒絕，而 188 那個數字要重測（W9 之後的計數正在跑）。
+**這是怎麼量的，以及為什麼兩個數字都要說清楚。** 2026-09-17、`zig 0.16.0`、`zig cc -target aarch64-macos` 包成 `--cc`、`-O1`、一次 4 支（`tests` @ `e4268a6`，編譯器取自 W9 落地的 `5ac017b`）。257 支裡 **240 支建得起來並連結**；**9 支由驅動具名拒絕**（`t154_http_client`、`t162_http_roundtrip`、`t163_https_roundtrip`、`t191_tls_keepalive`、`t192_tls_handshake_timeout`、`t207_http_server_certificate`、`t210_http_gzip_edges`、`t212_stream_end_of_stream`、`t225_http_serve_loop`）；剩下 **8 支不是 darwin 的失敗**，是那個版本的編譯器還不接受的程式（`t180_http_gzip`、`t196_string_bytes`、`t226`／`t227`／`t241`、`t237`／`t238`／`t239`——W5／W7 的 API 與檢查器），換成今天 main 的編譯器重跑應該會少掉那 8 支。**沒有任何一支被執行過。**
+
+W9 之前那條繞道（`teyru emit` 的 C 加上執行期六個檔案交給 `zig cc`）與它量到的兩個數字（不碰 TLS 的 188 支全部編譯並連結成功、碰得到 TLS 的 34 支不行）在這裡保留為歷史，而且兩半都過時了：188 是 222 支程式時的數字，34 是**舊規則**下的碰得到 TLS（任何會反射的程式都算），W9 之後算的是程式自己的呼叫圖，所以那 34 支現在多數建得起來，剩下的就是上面那 9 支。
 
 **五個目標都實作了，而這台機器現在能演練四個。** `linux/amd64` 原生跑整套測試、
 `windows/amd64` 在 Wine 下跑、`linux/arm64` 在 qemu-aarch64 下跑（250 項全過），

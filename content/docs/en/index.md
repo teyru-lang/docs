@@ -626,7 +626,7 @@ other's cell is claiming a measurement that was never taken:
 | `linux/amd64` | ✅ | ✅ The full suite, natively on this machine: `go test ./...` and `TEYRU=<compiler> sh tests/run.sh` (250 cases) |
 | `windows/amd64` | ✅ Cross-compiled with `x86_64-w64-mingw32-gcc`; **except a program that can reach TLS** (see below) | ✅ Run under Wine: 179 of the 195 test programs of the time were byte-identical (14 of the 16 that were not also failed on Linux with gcc under the pre-change compiler, and 2 were Windows path and filename facts) |
 | `linux/arm64` | ✅ Cross-compiled with `aarch64-linux-gnu-gcc`; that target's sysroot had to be installed first (see below) | ✅ The full suite under qemu-aarch64: **all 250 cases passed** — all 222 test programs built, ran and were byte-identical, as were the 3 packages, the 23 rejection cases and the 2 native cases |
-| `darwin/amd64`, `darwin/arm64` | ⚠️ **Compile and link only**: `teyru build --target darwin/arm64 --cc <zig wrapper>` works now (`resolveTarget` checks the compiler the build will actually run, so a target that names none is refused only when the caller named none either), and the product is a Mach-O executable; **not one line has been executed**. The two pre-W9 numbers (188 programs that cannot reach TLS built and linked, the 34 that do reach TLS did not) are being re-measured — a program that reaches TLS is now refused by the driver **before the C compiler**, rather than failing on a missing `openssl/err.h` | ❌ Nothing here can run macOS, so no one has run them |
+| `darwin/amd64`, `darwin/arm64` | ⚠️ **Compile and link only**: `teyru build --target darwin/arm64 --cc <zig wrapper>` (after W9, `resolveTarget` checks the compiler the build will actually run) builds and links **240 of the 257** programs in `tests/programs`, refuses **9 by name** for TLS and is refused by that compiler for **8** (APIs and checker work that landed after it); the product is a Mach-O executable and **not one line has been executed** (see below) | ❌ Nothing here can run macOS, so no one has run them |
 
 The evidence is measured separately, because "it builds" and "it runs" are different
 questions, and the rows added here are `linux/arm64` and macOS. **Read the table's numbers with
@@ -677,10 +677,24 @@ A program that reaches TLS on darwin is a **named refusal from the driver, befor
 compiler** (`teyru: TLS is not available for darwin/arm64: macOS ships SecureTransport
 rather than OpenSSL, …`), not the old `tyrt_tls.c: openssl/err.h not found`.
 
+**How it was counted, and why both halves need saying.** 2026-09-17, `zig 0.16.0`, a two-line
+wrapper around `zig cc -target aarch64-macos` passed as `--cc`, `-O1`, four programs at a time
+(`tests` at `e4268a6`, the compiler at `5ac017b`, where W9 landed). Of the 257 programs, **240
+build and link**; **9 are refused by the driver by name** (`t154_http_client`,
+`t162_http_roundtrip`, `t163_https_roundtrip`, `t191_tls_keepalive`,
+`t192_tls_handshake_timeout`, `t207_http_server_certificate`, `t210_http_gzip_edges`,
+`t212_stream_end_of_stream`, `t225_http_serve_loop`); and the remaining **8 are not darwin
+failures** but programs that compiler does not accept yet (`t180_http_gzip`,
+`t196_string_bytes`, `t226`/`t227`/`t241`, `t237`/`t238`/`t239` — W5's and W7's APIs and
+checker), which a re-run with today's main compiler should drop. **Nothing was executed.**
+
 The bypass of the W9 era (the C from `teyru emit` plus the runtime's six files, handed to
 `zig cc`) and the two numbers it produced (188 programs that cannot reach TLS compiled and
-linked, the 34 that do reach TLS did not) are kept here as history: those 34 are refused by
-the driver now, and 188 is a number that needs re-measuring (the post-W9 count is running).
+linked, the 34 that do reach TLS did not) are kept here as history, and both halves of that
+pair are stale: 188 was measured when there were 222 programs, and the 34 were "reaches TLS"
+under the **old** rule, where any program that reflected counted as reaching it. Since W9 the
+rule is the program's own call graph, so most of those 34 build now and the 9 above are what is
+left.
 One more thing to say plainly: those links were without
 one of its own success paths — but it is not the default one.
 
