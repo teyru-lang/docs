@@ -100,12 +100,17 @@ main 上的行為我自己重跑過：`.teyru` 的敘述寫了分號也編得過
 程式），而 Teyru main 的指標在 PR [#128](https://github.com/teyru-lang/Teyru/pull/128) 合入後
 （`0e8e592`）指到它。我在 main 的那個內容上自己跑過 `sh tests/run.sh java-compat`：
 **45 過、0 失敗、0 已知失敗、0 跳過**——PR 描述的 45 支全過是重現得出來的，不是只有分支上成立。
-PR 描述裡另外兩行（`sh tests/run.sh` 整套 **320 過、1 失敗、9 已知失敗、0 跳過**，唯一的紅是
-`native/net_c_test` 的連結失敗——那在我的 main 原生編譯上也重現同一個 `undefined reference`；
-以及 `go test ./... -count=1 -p 1 -parallel 1` 結束碼 0）量的是**分支那一對**，我沒有重跑整套
-（那要幾十分鐘且會與其他工作搶機器），所以那兩行在這裡標成還沒在 main 上重現。**後果是 main 上的 `make java-compat`
-找不到語料，而 release 工作流程正好呼叫它**——把 tests 推進 main 並補上指標，是 owner 或 W7
-作者那一步；在那之前，這一頁不把那兩個數字當成 main 的事實。
+**整套測試在 main 上的那一行是 `324 過、1 失敗、10 已知失敗、0 跳過`**（同一個內容：Teyru
+`0e8e592` → `tests` `af41a7d`；由 W7 的收尾者跑完，log 貼在 PR
+[#128](https://github.com/teyru-lang/Teyru/pull/128) 的留言裡）。唯一的失敗是 `native/net_c_test`
+那個連結失敗（`go test` 不跑那個檔案），而 10 個已知失敗**正好**是 `known-failures.txt` 現在的
+十條（`t230`、`t231`、`t234`–`t237`、`t239`、`t246`–`t248`，我核對過名單），所以「列出的都失敗、
+沒列出的都沒漏」成立；45 支 java-compat 在 324 裡面。
+
+**兩組數字為什麼不同，原因要寫清楚**：PR 描述裡的 `320 過、1 失敗、9 已知失敗、0 跳過` 量的是
+分支那一對——`tests` main 多了 W8 的裝箱賦值探針（`t246`–`t248`，三個都是已知失敗），而且不再列
+`t180`／`t196`（W5 的測試工作把它們拿掉了）。這一頁引用 main 的那一組；語料那 45 支我自己重跑過，
+整套那一行依照上面標的來源。
 
 **在語料進來之前，這一頁宣稱的是子集，不是那句話。** 適用範圍是
 [docs/language.md](/docs/language) §12（語法層）與 §13（缺的 API 與被誤拒的寫法），
@@ -178,7 +183,8 @@ GraalVM 的 `native-image` 對照**未測**（這台機器上沒有 GraalVM）�
 | Windows 目標 | 195 支裡 179 支逐位元組相同（Wine 下跑） | 同上 |
 | macOS 兩列 | **只到「編譯並連結」**：257 支裡 240 支建得起來、9 支因 TLS 被具名拒絕、8 支那個版本的編譯器還不接受；產物是 Mach-O，**沒有任何一行被執行過** | `teyru build --cc <zig 包裝>`（`zig cc -target aarch64-macos`），見平台表 |
 | 遞迴過深的代價 | `bench_fib` 長跑回退約 32% | `scripts/bench.sh` 長跑前後，owner 已裁決接受 |
-| W7 的語料 | **45 支全過、0 失敗**（`tests/java-compat`；Teyru main `0e8e592` → `tests` `af41a7d`） | 在 Teyru main 的那個內容上跑 `sh tests/run.sh java-compat`（我自己跑過；`make java-compat` 是同一件事） |
+| W7 的語料 | **45 支全過、0 失敗**（`tests/java-compat`；Teyru main `0e8e592` → `tests` `af41a7d`） | 在 Teyru main 的那個內容上跑 `sh tests/run.sh java-compat`（我自己跑過兩次；`make java-compat` 是同一件事） |
+| 整套測試（main） | **324 過、1 失敗、10 已知失敗、0 跳過**（同一個內容；唯一的失敗是 `native/net_c_test` 的連結失敗，10 條已知失敗與 `known-failures.txt` 完全一致） | `sh tests/run.sh`；log 與名單見 PR [#128](https://github.com/teyru-lang/Teyru/pull/128) 的留言（這一列不是我自己跑的，語料那 45 支才是） |
 
 （macOS 那一列是 W9 之後重量的（2026-09-17，`tests` @ `e4268a6`，編譯器 `5ac017b`）；
 `linux/arm64` 那一列 W9 之後的 `TEYRU_TARGET` 重測已經跑完，兩個數字都寫在上面。）

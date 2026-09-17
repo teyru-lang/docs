@@ -117,14 +117,18 @@ be written out.
 programs), and Teyru main's submodule pointer reaches it since PR
 [#128](https://github.com/teyru-lang/Teyru/pull/128) merged (`0e8e592`). I ran `sh tests/run.sh
 java-compat` myself on that content: **45 passed, 0 failed, 0 known, 0 skipped** -- so the PR body's
-45 of 45 reproduces, it is not a branch-only fact. The PR body's other two lines (the full
-`sh tests/run.sh` at **320 passed, 1 failed, 9 known, 0 skipped**, where the one red is
-`native/net_c_test`'s link failure -- the same `undefined reference` I reproduce compiling it
-natively on main -- and `go test ./... -count=1 -p 1 -parallel 1` exiting 0) measure **the branch
-pair**; I did not re-run the whole suite (it takes tens of minutes and shares the machine), so those
-two are marked as not yet reproduced on main. **So `make java-compat` on main has nothing to run, and the
-release workflow calls exactly that** -- pushing tests and bumping the pointer is the owner's or W7's
-step, and until it happens this page does not treat those two numbers as facts about main.
+45 of 45 reproduces, it is not a branch-only fact. **The full suite on main is `324 passed, 1 failed, 10 known, 0 skipped`** (same content: Teyru
+`0e8e592` -> `tests` `af41a7d`; run to completion by W7's author, log quoted in a comment on PR
+[#128](https://github.com/teyru-lang/Teyru/pull/128)). The one failure is `native/net_c_test`'s link
+failure (`go test` does not run that file), and the ten known failures are exactly the entries
+`known-failures.txt` holds right now (`t230`, `t231`, `t234`-`t237`, `t239`, `t246`-`t248`; I checked
+the list), so "every listed case fails and nothing passing is listed" holds. All 45 java-compat cases
+are inside the 324.
+
+**Why the two sets of numbers differ is worth saying:** the PR body's `320 passed, 1 failed, 9 known`
+measures the branch pair -- tests main carries W8's boxed-assignment probes (`t246`-`t248`, all three
+known failures) and no longer lists `t180`/`t196`, which W5's test work removed. This page quotes the
+main set; I re-ran the 45 corpus cases myself, and the suite line has the source named above.
 
 **Until the corpus lands, this page claims the subset, not the sentence.** The bounds are
 [docs/language.md](/en/docs/language) §12 (the syntax) and §13 (the APIs that are missing and the
@@ -210,7 +214,8 @@ ones this release is about:
 | The Windows target | 179 of 195 programs byte-identical (run under Wine) | same table |
 | The two macOS rows | **compile and link only**: 240 of 257 programs build, 9 are refused by name for TLS and 8 are not accepted by the compiler used; the artifact is Mach-O and **not one line has been executed** | `teyru build --cc <zig wrapper>` (`zig cc -target aarch64-macos`); same table |
 | What deep recursion costs | `bench_fib`'s long run is about 32% slower | `scripts/bench.sh`, long run, before and after; the owner has accepted it |
-| W7's corpus | **45 passed, 0 failed** (`tests/java-compat`; Teyru main `0e8e592` → `tests` `af41a7d`) | `sh tests/run.sh java-compat` on that content (I ran it; `make java-compat` is the same thing) |
+| W7's corpus | **45 passed, 0 failed** (`tests/java-compat`; Teyru main `0e8e592` → `tests` `af41a7d`) | `sh tests/run.sh java-compat` on that content (I ran it twice; `make java-compat` is the same thing) |
+| The full suite (main) | **324 passed, 1 failed, 10 known, 0 skipped** (same content; the one failure is `native/net_c_test`'s link failure, and the ten known match `known-failures.txt` exactly) | `sh tests/run.sh`; the log and the list are in a comment on PR [#128](https://github.com/teyru-lang/Teyru/pull/128) (this row is not my run; the 45 corpus cases are) |
 
 (The macOS row was re-measured after W9 (2026-09-17, `tests` at `e4268a6`, compiler at
 `5ac017b`), and the `linux/arm64` row's `TEYRU_TARGET` re-run has finished, so both of its
