@@ -590,27 +590,61 @@ other's cell is claiming a measurement that was never taken:
 
 | Target | Build | Run |
 |---|---|---|
-| `linux/amd64` | ✅ | ✅ The full suite, natively on this machine: `go test ./...` and `TEYRU=<compiler> sh tests/run.sh` (221 cases) |
+| `linux/amd64` | ✅ | ✅ The full suite, natively on this machine: `go test ./...` and `TEYRU=<compiler> sh tests/run.sh` (250 cases) |
 | `windows/amd64` | ✅ Cross-compiled with `x86_64-w64-mingw32-gcc`; **except a program that can reach TLS** (see below) | ✅ Run under Wine: 179 of the 195 test programs of the time were byte-identical (14 of the 16 that were not also failed on Linux with gcc under the pre-change compiler, and 2 were Windows path and filename facts) |
-| `linux/arm64` | ❌ This machine has `aarch64-linux-gnu-gcc`, but its sysroot has no libc headers (`fatal error: stdint.h`), so it does not even get through compilation | ❌ No aarch64 sysroot |
-| `darwin/amd64`, `darwin/arm64` | ❌ There is no macOS SDK here, and no usable cross compiler (`teyru: no C compiler for darwin/amd64 on a linux/amd64 host`) | ❌ There is no macOS here |
+| `linux/arm64` | ✅ Cross-compiled with `aarch64-linux-gnu-gcc`; that target's sysroot had to be installed first (see below) | ✅ The full suite under qemu-aarch64: **all 250 cases passed** — all 222 test programs built, ran and were byte-identical, as were the 3 packages, the 23 rejection cases and the 2 native cases |
+| `darwin/amd64`, `darwin/arm64` | ⚠️ **Compile and link only**, and not through `teyru build`: from this host the compiler refuses the Apple rows by name (`teyru: no C compiler for darwin/amd64 on a linux/amd64 host`). Bypassing that check and handing the C the compiler prints to `zig cc -target <arch>-macos`, **all 188 programs that cannot reach TLS compile and link** (the product is a Mach-O executable); the 34 that do reach TLS do not (see below) | ❌ There is no macOS here, so nobody has run them |
 
-The build column was measured like this: eight representative programs — sealed switch
-(`t84_sealed_switch`), arrow blocks (`t133_arrow_blocks`), reflection (`t146_reflect`),
-threads (`t159_threads`), time zones (`t188_timezone`), the Spring-shaped layer (`t102_web`),
-TLS (`t163_https_roundtrip`) and Gson (`t101_gson`) — each built for five targets with
-`teyru build --no-lto --target <os>/<arch>`, with the verdict read from the compiler's own
-exit code. **12 of the 40 succeeded** (all eight on linux/amd64, four on windows/amd64); the
-other 28 were either a toolchain that is not on this machine or the "this target does not
-have this feature" case below.
+The evidence is measured separately, because "it builds" and "it runs" are different
+questions, and the rows added here are `linux/arm64` and macOS.
 
-**All five targets are implemented, but this machine can exercise only two of them.**
-Cross-compiling to `linux/arm64` needs that target's sysroot (the `aarch64-linux-gnu-gcc`
-here has its own headers but not the target's libc), and to macOS it needs an SDK — neither
-is here. Those three targets are therefore "implemented, **nobody has run it**", not "it
-builds but was not tested"; the ones that really have been verified are the other two:
-`linux/amd64` runs the full suite natively, and `windows/amd64` runs under Wine (the 179
-above).
+**How `linux/arm64` was measured.** This machine had `aarch64-linux-gnu-gcc`, but its sysroot
+was empty — not the wrong headers, no headers at all (`fatal error: stdint.h`). So the
+sysroot was installed first: libc and its headers, `linux-libc-dev`, `libatomic`, and the
+OpenSSL 3.6.4 that arm64's TLS needs (with the zlib and zstd libcrypto wants at run time),
+all from Debian sid's arm64 packages, unpacked into the sysroot this cross compiler looks in
+by default, `/usr/aarch64-linux-gnu/sys-root`. Two things had to be arranged for Fedora's
+compiler: the two linker scripts Debian ships (`libc.so`, `libm.so`) name Debian's absolute
+paths and were rewritten to paths inside the sysroot, and Fedora's gcc specs add
+`-latomic_asneeded` unconditionally (a Fedora packaging device that links libatomic only when
+something in it is needed) while this cross compiler ships no libatomic at all, so that name
+was pointed at Debian's `libatomic.so.1`.
+
+What ran was **`tests/run.sh` unmodified**, with exactly three things supplied from outside.
+The compiler is a wrapper that adds `--target linux/arm64` — `run.sh` has nowhere to name a
+target, it only ever says `teyru build -O1 -o <out> <src>`, so the target travels in the
+compiler's name. `CC` is `aarch64-linux-gnu-gcc`, so the suite's own C test
+(`native/net_c_test.c`) is built for arm64 too. `QEMU_LD_PREFIX` points at that sysroot:
+Fedora's `qemu-user-static` has already registered a binfmt_misc handler, so an arm64
+executable runs by being executed, but that qemu has no default sysroot compiled in and a
+dynamically linked program needs the variable to find its loader. The result is **250 cases
+passed, 0 failed**: every one of the 222 test programs built, ran and was byte-identical, and
+so were the 3 packages, the 23 rejection cases and the 2 native cases (the native C test was
+built for arm64 and run under qemu).
+
+**The macOS rows reach "compiles and links", and how they got there matters.** From this
+linux/amd64 host, `teyru build --target darwin/arm64` is a named refusal for **every**
+program (`teyru: no C compiler for darwin/amd64 on a linux/amd64 host`): the Apple rows of
+the target table have no C compiler, and `--cc` cannot supply one — `resolveTarget` reads the
+table before the caller's compiler is ever consulted, so not even a hello world starts.
+Past that check, the C the compiler prints does not depend on the target (`codegen.Emit`
+takes only the program, not the target) and macOS and Linux compile the same
+`tyrt_plat_posix.c`, so that C is the C a darwin build would compile. Handing the C
+`teyru emit` printed, plus the runtime's six files, to `zig cc -target aarch64-macos` and
+`zig cc -target x86_64-macos`: **all 188 programs that cannot reach TLS compile and link**,
+and the product is a Mach-O 64-bit executable. The 34 that do reach TLS do not compile, for
+the same reason the compiler refuses them: `tyrt_tls.c` includes `openssl/err.h`, and the
+macOS SDK has no such header. One more thing to say plainly: those links are without
+`-flto`, because zig answers `-flto` with `LTO requires using LLD`; the compiler already
+falls back to a second attempt without `-flto` for a toolchain that has no LTO, so that is
+one of its own success paths — but it is not the default one.
+
+**All five targets are implemented, and this machine can now exercise four of them.**
+`linux/amd64` runs the full suite natively, `windows/amd64` runs under Wine, `linux/arm64`
+runs under qemu-aarch64 (all 250 cases), and `darwin/amd64` and `darwin/arm64` reach
+compiles-and-links. The difference is the machine, not the toolchain: the arm64 row has
+something that can execute it, the macOS rows have not — with no macOS anywhere near, that
+cell cannot be a ✅, and nobody has run a line of a program on it.
 
 **windows and macOS have no TLS, and what is refused is the program.** The TLS layer is
 written on OpenSSL, mingw-w64 does not have it and macOS ships SecureTransport, so a program
@@ -622,16 +656,22 @@ automatically — that is how `t146_reflect`, `t101_gson` and `t102_web` (the Sp
 layer scans classes) were refused on windows/amd64. A program that uses neither reflection
 nor TLS is entirely unaffected, and a program that does not use TLS is not linked against
 OpenSSL.
+`linux/arm64` is not one of those two targets: that sysroot has arm64's OpenSSL in it, so
+TLS on arm64 is measured — `t163_https_roundtrip`, `t191_tls_keepalive` and
+`t192_tls_handshake_timeout` all ran under qemu and were byte-identical.
 
-The table is **not a promise that every row has been run**: `linux/amd64` is the suite's,
-and a target that needs something this machine does not have fails at the compiler with the
-compiler's own error rather than silently. There is no cross compiler for macOS to name, so
-asking for one from another host is an explicit error.
+The table is **not a promise that every row has been run**, and today the only cell that is
+missing is macOS: there is no cross compiler for it to name, so asking for one from another
+host is an explicit error — and `--cc` does not fix that either, because when the target
+table has no compiler for the Apple rows `resolveTarget` refuses before it ever reads
+`--cc`. Using `zig cc` as the compiler for those rows is the manual route described above,
+not something `teyru build` can do.
 
 This project has **no CI**: there are no GitHub Actions, the gate for every change is those
 two commands, run on this machine, which is why the numbers in these pages say how and where
-they were measured. The arm64 and macOS rows therefore stay at "implemented, nobody has run
-it" for ever — with no CI, there is nowhere else that would run them.
+they were measured. arm64 therefore no longer stands at "implemented, nobody has run it" —
+it has been run, 250 cases, all of them passing; the two macOS rows still do, and with no CI
+and no macOS they will stay that way.
 
 
 ---
