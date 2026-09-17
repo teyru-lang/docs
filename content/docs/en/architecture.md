@@ -145,8 +145,11 @@ than a crash, and identical at `-O0`, `-O1` and `-O2`, so no optimiser is respon
 the back-end matrix builds every program with both compilers: **with one compiler, this family of
 defect is invisible**. Its reach was not one program: the matrix compares clang's and gcc's stdout
 program by program, and **17 programs answered differently under gcc while matching the expectation
-under clang**. This one is still being fixed (temporaries to make the order explicit); when
-it lands this section becomes a plain statement of the rule, and the matrix keeps it pinned.
+under clang**. **On `3cd9c70` (the v0.4.0 tag) the rule is enforced by the C back end**: the same
+program prints `1(1)2(2)=3` under both clang and gcc (before the fix, gcc printed `2(1)1(2)`), and
+the matrix keeps it pinned. **The LLVM back end has its own open item**: `EvalOrder` measured three
+lines differing from the JDK at `--backend llvm -O0`; it is not a `make ci` leg, so it gates
+nothing and is filed as new work.
 
 ## Back Ends and Platforms
 
