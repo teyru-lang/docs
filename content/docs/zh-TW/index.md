@@ -577,7 +577,7 @@ teyru help                                     說明
 | `linux/amd64` | ✅ | ✅ 這台機器上原生跑完整套件：`go test ./...` 與 `TEYRU=<compiler> sh tests/run.sh`（250 項） |
 | `windows/amd64` | ✅ 以 `x86_64-w64-mingw32-gcc` 交叉編譯；**碰得到 TLS 的程式除外**（見下） | ✅ 在 Wine 下跑：當時 195 支測試程式有 179 支逐位元組相同（16 支不符裡 14 支在改動前的編譯器上用 gcc 編 Linux 也一樣失敗，2 支是 Windows 的路徑與檔名事實） |
 | `linux/arm64` | ✅ 以 `aarch64-linux-gnu-gcc` 交叉編譯；那個目標的 sysroot 是另外裝上去的（見下） | ✅ 在 qemu-aarch64 下跑完整套件：**250 項全過**——222 支測試程式全部建置、執行、逐位元組相同，3 個套件、23 個拒絕案例與 2 個 native 案例也全過 |
-| `darwin/amd64`、`darwin/arm64` | ⚠️ **只到「編譯並連結」**：`teyru build --target darwin/arm64 --cc <zig 包裝>`（W9 之後 `resolveTarget` 看的是這次建置真的會跑的編譯器）在 `tests/programs` 的 **257 支**裡 **240 支建得起來並連結**、9 支因 TLS 被**具名拒絕**、8 支那個版本的編譯器編不過（W5／W7 之後才落地的 API 與檢查器），產物是 Mach-O；**沒有任何一行被執行過**（見下） | ❌ 這裡沒有 macOS，所以沒有任何人跑過它們 |
+| `darwin/amd64`、`darwin/arm64` | ⚠️ **只到「編譯並連結」**：`teyru build --target darwin/arm64 --cc <zig 包裝>`（W9 之後 `resolveTarget` 看的是這次建置真的會跑的編譯器）在 `tests/programs` 的 **257 支**裡 **240 支建得起來並連結**、9 支因 TLS 被**具名拒絕**、8 支那個版本的編譯器編不過（W5／W7 之後才落地的 API 與檢查器）；`darwin/amd64` 的同一個計數還在跑（停止點 67 支，全部建得起來）。產物是 Mach-O，**沒有任何一行被執行過**（見下） | ❌ 這裡沒有 macOS，所以沒有任何人跑過它們 |
 
 證據是分開量的，因為「編得出來」與「跑得起來」不同，而這次新增的量測是 `linux/arm64` 與
 macOS 這兩列。**表裡的數字要連著量測當時的樹讀**：`linux/amd64`、`windows/amd64` 與 `linux/arm64`
@@ -602,6 +602,12 @@ handler，arm64 的執行檔直接執行就會被 qemu 接手，但那支 qemu �
 連結的程式要靠這個環境變數才找得到 loader。結果是 **250 項全過、0 項不符**：222 支測試
 程式每一支都建置、執行、逐位元組相同，另外 3 個套件、23 個拒絕案例與 2 個 native 案例也
 全過（native 那支 C 測試是編成 arm64 在 qemu 下跑的）。
+
+W9 之後的重測走另一條路（`TEYRU_TARGET=linux/arm64 CC=aarch64-linux-gnu-gcc
+QEMU_LD_PREFIX=/usr/aarch64-linux-gnu/sys-root sh run.sh`，不用編譯器包裝），它還在跑：跑到
+一半的紀錄是 **65 個案例、0 失敗、0 已知失敗、0 跳過**，其中包含 W9 之前在 arm64 上**根本
+建不起來**的三支——`t138_request_mapping_forms`、`t140_json_binding_edges`、
+`t141_web_param_errors`——這三支現在是 PASS。
 
 **macOS 那兩列只到「編譯並連結」，而且要說清楚是怎麼到的。** 現在它走得通 `teyru build`：目標表上 Apple 那兩列沒有 C 編譯器，但 `resolveTarget` 看的是這次建置真的會跑的編譯器，所以呼叫端給的 `--cc` 算數。沒有 `--cc` 時仍然是具名拒絕（`teyru: no C compiler for darwin/arm64 on a linux/amd64 host: building for it needs a compiler that runs here and targets it, and neither this table nor --cc names one`）；給了之後——例如一個兩行的包裝 `exec …/zig cc -target aarch64-macos "$@"`——
 `teyru build --target darwin/arm64 --cc <包裝> -o hello-darwin hello.teyru` 產出 Mach-O 64-bit arm64 執行檔。連結時 zig 對 `-flto` 回 `LTO requires using LLD`；編譯器本來就會對沒有 LTO 的工具鏈退回不帶 `-flto` 的第二次嘗試，成功的是那一次，不是預設那條。

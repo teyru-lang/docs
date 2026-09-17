@@ -575,7 +575,7 @@ teyru help                                     帮助
 | `linux/amd64` | ✅ | ✅ 在这台机器上原生跑完整套件：`go test ./...` 与 `TEYRU=<compiler> sh tests/run.sh`（250 项） |
 | `windows/amd64` | ✅ 用 `x86_64-w64-mingw32-gcc` 交叉编译；**碰得到 TLS 的程序除外**（见下） | ✅ 在 Wine 下跑：当时 195 支测试程序有 179 支逐字节相同（16 支不符里 14 支在改动前的编译器上用 gcc 编 Linux 也一样失败，2 支是 Windows 的路径与文件名事实） |
 | `linux/arm64` | ✅ 用 `aarch64-linux-gnu-gcc` 交叉编译；那个目标的 sysroot 是另外装上去的（见下） | ✅ 在 qemu-aarch64 下跑完整套件：**250 项全过**——222 支测试程序全部构建、运行、逐字节相同，3 个套件、23 个拒绝案例与 2 个 native 案例也全过 |
-| `darwin/amd64`、`darwin/arm64` | ⚠️ **只到「编译并链接」**：`teyru build --target darwin/arm64 --cc <zig 包装>`（W9 之后 `resolveTarget` 看的是这次构建真的会跑的编译器）在 `tests/programs` 的 **257 支**里 **240 支建得起来并链接**、9 支因 TLS 被**具名拒绝**、8 支那个版本的编译器编不过（W5／W7 之后才落地的 API 与检查器），产物是 Mach-O；**没有任何一行被运行过**（见下） | ❌ 这里没有 macOS，所以没有任何人跑过它们 |
+| `darwin/amd64`、`darwin/arm64` | ⚠️ **只到「编译并链接」**：`teyru build --target darwin/arm64 --cc <zig 包装>`（W9 之后 `resolveTarget` 看的是这次构建真的会跑的编译器）在 `tests/programs` 的 **257 支**里 **240 支建得起来并链接**、9 支因 TLS 被**具名拒绝**、8 支那个版本的编译器编不过（W5／W7 之后才落地的 API 与检查器）；`darwin/amd64` 的同一个计数还在跑（停止点 67 支，全部建得起来）。产物是 Mach-O，**没有任何一行被运行过**（见下） | ❌ 这里没有 macOS，所以没有任何人跑过它们 |
 
 证据是分开量的，因为「编得出来」与「跑得起来」不同，而这次新增的量测是 `linux/arm64` 与
 macOS 这两列。**表里的数字要连着测量当时的树读**：`linux/amd64`、`windows/amd64` 与 `linux/arm64`
