@@ -15,6 +15,11 @@ description: "Teyru 的版本：0.4.0 是正確性版本——改了什麼、量
 `make java-compat`、`make jdk-diff`、`make backend-matrix`、`make notices`。這一頁引用的
 數字就是那些指令在同一個 tag 上的輸出，每一列都註明它是怎麼量的。
 
+**同一串檢查在 `3cd9c70`（v0.4.0 的 tag）上先由人跑過一次，四條腿全綠**——說「人跑過」而不是
+「CI 通過」，因為工作流程是 tag 之後才跑的，而且它的首跑還在進行中。四行照抄 `make ci` 自己的
+輸出，不改數字：`notices` 與樹一致、預設編譯器那一條 `ok 801.427s`、**gcc 那一條 `ok 931.287s`**、
+**JDK differential `PASS`（`ok 284.091s`）**，整體 `EXIT=0`。
+
 ---
 
 ## 1. 改了什麼

@@ -18,6 +18,12 @@ executables to the release, and calls six checks in order -- `make build`, `make
 `make java-compat`, `make jdk-diff`, `make backend-matrix`, `make notices`. The numbers on this page
 are those commands' output on that tag, and every row says how it was measured.
 
+**The same sequence was run by hand on `3cd9c70` (the v0.4.0 tag) first, and all four legs are
+green** -- "run by hand" rather than "CI passed", because the workflow runs after the tag and its
+first run is still in progress. The four lines are `make ci`'s own output, copied without changing a
+number: `notices` consistent with the tree, the default compiler leg `ok 801.427s`, **the gcc leg
+`ok 931.287s`**, and **the JDK differential `PASS` (`ok 284.091s`)**, with `EXIT=0` overall.
+
 ---
 
 ## 1. What changed
