@@ -41,8 +41,10 @@ instead of holding the server. The request line, the headers, the header count a
 limits (414 / 431 / 413), and the deadlines are **totals** rather than per-read timeouts. The parser
 refuses every RFC 9112 inconsistency (`Content-Length` together with `Transfer-Encoding`, disagreeing
 duplicate lengths, obs-fold, whitespace before a colon, a chunk size that is not hexadecimal …) and
-closes the connection; the WebSocket protocol's limits are 1002 / 1009 / 1001. All thirteen
-`server.teyru.*` keys and their defaults are in [docs/framework.md](/en/docs/framework), under
+closes the connection; the WebSocket protocol's limits are 1002 / 1007 / 1009 / 1001. All
+thirteen keys — twelve under `server.teyru.`, plus Spring Boot's own
+`server.max-http-request-header-size` — and their defaults are in
+[docs/framework.md](/en/docs/framework), under
 "Concurrency" and "What a client is held to".
 
 The evidence is what the plan's own reproduction scripts do now, which is the opposite of what they

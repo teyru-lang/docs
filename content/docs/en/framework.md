@@ -191,7 +191,11 @@ reads those two properties and calls `ssl()` itself when `server.ssl.certificate
 
 The layer is OpenSSL, so only POSIX targets have it; windows and macOS are a named refusal, and
 it comes before any output file is written (see [docs/native.md](/en/docs/native)), while a
-program that does not touch TLS is not linked against OpenSSL. The test with a server and a
+program that does not touch TLS is not linked against OpenSSL. Since W9, "reaches TLS" means
+reachability over **the program's own call graph** (the reflection member tables do not count),
+so a web program that never calls `ssl()` builds and serves on a machine with **no OpenSSL
+headers at all** — measured by pointing `cc` at a wrapper that pretends `openssl/err.h` is
+missing: `web.teyru` built, and `GET /ok` answered `fine [200]`. The test with a server and a
 client round tripping inside one program is `tests/programs/t163_https_roundtrip.teyru`; two
 requests on one TLS connection, and the handshake timeout, are `t191_tls_keepalive.teyru` and
 `t192_tls_handshake_timeout.teyru`.

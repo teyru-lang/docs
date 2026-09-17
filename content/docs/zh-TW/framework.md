@@ -171,7 +171,10 @@ enum 參數與回傳值、`defaultValue`。
 
 這一層是 OpenSSL，所以只有 POSIX 的目標有；windows 與 macOS 是具名拒絕，而且在寫出
 任何輸出檔之前（見 [docs/native.md](/docs/native)），不碰 TLS 的程式則不會被連結
-OpenSSL。伺服器與客戶端在同一個程式裡往返的測試是
+OpenSSL。W9 之後「碰得到」算的是**程式自己的呼叫圖**（反射的成員表不算），所以一個不呼叫
+`ssl()` 的 web 程式在**沒有 OpenSSL 標頭**的機器上也建得起來並照常服務——實測是把 `cc`
+換成一個假裝沒有 `openssl/err.h` 的包裝之後，`web.teyru` 建置成功，`GET /ok` 得到
+`fine [200]`。伺服器與客戶端在同一個程式裡往返的測試是
 `tests/programs/t163_https_roundtrip.teyru`，一次 TLS 連線上的兩個請求與交握逾時是
 `t191_tls_keepalive.teyru` 與 `t192_tls_handshake_timeout.teyru`。
 

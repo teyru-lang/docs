@@ -34,7 +34,8 @@ description: "Teyru 的版本：0.4.0 是正确性版本——改了什么、量
 头、头个数与请求体都有上限（414／431／413），超时是**总时长**而不是单次读取；解析器对
 RFC 9112 的不一致（`Content-Length` 与 `Transfer-Encoding` 同时出现、多个不一致的长度、
 obs-fold、冒号前空白、非十六进制的 chunk……）一律拒绝并关闭连接；WebSocket 的协议上限是
-1002／1009／1001。全部十三个 `server.teyru.*` 配置键与默认值见
+1002／1007／1009／1001。全部十三个配置键——十二个 `server.teyru.*`，加上 Spring Boot
+自己的 `server.max-http-request-header-size`——与默认值见
 [docs/framework.md](/zh-CN/docs/framework) 的〈并发模型〉与〈客户端的限制〉。
 
 证据是那两个外部重现脚本在修好之后得到的相反结果：慢速客户端（一条连接每 4 秒送 1 个字节）

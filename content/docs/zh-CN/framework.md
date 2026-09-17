@@ -170,7 +170,10 @@ enum 参数与返回值、`defaultValue`。
 
 这一层是 OpenSSL，所以只有 POSIX 的目标有；windows 与 macOS 是具名拒绝，而且在写出
 任何输出文件之前（见 [docs/native.md](/zh-CN/docs/native)），不碰 TLS 的程序则不会被
-链接 OpenSSL。服务器与客户端在同一个程序里往返的测试是
+链接 OpenSSL。W9 之后「碰得到」算的是**程序自己的调用图**（反射的成员表不算），所以一个
+不调用 `ssl()` 的 web 程序在**没有 OpenSSL 头文件**的机器上也建得起来并照常服务——实测
+是把 `cc` 换成一个假装没有 `openssl/err.h` 的包装之后，`web.teyru` 构建成功，`GET /ok`
+得到 `fine [200]`。服务器与客户端在同一个程序里往返的测试是
 `tests/programs/t163_https_roundtrip.teyru`，一次 TLS 连接上的两个请求与握手超时是
 `t191_tls_keepalive.teyru` 与 `t192_tls_handshake_timeout.teyru`。
 

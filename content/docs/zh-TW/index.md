@@ -577,7 +577,7 @@ teyru help                                     說明
 | `linux/amd64` | ✅ | ✅ 這台機器上原生跑完整套件：`go test ./...` 與 `TEYRU=<compiler> sh tests/run.sh`（250 項） |
 | `windows/amd64` | ✅ 以 `x86_64-w64-mingw32-gcc` 交叉編譯；**碰得到 TLS 的程式除外**（見下） | ✅ 在 Wine 下跑：當時 195 支測試程式有 179 支逐位元組相同（16 支不符裡 14 支在改動前的編譯器上用 gcc 編 Linux 也一樣失敗，2 支是 Windows 的路徑與檔名事實） |
 | `linux/arm64` | ✅ 以 `aarch64-linux-gnu-gcc` 交叉編譯；那個目標的 sysroot 是另外裝上去的（見下） | ✅ 在 qemu-aarch64 下跑完整套件：**250 項全過**——222 支測試程式全部建置、執行、逐位元組相同，3 個套件、23 個拒絕案例與 2 個 native 案例也全過 |
-| `darwin/amd64`、`darwin/arm64` | ⚠️ **只到「編譯並連結」**，而且不是透過 `teyru build`：從這個宿主，編譯器對 Apple 那兩列是具名拒絕（`teyru: no C compiler for darwin/amd64 on a linux/amd64 host`）。繞過那個檢查、把編譯器產生的 C 交給 `zig cc -target <arch>-macos`，**不碰 TLS 的 188 支全部編譯並連結成功**（產物是 Mach-O 執行檔），碰得到 TLS 的 34 支不行（見下） | ❌ 這裡沒有 macOS，所以沒有任何人跑過它們 |
+| `darwin/amd64`、`darwin/arm64` | ⚠️ **只到「編譯並連結」**：`teyru build --target darwin/arm64 --cc <zig 包裝>` 現在走得通（`resolveTarget` 看的是這次建置真的會跑的編譯器，所以目標表沒有編譯器而呼叫端給了 `--cc` 時不再拒絕），產物是 Mach-O 執行檔；**沒有任何一行被執行過**。W9 之前那兩個數字（不碰 TLS 的 188 支建得起來、碰得到 TLS 的 34 支不行）正在重測——碰得到 TLS 的程式現在是在 C 編譯器**之前**由驅動具名拒絕，而不是 `openssl/err.h` 找不到 | ❌ 這裡沒有 macOS，所以沒有任何人跑過它們 |
 
 證據是分開量的，因為「編得出來」與「跑得起來」不同，而這次新增的量測是 `linux/arm64` 與
 macOS 這兩列。
@@ -592,9 +592,7 @@ sysroot `/usr/aarch64-linux-gnu/sys-root`。有兩件事要為 Fedora 這支編�
 libatomic 只在真的用到時才連進去），而這支交叉編譯器不帶 libatomic，所以要把它指向 Debian
 的 `libatomic.so.1`。
 
-跑的是**沒有改過的 `tests/run.sh`**：只有三件事由外面給。編譯器是一個多加了
-`--target linux/arm64` 的包裝——`run.sh` 沒有地方可以指名目標，它只喊
-`teyru build -O1 -o <輸出> <來源>`，所以目標由編譯器那個名字帶著走。`CC` 是
+那次跑的是**沒有改過的 `tests/run.sh`**，而且只有三件事由外面給。W9 之後不必再那樣繞：`run.sh` 與 `go test` 都讀 `TEYRU_TARGET`，目標由那個變數給，`.skip` 也照那個平台判讀；當時的作法是把編譯器多包一層 `--target linux/arm64`（`run.sh` 只喊 `teyru build -O1 -o <輸出> <來源>`，目標由編譯器那個名字帶著走）。`CC` 是
 `aarch64-linux-gnu-gcc`，套件自己那支 C 測試（`native/net_c_test.c`）因此也編成 arm64。
 `QEMU_LD_PREFIX` 指向那個 sysroot：Fedora 的 `qemu-user-static` 已經註冊了 binfmt_misc
 handler，arm64 的執行檔直接執行就會被 qemu 接手，但那支 qemu 沒有編進預設 sysroot，動態
@@ -602,19 +600,12 @@ handler，arm64 的執行檔直接執行就會被 qemu 接手，但那支 qemu �
 程式每一支都建置、執行、逐位元組相同，另外 3 個套件、23 個拒絕案例與 2 個 native 案例也
 全過（native 那支 C 測試是編成 arm64 在 qemu 下跑的）。
 
-**macOS 那兩列只到「編譯並連結」，而且要說清楚是怎麼到的。** 從這個 linux/amd64 宿主，
-`teyru build --target darwin/arm64` 對**每一支**程式都是具名拒絕
-（`teyru: no C compiler for darwin/amd64 on a linux/amd64 host`）：目標表上 Apple 那兩列
-沒有 C 編譯器，而 `--cc` 補不上——`resolveTarget` 先讀表、再讓呼叫端換編譯器，所以一個
-hello world 都不會開始。繞過那個檢查之後，編譯器產生的 C 與目標無關（`codegen.Emit` 只吃
-程式，不吃目標），而 macOS 與 Linux 共用同一份 `tyrt_plat_posix.c`，所以那份 C 就是
-darwin 建置會編的 C。把 `teyru emit` 印出來的 C 連同執行期六個檔案交給
-`zig cc -target aarch64-macos` 與 `zig cc -target x86_64-macos`：**不碰 TLS 的 188 支全部
-編譯並連結成功**，產物是 Mach-O 64-bit 執行檔。碰得到 TLS 的那 34 支編不過，原因與編譯器
-的拒絕一致：`tyrt_tls.c` include 了 `openssl/err.h`，macOS 的 SDK 裡沒有這個標頭。
-還有一件要講明的：這批連結沒有 `-flto`，因為 zig 對 `-flto` 直接回
-`LTO requires using LLD`；編譯器本來就會對沒有 LTO 的工具鏈退回不帶 `-flto` 的第二次嘗試，
-所以那是它自己的成功路徑之一，但那不是預設那條。
+**macOS 那兩列只到「編譯並連結」，而且要說清楚是怎麼到的。** 現在它走得通 `teyru build`：目標表上 Apple 那兩列沒有 C 編譯器，但 `resolveTarget` 看的是這次建置真的會跑的編譯器，所以呼叫端給的 `--cc` 算數。沒有 `--cc` 時仍然是具名拒絕（`teyru: no C compiler for darwin/arm64 on a linux/amd64 host: building for it needs a compiler that runs here and targets it, and neither this table nor --cc names one`）；給了之後——例如一個兩行的包裝 `exec …/zig cc -target aarch64-macos "$@"`——
+`teyru build --target darwin/arm64 --cc <包裝> -o hello-darwin hello.teyru` 產出 Mach-O 64-bit arm64 執行檔。連結時 zig 對 `-flto` 回 `LTO requires using LLD`；編譯器本來就會對沒有 LTO 的工具鏈退回不帶 `-flto` 的第二次嘗試，成功的是那一次，不是預設那條。
+
+碰得到 TLS 的程式在 darwin 上是**驅動的具名拒絕，發生在 C 編譯器之前**（`teyru: TLS is not available for darwin/arm64: macOS ships SecureTransport rather than OpenSSL, …`），而不是從前那種 `tyrt_tls.c: openssl/err.h` 找不到。
+
+W9 之前那條繞道（`teyru emit` 的 C 加上執行期六個檔案交給 `zig cc`）與它量到的兩個數字（不碰 TLS 的 188 支全部編譯並連結成功、碰得到 TLS 的 34 支不行）在這裡保留為歷史：那 34 支現在改由驅動拒絕，而 188 那個數字要重測（W9 之後的計數正在跑）。
 
 **五個目標都實作了，而這台機器現在能演練四個。** `linux/amd64` 原生跑整套測試、
 `windows/amd64` 在 Wine 下跑、`linux/arm64` 在 qemu-aarch64 下跑（250 項全過），
@@ -625,18 +616,12 @@ darwin 建置會編的 C。把 `teyru emit` 印出來的 C 連同執行期六個
 **windows 與 macOS 沒有 TLS，而被拒絕的是程式。** TLS 那一層寫在 OpenSSL 上，
 mingw-w64 沒有它、macOS 出的是 SecureTransport，所以碰得到 TLS 的程式在那兩個目標上是
 **具名拒絕**（訊息指名目標、原因與可以改用的目標），而不是留給連結器去說
-`undefined reference to SSL_CTX_new`。要注意「碰得到」算的是**可達性**：會用反射的程式
-帶著一份指名每個類別的表格，所以它自動碰得到 TLS——`t146_reflect`、`t101_gson` 與
-`t102_web`（Spring 形狀的那一層會掃描類別）就是這樣在 windows/amd64 上被拒絕的。不用
-反射也不用 TLS 的程式完全不受影響，而且不用 TLS 的程式不會被連結 OpenSSL。
+`undefined reference to SSL_CTX_new`。要注意「碰得到」算的是**可達性**，而 W9 之後它算的是**程式自己的呼叫圖**：反射用的成員表與 `Class.forName` 的類別表不再被當成可達（emitter 標記那些行，TLS 的不動點不走它們），所以 `t146_reflect`、`t101_gson` 與 `t102_web`（Spring 形狀的那一層會掃描類別）現在都建得起來——`t101_gson` 的 PE32+ 只 import `KERNEL32.dll`、`WS2_32.dll`、`msvcrt.dll`，在 Wine 下的輸出與 `.expected` 相同。透過反射走到 TLS 的呼叫由 `tyrt_net.c` 的弱符號回答一個具名、可攔截的 `UnsupportedOperationException`（`Net.tlsClientContext0: this program was not linked against OpenSSL`），而不是跳到 `NULL`。不用 TLS 的程式不會被連結 OpenSSL。
 `linux/arm64` 不在這兩個目標之列：那個 sysroot 裡裝了 arm64 的 OpenSSL，所以 TLS 在
 arm64 上是被量過的——`t163_https_roundtrip`、`t191_tls_keepalive` 與
 `t192_tls_handshake_timeout` 都在 qemu 下跑過且逐位元組相同。
 
-這張表**不是「每一列都跑過」的承諾**。今天缺的那一格只有 macOS：沒有可命名的交叉編譯器，
-所以從別的宿主要求它是明確的錯誤——而且 `--cc` 也補不上，因為目標表上 Apple 那兩列沒有
-編譯器時，`resolveTarget` 在讀 `--cc` 之前就拒絕了；把 `zig cc` 當成那兩列的編譯器是這頁
-上面那個手動流程，不是 `teyru build` 做得到的事。
+這張表**不是「每一列都跑過」的承諾**。今天缺的那一格只有 macOS 的**執行**：它編得出來（`--cc` 指到一個跑在這裡、目標是 macOS 的編譯器），但沒有 macOS 能執行它，所以那一格是 ❌。W9 收掉了兩個「還沒解的空隙」：`tests/run.sh` 與 `go test` 讀 `TEYRU_TARGET`，目標不必再靠替換編譯器名字；`resolveTarget` 也接受呼叫端給的 `--cc`，所以 Apple 那兩列不必再繞過目標表。
 
 **push 與 PR 上沒有 CI**：每次改動的關卡就是上面那兩道指令，在這台機器上由人跑，所以
 文件裡的數字都寫著它是怎麼量、在哪裡量的。`.github/workflows/release.yml` 是這個倉庫

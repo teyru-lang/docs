@@ -626,7 +626,7 @@ other's cell is claiming a measurement that was never taken:
 | `linux/amd64` | ✅ | ✅ The full suite, natively on this machine: `go test ./...` and `TEYRU=<compiler> sh tests/run.sh` (250 cases) |
 | `windows/amd64` | ✅ Cross-compiled with `x86_64-w64-mingw32-gcc`; **except a program that can reach TLS** (see below) | ✅ Run under Wine: 179 of the 195 test programs of the time were byte-identical (14 of the 16 that were not also failed on Linux with gcc under the pre-change compiler, and 2 were Windows path and filename facts) |
 | `linux/arm64` | ✅ Cross-compiled with `aarch64-linux-gnu-gcc`; that target's sysroot had to be installed first (see below) | ✅ The full suite under qemu-aarch64: **all 250 cases passed** — all 222 test programs built, ran and were byte-identical, as were the 3 packages, the 23 rejection cases and the 2 native cases |
-| `darwin/amd64`, `darwin/arm64` | ⚠️ **Compile and link only**, and not through `teyru build`: from this host the compiler refuses the Apple rows by name (`teyru: no C compiler for darwin/amd64 on a linux/amd64 host`). Bypassing that check and handing the C the compiler prints to `zig cc -target <arch>-macos`, **all 188 programs that cannot reach TLS compile and link** (the product is a Mach-O executable); the 34 that do reach TLS do not (see below) | ❌ There is no macOS here, so nobody has run them |
+| `darwin/amd64`, `darwin/arm64` | ⚠️ **Compile and link only**: `teyru build --target darwin/arm64 --cc <zig wrapper>` works now (`resolveTarget` checks the compiler the build will actually run, so a target that names none is refused only when the caller named none either), and the product is a Mach-O executable; **not one line has been executed**. The two pre-W9 numbers (188 programs that cannot reach TLS built and linked, the 34 that do reach TLS did not) are being re-measured — a program that reaches TLS is now refused by the driver **before the C compiler**, rather than failing on a missing `openssl/err.h` | ❌ Nothing here can run macOS, so no one has run them |
 
 The evidence is measured separately, because "it builds" and "it runs" are different
 questions, and the rows added here are `linux/arm64` and macOS.
@@ -650,26 +650,33 @@ compiler's name. `CC` is `aarch64-linux-gnu-gcc`, so the suite's own C test
 (`native/net_c_test.c`) is built for arm64 too. `QEMU_LD_PREFIX` points at that sysroot:
 Fedora's `qemu-user-static` has already registered a binfmt_misc handler, so an arm64
 executable runs by being executed, but that qemu has no default sysroot compiled in and a
-dynamically linked program needs the variable to find its loader. The result is **250 cases
+dynamically linked program needs the variable to find its loader. That run used the wrapper.
+`tests/run.sh` and `go test` read `TEYRU_TARGET` now, so the target is a variable and `.skip` is read against it; the wrapper is history. The result of that run is **250 cases
 passed, 0 failed**: every one of the 222 test programs built, ran and was byte-identical, and
 so were the 3 packages, the 23 rejection cases and the 2 native cases (the native C test was
 built for arm64 and run under qemu).
 
-**The macOS rows reach "compiles and links", and how they got there matters.** From this
-linux/amd64 host, `teyru build --target darwin/arm64` is a named refusal for **every**
-program (`teyru: no C compiler for darwin/amd64 on a linux/amd64 host`): the Apple rows of
-the target table have no C compiler, and `--cc` cannot supply one — `resolveTarget` reads the
-table before the caller's compiler is ever consulted, so not even a hello world starts.
-Past that check, the C the compiler prints does not depend on the target (`codegen.Emit`
-takes only the program, not the target) and macOS and Linux compile the same
-`tyrt_plat_posix.c`, so that C is the C a darwin build would compile. Handing the C
-`teyru emit` printed, plus the runtime's six files, to `zig cc -target aarch64-macos` and
-`zig cc -target x86_64-macos`: **all 188 programs that cannot reach TLS compile and link**,
-and the product is a Mach-O 64-bit executable. The 34 that do reach TLS do not compile, for
-the same reason the compiler refuses them: `tyrt_tls.c` includes `openssl/err.h`, and the
-macOS SDK has no such header. One more thing to say plainly: those links are without
-`-flto`, because zig answers `-flto` with `LTO requires using LLD`; the compiler already
-falls back to a second attempt without `-flto` for a toolchain that has no LTO, so that is
+**The macOS rows reach "compiles and links", and how they got there matters.** `teyru build`
+is the route now: the Apple rows of the target table have no C compiler, but `resolveTarget`
+checks the compiler the build will actually run, so a `--cc` from the caller counts. Without
+one the answer is still a named refusal (`teyru: no C compiler for darwin/arm64 on a
+linux/amd64 host: building for it needs a compiler that runs here and targets it, and
+neither this table nor --cc names one`); with one — for instance a two-line wrapper,
+`exec …/zig cc -target aarch64-macos "$@"` —
+`teyru build --target darwin/arm64 --cc <wrapper> -o hello-darwin hello.teyru` produces a
+Mach-O 64-bit arm64 executable. zig answers `-flto` with `LTO requires using LLD`; the
+compiler already falls back to a second attempt without `-flto` for a toolchain that has no
+LTO, so that is the attempt that succeeds, not the default one.
+
+A program that reaches TLS on darwin is a **named refusal from the driver, before the C
+compiler** (`teyru: TLS is not available for darwin/arm64: macOS ships SecureTransport
+rather than OpenSSL, …`), not the old `tyrt_tls.c: openssl/err.h not found`.
+
+The bypass of the W9 era (the C from `teyru emit` plus the runtime's six files, handed to
+`zig cc`) and the two numbers it produced (188 programs that cannot reach TLS compiled and
+linked, the 34 that do reach TLS did not) are kept here as history: those 34 are refused by
+the driver now, and 188 is a number that needs re-measuring (the post-W9 count is running).
+One more thing to say plainly: those links were without
 one of its own success paths — but it is not the default one.
 
 **All five targets are implemented, and this machine can now exercise four of them.**
@@ -683,22 +690,26 @@ cell cannot be a ✅, and nobody has run a line of a program on it.
 written on OpenSSL, mingw-w64 does not have it and macOS ships SecureTransport, so a program
 that can reach TLS is a **named refusal** on those two targets (the message names the target,
 the reason and the targets that would work), rather than being left to the linker to say
-`undefined reference to SSL_CTX_new`. Note that "can reach" counts **reachability**: a
-program that uses reflection carries a table naming every class, so it reaches TLS
-automatically — that is how `t146_reflect`, `t101_gson` and `t102_web` (the Spring-shaped
-layer scans classes) were refused on windows/amd64. A program that uses neither reflection
-nor TLS is entirely unaffected, and a program that does not use TLS is not linked against
-OpenSSL.
+`undefined reference to SSL_CTX_new`. Note that "can reach" counts **reachability**, and
+since W9 it is reachability over **the program's own call graph**: the reflection member
+tables and the `Class.forName` class table no longer count (the emitter marks those lines
+and the TLS fixpoint does not follow them), so `t146_reflect`, `t101_gson` and `t102_web`
+(the Spring-shaped layer scans classes) all build now — `t101_gson`'s PE32+ imports only
+`KERNEL32.dll`, `WS2_32.dll` and `msvcrt.dll`, and under Wine it prints exactly its
+`.expected`. A call that reaches a TLS method through reflection is answered by the weak
+symbol in `tyrt_net.c` with a named, catchable `UnsupportedOperationException`
+(`Net.tlsClientContext0: this program was not linked against OpenSSL`) rather than a jump to
+`NULL`. A program that does not use TLS is not linked against OpenSSL.
 `linux/arm64` is not one of those two targets: that sysroot has arm64's OpenSSL in it, so
 TLS on arm64 is measured — `t163_https_roundtrip`, `t191_tls_keepalive` and
 `t192_tls_handshake_timeout` all ran under qemu and were byte-identical.
 
-The table is **not a promise that every row has been run**, and today the only cell that is
-missing is macOS: there is no cross compiler for it to name, so asking for one from another
-host is an explicit error — and `--cc` does not fix that either, because when the target
-table has no compiler for the Apple rows `resolveTarget` refuses before it ever reads
-`--cc`. Using `zig cc` as the compiler for those rows is the manual route described above,
-not something `teyru build` can do.
+The table is **not a promise that every row has been run**, and today the only cell missing is
+macOS's **run**: it compiles (point `--cc` at a compiler that runs here and targets macOS),
+but nothing here can execute it, so that cell is ❌. W9 closed the two gaps that were open:
+`tests/run.sh` and `go test` read `TEYRU_TARGET`, so the target no longer has to arrive by
+renaming the compiler, and `resolveTarget` honours the caller's `--cc`, so the Apple rows no
+longer have to go around the target table.
 
 There is **no CI on a push or a pull request**: the gate for every change is those two
 commands, run on this machine by a person, which is why the numbers in these pages say how
