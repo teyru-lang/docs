@@ -166,13 +166,12 @@ has to be written out.
 programs), and Teyru main's submodule pointer reaches it since PR
 [#128](https://github.com/teyru-lang/Teyru/pull/128) merged (`0e8e592`). I ran `sh tests/run.sh
 java-compat` myself on that content: **45 passed, 0 failed, 0 known, 0 skipped** -- so the PR body's
-45 of 45 reproduces, it is not a branch-only fact. **The full suite on main is `324 passed, 1 failed, 10 known, 0 skipped`** (same content: Teyru
-`0e8e592` -> `tests` `af41a7d`; run to completion by W7's author, log quoted in a comment on PR
-[#128](https://github.com/teyru-lang/Teyru/pull/128)). The one failure is `native/net_c_test`'s link
-failure (`go test` does not run that file), and the ten known failures are exactly the entries
-`known-failures.txt` holds right now (`t230`, `t231`, `t234`-`t237`, `t239`, `t246`-`t248`; I checked
-the list), so "every listed case fails and nothing passing is listed" holds. All 45 java-compat cases
-are inside the 324.
+45 of 45 reproduces, it is not a branch-only fact. **The full suite on the tag is `348 passed, 0 failed, 3 known, 0 skipped`** (`exit=0`; see the §2 row:
+Teyru `3cd9c70` -> `tests` `2d72fc5`). Why it differs from the PR body's `320 passed, 1 failed,
+9 known`: that line measured the branch pair, and tests main has since gained W8's boxed-assignment
+probes, dropped W5's two entries and had that C test's link failure fixed -- so the tag is 348 passed
+with **no failures at all**, and the three known ones are exactly `known-failures.txt`'s three
+(`t235`/`t237`/`t239`). All 45 java-compat cases are inside the 348.
 
 **Why the two sets of numbers differ is worth saying:** the PR body's `320 passed, 1 failed, 9 known`
 measures the branch pair -- tests main carries W8's boxed-assignment probes (`t246`-`t248`, all three
@@ -266,7 +265,7 @@ ones this release is about:
 | W7's corpus | **45 passed, 0 failed** (`tests/java-compat`; Teyru main `9be8159` → `tests` `4ac49a7`) | `sh tests/run.sh java-compat` on that content (my own run; `make java-compat` is the same thing) |
 | Strings and Unicode (W5), JDK differential | writing half **32 of 32 byte-identical**; reading half **39 of 41**, the other two being the stated divergences | one program written twice (`.teyru` and Java), the Java half run with `/opt/jdk21/jdk-21.0.11+10`, then diffed line by line; on `9be8159` |
 | W8's two defects | boxed compound assignment `1L <<= 33` is `8589934592`; `f(1)+f(2)+f(3)` prints `1(1)2(2)3(3)=6` under both clang and gcc | `t246`-`t248` (whose `known-failures.txt` entries are gone) and one program built once with each `--cc`; compared with javac 21 |
-| The full suite | **324 passed, 1 failed, 10 known, 0 skipped** -- measured on `0e8e592` -> `tests` `af41a7d`, which is older than the current main (`known-failures.txt` had ten entries then and has four now); the one failure is `native/net_c_test`'s link failure | `sh tests/run.sh`; the log and the list are in a comment on PR [#128](https://github.com/teyru-lang/Teyru/pull/128) (this row is not my run; the re-derivation will run on the tagged commit and follow it) |
+| The full suite | **348 passed, 0 failed, 3 known, 0 skipped** (`exit=0`) -- measured on the tag's tree: Teyru `3cd9c70` (v0.4.0) -> `tests` `2d72fc5` | `sh tests/run.sh`, my own run on that tree; the three known failures are exactly the three `known-failures.txt` entries (`t235`/`t237`/`t239`), so "every listed case fails and nothing passing is listed" holds |
 
 (The macOS row was re-measured after W9 (2026-09-17, `tests` at `e4268a6`, compiler at
 `5ac017b`), and the `linux/arm64` row's `TEYRU_TARGET` re-run has finished, so both of its

@@ -140,12 +140,11 @@ main 上的行为我自己重跑过：`.teyru` 的语句写了分号也编得过
 程序），而 Teyru main 的指标在 PR [#128](https://github.com/teyru-lang/Teyru/pull/128) 合入后
 （`0e8e592`）指到它。我在 main 的那个内容上自己跑过 `sh tests/run.sh java-compat`：
 **45 过、0 失败、0 已知失败、0 跳过**——PR 描述的 45 支全过是重现得出来的，不是只有分支上成立。
-**整套测试在 main 上的那一行是 `324 过、1 失败、10 已知失败、0 跳过`**（同一个内容：Teyru
-`0e8e592` → `tests` `af41a7d`；由 W7 的收尾者跑完，log 贴在 PR
-[#128](https://github.com/teyru-lang/Teyru/pull/128) 的留言里）。唯一的失败是 `native/net_c_test`
-那个链接失败（`go test` 不跑那个文件），而 10 个已知失败**正好**是 `known-failures.txt` 现在的
-十条（`t230`、`t231`、`t234`–`t237`、`t239`、`t246`–`t248`，我核对过名单），所以「列出的都失败、
-没列出的都没漏」成立；45 支 java-compat 在 324 里面。
+**tag 上那一行整套是 `348 过、0 失败、3 已知失败、0 跳过`**（`exit=0`；见 §2 那一行，Teyru
+`3cd9c70` → `tests` `2d72fc5`）。为什么与 PR 描述里的 `320 过、1 失败、9 已知失败` 不同：那一行
+量的是分支那一对，而 `tests` main 之后多了 W8 的装箱赋值探针、拿掉了 W5 的两条、也修好了那个
+C 测试的链接——所以 tag 上是 348 过、**0 失败**，3 条已知失败正好是 `known-failures.txt` 当时的
+三条（`t235`／`t237`／`t239`）；45 支 java-compat 在 348 里面。
 
 **两组数字为什么不同，原因要写清楚**：PR 描述里的 `320 过、1 失败、9 已知失败、0 跳过` 量的是
 分支那一对——`tests` main 多了 W8 的装箱赋值探针（`t246`–`t248`，三个都是已知失败），而且不再列
@@ -224,7 +223,7 @@ GraalVM 的 `native-image` 对照**未测**（这台机器上没有 GraalVM）�
 | W7 的语料 | **45 支全过、0 失败**（`tests/java-compat`；Teyru main `9be8159` → `tests` `4ac49a7`） | `sh tests/run.sh java-compat`，在 main 上的那个内容跑（我自己跑的；`make java-compat` 是同一件事） |
 | 字符串与 Unicode（W5）的 JDK 差分 | 写的一半 **32/32 逐字节相同**；读的一半 **39/41**，其余两项是已声明的差异 | 同一支程序写两次（`.teyru` 与 Java），`/opt/jdk21/jdk-21.0.11+10` 跑 Java 那一半再逐行 diff；在 `9be8159` 上跑 |
 | W8 的两个缺陷 | 装箱复合赋值 `1L <<= 33` → `8589934592`；`f(1)+f(2)+f(3)` 在 clang 与 gcc 都打印 `1(1)2(2)3(3)=6` | `t246`–`t248`（已从 `known-failures.txt` 拿掉）与一支 `--cc` 各建一次的程序；与 javac 21 比对 |
-| 整套测试 | **324 过、1 失败、10 已知失败、0 跳过**——量在 `0e8e592` → `tests` `af41a7d` 的内容上（比现在的主线旧：`known-failures.txt` 当时有 10 条，现在是 4 条），唯一的失败是 `native/net_c_test` 的链接失败 | `sh tests/run.sh`；log 与名单见 PR [#128](https://github.com/teyru-lang/Teyru/pull/128) 的留言（这一行不是我自己跑的；重测会在 tag 的那个 commit 上跑，之后补上） |
+| 整套测试 | **348 过、0 失败、3 已知失败、0 跳过**（`exit=0`）——量在 tag 的树上：Teyru `3cd9c70`（v0.4.0）→ `tests` `2d72fc5` | `sh tests/run.sh`，我自己在 tag 那棵树上跑的；3 条已知失败就是 `known-failures.txt` 当时的三条（`t235`／`t237`／`t239`），所以「列出的都失败、没列出的都没漏」成立 |
 
 （macOS 那一列是 W9 之后重测的（2026-09-17，`tests` @ `e4268a6`，编译器 `5ac017b`）；
 `linux/arm64` 那一列 W9 之后的 `TEYRU_TARGET` 重测已经跑完，两个数字都写在上面的表里。）
