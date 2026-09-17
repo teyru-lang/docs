@@ -610,10 +610,13 @@ mingw-w64 没有它、macOS 出的是 SecureTransport，所以碰得到 TLS 的�
 编译器时，`resolveTarget` 在读 `--cc` 之前就拒绝了；把 `zig cc` 当成那两列的编译器是这页
 上面那个手动流程，不是 `teyru build` 做得到的事。
 
-这个项目**没有 CI**：没有任何 GitHub Actions，每次改动的关卡就是上面那两条指令，在这台
-机器上跑，所以文档里的数字都写着它是怎么量、在哪里量的。arm64 因此不再停在「实现了、没有
-任何人跑过」——它是被跑过的，250 项全过；macOS 那两列仍然没有，而且只要没有 CI、没有一台
-macOS，它们就会一直是这样。
+**push 与 PR 上没有 CI**：每次改动的关卡就是上面那两条指令，在这台机器上由人跑，所以
+文档里的数字都写着它是怎么量、在哪里量的。`.github/workflows/release.yml` 是这个仓库
+**唯一**的工作流，只在发布 release 时跑：它构建那个 tag、对它跑整套测试、把可执行文件附到
+release 上，跑的与人跑的是同一组（`make ci`、`make jdk-diff`、`make notices`、
+`tests/run.sh`），push 与 PR 都不会触发它。arm64 因此不再停在「实现了、没有任何人跑过」
+——它是被跑过的（数字与做法见上表）；macOS 那两列仍然没有，而且只要没有一台 macOS，它们
+就会一直是这样。
 
 
 ---
@@ -627,10 +630,21 @@ go vet ./...
 sh scripts/bench.sh       # 与 JVM 对照的性能测试（需要 java 才会跑 JVM 那一半）
 ```
 
-新增测试只需在 `tests/programs/` 放 `xxx.teyru` 与 `xxx.expected`；
+新增测试只要在 `tests/programs/` 放 `xxx.teyru` 与 `xxx.expected`；
 若程序需要命令行参数，再放 `xxx.args`（每行一个参数）；程序如果**应该**失败，
-用 `xxx.exit` 写它必须结束时的状态码、`xxx.experr` 写它应该输出到 stderr 的内容。
+用 `xxx.exit` 写它必须结束时的状态码、`xxx.experr` 写它应该打印到 stderr 的内容。
 `go test` 会自动处理。
+
+测试仓库还有三个文件决定「今天什么算通过」（见 `teyru-lang/tests` 的 `README.md`）：
+
+- `known-failures.txt`：一行一个 `<案例> <工作项> <原因>`。列在这里的案例失败是**已知
+  失败**（会报告，但不让这次跑失败）；而列在这里的案例**通过**会让整次跑失败——所以条目
+  不会活得比它描述的 bug 更久。两个 driver（Teyru 仓库的 `go test` 与 `tests/run.sh`）
+  读同一个文件，没有原因的条目不收。
+- `jdk-diff-allow.txt`：`<案例> <种类> <工作项> <原因>`，记下与 JDK 对照后**决定接受**的
+  差异（或 Java 写不出来的东西）。没有工作项（或明确写 `none`）的条目不收。
+- `<part>/<案例>.skip`：这个案例不能在哪些平台上跑（`windows`、`darwin/arm64`，或
+  `!linux` 表示只有那个平台能跑），`#` 之后写原因。
 
 贡献前请读 [AGENTS.md](https://github.com/teyru-lang/Teyru/blob/main/AGENTS.md)。
 

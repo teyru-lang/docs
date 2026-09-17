@@ -174,6 +174,92 @@ enum 参数与返回值、`defaultValue`。
 `tests/programs/t163_https_roundtrip.teyru`，一次 TLS 连接上的两个请求与握手超时是
 `t191_tls_keepalive.teyru` 与 `t192_tls_handshake_timeout.teyru`。
 
+### 并发模型
+
+服务器有一条线程负责 accept，另一串线程负责回应。`accept()` 只属于接收线程，别的都
+不做：连接（含 TLS 握手）交给工作线程之后，接收线程在对方还没送出第一个字节之前就回到
+`accept()` 了。一个慢的、沉默的、或话没说完的客户端占住的是一个工作线程，listener 照样
+收下一个连接。
+
+工作者是 **cached** 形状（`lib/37_executor.teyru`）：闲下来一秒就结束，工作来了而没有
+闲置的就再开一条。这是运行时的性质，不是调参选择——这里没有 daemon 线程，所以固定大小
+的池子会让「服务一个连接就从 `main` 回来的程序」永远结束不了。
+
+并发有三个上限，三个都是客户端碰得到的数字：
+
+| 什么 | 默认 | 超过时 |
+|---|---|---|
+| 同时回应连接的工作线程 | 64 | 连接在队列里等 |
+| 等工作的工作线程的连接 | 100 | 接收线程回 503（带 `Retry-After: 1`）然后关闭 |
+| WebSocket 会话 | 256 | 在 101 之前回 503，连接关闭 |
+
+WebSocket 不由请求的池子服务：会话交给它自己的线程（`SocketSessionTask`），所以一条开
+一下午的会话占的是一个会话的额度，不是一个回应请求的工作者。
+
+`stop()`（以及调用它的 `close()`）停止接收与收件，把「还没开始读请求」的连接直接结束
+而不是陪它等，给正在处理的请求 **2 秒**（`SHUTDOWN_GRACE_MS`）完成，然后关掉剩下的。
+工作者在 **0.25 秒**（`READ_POLL_MS`）内就会察觉，因为每一个等待都是一次至多那么长的
+轮询；同一个上限也是「卡在 `recv()` 的工作者不会拖住停止世界收集」的原因。
+
+这一节的行为有测试：`tests/programs/t223_http_concurrency.teyru`（一条连接每 2 秒送
+1 个字节，期间另一个客户端连 20 个 GET 都在 1 秒内完成；100 个并发客户端各发 10 个
+keep-alive 请求全部 200；2 个工作线程／1 个队列的服务器回 503）与
+`tests/programs/t225_http_serve_loop.teyru`（`serve()` 会回应、`close()` 会结束它、
+线程会结束）。
+
+### 客户端的限制
+
+从配置读出来，默认值如下；属性的名字就是键，读它们的地方是
+`Application.configureLimits`（`Application.configureServer` 的最后一步）：
+
+| 属性 | 默认 | 意思 | 拒绝 |
+|---|---|---|---|
+| `server.teyru.max-request-line-bytes` | 8192 | 请求行，以字节计 | 414 |
+| `server.max-http-request-header-size` | 8192 | 整个头块，以字节计 | 431 |
+| `server.teyru.max-header-count` | 100 | 头（与 trailer）个数 | 431 |
+| `server.teyru.max-body-bytes` | 10485760 | 请求体，以字节计 | 413 |
+| `server.teyru.header-timeout-ms` | 10000 | 头，从第一个字节到空行 | 408 |
+| `server.teyru.body-timeout-ms` | 30000 | 体，整体 | 408 |
+| `server.teyru.keep-alive-idle-ms` | 15000 | 两个请求之间的连接 | 连接关闭 |
+| `server.teyru.max-requests-per-connection` | 100 | 一条连接上的请求数 | 响应带 `Connection: close` |
+| `server.teyru.worker-threads` | 64 | 同时回应的连接数 | 503 |
+| `server.teyru.accept-queue` | 100 | 等工作的连接数 | 503 |
+| `server.teyru.websocket.max-connections` | 256 | 打开的会话 | 101 之前回 503 |
+| `server.teyru.websocket.max-message-bytes` | 1048576 | 一条消息，含分片 | 1009 |
+| `server.teyru.websocket.idle-timeout-ms` | 60000 | 什么都不说的会话 | 1001 |
+
+`server.max-http-request-header-size` 是 Spring Boot 自己的键，其余在 `server.teyru.*`
+底下，形状照 `server.tomcat.*`。不是数字的值等于用默认值，而不是拒绝启动：默认值在构造
+上就是安全的数字，而一个因为打错一个上限就起不来的服务器，是没人在手机上修得好的服务器。
+
+每一个上限都在字节**到达时**检查，不是等收完才检查，所以拒绝发生在成本之前：一个
+`Content-Length: 1000000000` 的请求在 1 秒内得到 413，而进程的常驻集不会因为客户端喊了
+一个数字就长大 1 GB（RSS 增长小于 16 MB，在 Linux 上读 `/proc/self/status` 量到的）。
+请求体读进的缓冲区跟着实际到达的数据长大。
+
+截止时间是**总时长**，不是单次读取的超时。每一次读取拿到的是「剩余截止时间」与 0.25 秒
+之中较小的一个，所以每 2 秒送 1 个字节的客户端在截止时间到达时被拒绝，而不是每一个字节
+都换到一次新的超时。
+
+限制的测试是 `tests/programs/t221_http_limits.teyru`；字节主体（`Content-Length` 是
+UTF-8 的字节数、256 个字节值的 multipart 逐字节往返）是
+`tests/programs/t220_http_body_bytes.teyru`。
+
+### 解析器拒绝什么（RFC 9112）
+
+`Content-Length` 与 `Transfer-Encoding` 同时出现（400）、`Content-Length` 声明两次而值
+不同、不是数字、负数、或大到放不下（400）、`Transfer-Encoding` 的最后一个编码不是
+`chunked`（400）、或指名一个这里没有实现的编码（501）、头名与冒号之间有空白（400）、
+延续上一行的头（obs-fold，400）、头名不是 token（400）、HTTP 版本不是 1.0 或 1.1
+（505）、chunk 大小不是十六进制或溢出（400）、chunk 超过请求体上限（413），以及
+`Expect` 指名 `100-continue` 以外的东西（417）。absolute-form 的请求目标按它的路径路由。
+
+被拒绝的请求会关闭连接：它声明的字节可能还在路上，而一个只有客户端知道读到哪里的流，
+不是下一个请求可以接上去读的流。
+
+而这件事有按行为验的测试，不是只有清单：`tests/programs/t222_http_parser_fuzz.teyru`
+（4000 个变异过的请求，0 次崩溃）与 `tests/programs/t221_http_limits.teyru` 的那张表。
+
 ### 启动与配置
 
 ```teyru
@@ -333,27 +419,30 @@ serving.join()
 ```
 
 `server.bind()` 要在启动线程之前做：端口（`server.getPort()`）是拼 URL 要用的，而已经
-绑好的 listener 也答得掉在线程走到 accept 之前到达的连接。`stop()` 要求循环在两个
-连接之间停下来，不会打断正在回应的那个连接，`isRunning()` 回应它还在不在跑。端口传 0
+绑好的 listener 也答得掉在线程走到 accept 之前到达的连接。`stop()` 停止接收，结束还没
+开始读请求的连接（不陪它等），给进行中的请求 2 秒完成，然后关掉剩下的，`isRunning()`
+回应它还在不在跑。端口传 0
 是请内核挑一个空闲端口，`tests/programs/t162_http_roundtrip.teyru` 就是让服务器跑在一条
 线程上、主线程当客户端，在同一个程序里往返。
 
 ## 已知限制
 
-1. **一次处理一个连接。** 循环仍然一次只回应一个连接，但它现在可以跑在自己的线程上
-   （上面的 `ServerTask`），所以“第二个连接等第一个”是循环的形状，不是程序的形状：
-   客户端与服务器可以并存于同一个程序里。要同时服务多个连接，需要的是
-   thread-per-connection，这一层还没有；形状已经是它需要的形状。
-2. **几乎没有内容协商。** 只看方法的声明类型，不看 `Accept`；唯一的例外是
+1. **连接数是有限的，满了就回 503。** 同时回应的连接默认 64 条，等的默认 100 条，超过
+   就由接收线程直接回 503 并关闭（上面的〈并发模型〉）。这是刻意的界线：没有上限的
+   thread-per-connection 会让一个客户端决定这个进程要用多少线程。要服务更多连接就调高
+   那两个数字，代价是内存与调度。
+2. **没有 HTTP/2，也没有 HTTP/3。** 版本不是 1.0 或 1.1 一律 505；没有 TLS 之上的 ALPN
+   协商，所以 HTTPS 也只讲 HTTP/1.1。
+3. **几乎没有内容协商。** 只看方法的声明类型，不看 `Accept`；唯一的例外是
    `Accept-Encoding` 与 gzip——而且那要处理函数先把 `gzipBody` 打开。brotli、deflate
    等其他编码没有。
-3. **会话活在进程里。** 两个进程后面接同一个服务时，请求要回到产生会话的那一个；
+4. **会话活在进程里。** 两个进程后面接同一个服务时，请求要回到产生会话的那一个；
    会话 id 是 `java.util.Random` 的 128 位，对单一服务器够用，不是密码学来源。
-4. **没有 SSE。** multipart 上传与验证注解都有了，见上面两节；服务器推送没有。
-5. **没有 `@Conditional`、`@Import`、`@Lazy`、AOP、事务**，也没有
+5. **没有 SSE。** multipart 上传与验证注解都有了，见上面两节；服务器推送没有。
+6. **没有 `@Conditional`、`@Import`、`@Lazy`、AOP、事务**，也没有
    `@ComponentScan` 的范围控制：整个程序都是扫描范围，因为编译器看得见全部——要
    排除什么，就不要标注它。
-6. **`SpringApplication.run` 不读 `server.ssl.certificate`。** 读那两个属性的是
+7. **`SpringApplication.run` 不读 `server.ssl.certificate`。** 读那两个属性的是
    `Application.serve`，它自己建服务器；`SpringApplication.run` 也自己建一个，但
    没有那个分支。要用这个入口跑 HTTPS，得自己建 `HttpServer` 并调用 `ssl(cert, key)`
    再自己服务，或改用 `Application.serve`。

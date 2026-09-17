@@ -1,9 +1,9 @@
 ---
 title: "Teyru 语言参考"
-description: "Teyru 0.2 的语法与语义：源文件与词法、类型、声明、原生 property、语句、泛型、lambda、异常与标准库。"
+description: "Teyru 0.4 的语法与语义：源文件与词法、类型、声明、原生 property、语句、泛型、lambda、异常与标准库。"
 ---
 
-本文档描述 Teyru 0.2 的语法与语义。文档以实现为准：这里写的每一项语言特性都在
+本文档描述 Teyru 0.4 的语法与语义。文档以实现为准：这里写的每一项语言特性都在
 `tests/programs/` 有对应的测试，`go test ./...` 会逐项验证；标准库的 API 则只覆盖
 一部分——`tests/programs/` 用到哪些就验哪些，没用到的（例如 `Map.putAll`）就没有测试
 盯着它，测试覆盖范围仍不完整。

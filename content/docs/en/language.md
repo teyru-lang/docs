@@ -1,9 +1,9 @@
 ---
 title: "Teyru Language Reference"
-description: "The syntax and semantics of Teyru 0.2: source files and lexing, types, declarations, native properties, statements, generics, lambdas, exceptions and the standard library."
+description: "The syntax and semantics of Teyru 0.4: source files and lexing, types, declarations, native properties, statements, generics, lambdas, exceptions and the standard library."
 ---
 
-This document describes the syntax and semantics of Teyru 0.2. It follows the implementation:
+This document describes the syntax and semantics of Teyru 0.4. It follows the implementation:
 every language feature written here has a corresponding test in `tests/programs/`, and
 `go test ./...` verifies each one; the standard library API, however, is only partially covered —
 whatever `tests/programs/` exercises is verified, and what it does not exercise (for example

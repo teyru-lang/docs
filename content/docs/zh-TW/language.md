@@ -1,9 +1,9 @@
 ---
 title: "Teyru 語言參考"
-description: "Teyru 0.2 的語法與語意：原始檔與詞法、型別、宣告、原生 property、陳述式、泛型、lambda、例外與標準程式庫。"
+description: "Teyru 0.4 的語法與語意：原始檔與詞法、型別、宣告、原生 property、陳述式、泛型、lambda、例外與標準程式庫。"
 ---
 
-本文件描述 Teyru 0.2 的語法與語意。文件以實作為準：這裡寫的每一項語言特性都在
+本文件描述 Teyru 0.4 的語法與語意。文件以實作為準：這裡寫的每一項語言特性都在
 `tests/programs/` 有對應的測試，`go test ./...` 會逐項驗證；標準程式庫的 API 則只涵蓋
 一部分——`tests/programs/` 用到哪些就驗哪些，沒用到的（例如 `Map.putAll`）就沒有測試在
 盯著它，測試涵蓋範圍仍不完整。

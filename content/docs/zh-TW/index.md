@@ -612,10 +612,13 @@ arm64 上是被量過的——`t163_https_roundtrip`、`t191_tls_keepalive` 與
 編譯器時，`resolveTarget` 在讀 `--cc` 之前就拒絕了；把 `zig cc` 當成那兩列的編譯器是這頁
 上面那個手動流程，不是 `teyru build` 做得到的事。
 
-這個專案**沒有 CI**：沒有任何 GitHub Actions，每次改動的關卡就是上面那兩道指令，在這台
-機器上跑，所以文件裡的數字都寫著它是怎麼量、在哪裡量的。arm64 因此不再停在「實作了、沒有
-任何人跑過」——它是被跑過的，250 項全過；macOS 那兩列仍然沒有，而且只要沒有 CI、沒有一台
-macOS，它們就會一直是這樣。
+**push 與 PR 上沒有 CI**：每次改動的關卡就是上面那兩道指令，在這台機器上由人跑，所以
+文件裡的數字都寫著它是怎麼量、在哪裡量的。`.github/workflows/release.yml` 是這個倉庫
+**唯一**的工作流程，只在發佈 release 時跑：它建置那個 tag、對它跑整套測試、把執行檔附到
+release 上，跑的內容與人跑的是同一組（`make ci`、`make jdk-diff`、`make notices`、
+`tests/run.sh`），push 與 PR 都不會觸發它。arm64 因此不再停在「實作了、沒有任何人跑過」
+——它是被跑過的（數字與做法見上表）；macOS 那兩列仍然沒有，而且只要沒有一台 macOS，它們
+就會一直是這樣。
 
 
 ---
@@ -633,6 +636,17 @@ sh scripts/bench.sh       # 與 JVM 對照的效能測試（需要 java 才會�
 若程式需要命令列參數，再放 `xxx.args`（每行一個參數）；程式如果**應該**失敗，
 用 `xxx.exit` 寫它必須結束時的狀態碼、`xxx.experr` 寫它應該印到 stderr 的內容。
 `go test` 會自動處理。
+
+測試倉庫還有三個檔案決定「今天什麼算通過」（見 `teyru-lang/tests` 的 `README.md`）：
+
+- `known-failures.txt`：一行一個 `<案例> <工作項> <原因>`。列在這裡的案例失敗是**已知
+  失敗**（會回報，但不讓這次跑失敗）；而列在這裡的案例**通過**會讓整次跑失敗——所以
+  條目不會活得比它描述的 bug 久。兩個 driver（Teyru 倉庫的 `go test` 與 `tests/run.sh`）
+  讀同一個檔案，沒有原因的條目不收。
+- `jdk-diff-allow.txt`：`<案例> <種類> <工作項> <原因>`，記下與 JDK 對照後**決定接受**的
+  差異（或 Java 寫不出來的東西）。沒有工作項（或明確寫 `none`）的條目不收。
+- `<part>/<案例>.skip`：這個案例不能在哪些平台跑（`windows`、`darwin/arm64`，或
+  `!linux` 表示只有那個平台能跑），`#` 之後寫原因。
 
 貢獻前請讀 [AGENTS.md](https://github.com/teyru-lang/Teyru/blob/main/AGENTS.md)。
 

@@ -196,6 +196,107 @@ client round tripping inside one program is `tests/programs/t163_https_roundtrip
 requests on one TLS connection, and the handshake timeout, are `t191_tls_keepalive.teyru` and
 `t192_tls_handshake_timeout.teyru`.
 
+### Concurrency
+
+A server has one thread that accepts and a pool that answers. `accept()` belongs to the
+accepting thread and nothing else does: a connection is handed to a worker, TLS handshake
+included, and the accepting thread is back in `accept()` before the worker has read a byte.
+A client that is slow, silent or never finishes what it started holds one worker; the
+listener goes on accepting.
+
+The pool is a cached one (`lib/37_executor.teyru`): a worker with nothing to do leaves after a
+second, and a new one is started when work arrives with none idle. That is a property of the
+runtime rather than a tuning choice — there are no daemon threads here, so a fixed pool of
+parked workers would mean a program that served one connection and returned from `main`
+never exits.
+
+Concurrency is bounded three times, and every bound is a number a client can reach:
+
+| What | Default | What happens past it |
+|---|---|---|
+| Worker threads answering connections | 64 | the connection waits in the queue |
+| Connections waiting for a worker | 100 | the accepting thread answers 503 with `Retry-After: 1` and closes |
+| WebSocket sessions | 256 | the upgrade is answered 503 before the 101, and the connection closes |
+
+A WebSocket is not served by the request pool at all: the session is handed to a thread of
+its own (`SocketSessionTask`), so a session that lasts all afternoon costs one session slot
+and not one of the workers that answer requests.
+
+`stop()` (and `close()`, which calls it) stops accepting and taking, ends a connection that is
+waiting for a request rather than waiting with it, gives the requests in flight **two
+seconds** (`SHUTDOWN_GRACE_MS`) to finish, and then closes what is left. A worker notices
+within **a quarter of a second** (`READ_POLL_MS`), because every wait is a poll of at most
+that long; the same bound is what keeps a worker blocked in `recv()` from holding a
+stop-the-world collection.
+
+This section has tests: `tests/programs/t223_http_concurrency.teyru` (one connection sending
+a byte every 2 seconds while another client completes 20 GETs inside a second each; 100
+concurrent clients sending 10 keep-alive requests each, all 200; a server with 2 workers and
+a queue of 1 answering 503) and `tests/programs/t225_http_serve_loop.teyru` (`serve()`
+answers, `close()` ends it, the thread finishes).
+
+### What a client is held to
+
+Read from the configuration with these defaults; the property names are the keys, and
+`Application.configureLimits` is where they are read (the last step of
+`Application.configureServer`):
+
+| Property | Default | Meaning | Refusal |
+|---|---|---|---|
+| `server.teyru.max-request-line-bytes` | 8192 | the request line, in bytes | 414 |
+| `server.max-http-request-header-size` | 8192 | the whole header block, in bytes | 431 |
+| `server.teyru.max-header-count` | 100 | how many headers (and trailers) | 431 |
+| `server.teyru.max-body-bytes` | 10485760 | the request body, in bytes | 413 |
+| `server.teyru.header-timeout-ms` | 10000 | the head, from the first byte to the blank line | 408 |
+| `server.teyru.body-timeout-ms` | 30000 | the body, as a whole | 408 |
+| `server.teyru.keep-alive-idle-ms` | 15000 | a connection between two requests | the connection closes |
+| `server.teyru.max-requests-per-connection` | 100 | requests on one connection | the answer says `Connection: close` |
+| `server.teyru.worker-threads` | 64 | connections answered at once | 503 |
+| `server.teyru.accept-queue` | 100 | connections waiting for a worker | 503 |
+| `server.teyru.websocket.max-connections` | 256 | open sessions | 503 before the 101 |
+| `server.teyru.websocket.max-message-bytes` | 1048576 | one message, fragments included | 1009 |
+| `server.teyru.websocket.idle-timeout-ms` | 60000 | a session that says nothing | 1001 |
+
+`server.max-http-request-header-size` is Spring Boot's own key and the rest are under
+`server.teyru.*`, in the shape `server.tomcat.*` writes its own. A value that is not a number
+is the default rather than a refusal to start: the defaults are safe numbers by
+construction, and a server that will not boot over a typo in a limit is one nobody can
+correct from a phone.
+
+Every limit is checked while the bytes arrive and not after them, so the refusal comes before
+the cost: a `Content-Length: 1000000000` is answered 413 within a second and the process's
+resident set does not grow by the gigabyte the client asked for (measured as RSS growth under
+16 MB, read from `/proc/self/status` on Linux). A body is read into a buffer that grows with
+what actually arrives.
+
+The deadlines are totals and not per-read timeouts. Each read is given the smaller of what is
+left of the deadline and a quarter of a second, so a client that sends one byte every two
+seconds is refused when its deadline arrives rather than being granted a fresh timeout for
+every byte.
+
+The limits are tested by `tests/programs/t221_http_limits.teyru`; byte bodies (a
+`Content-Length` that is the UTF-8 length, a multipart part of all 256 byte values
+round-tripping byte for byte) by `tests/programs/t220_http_body_bytes.teyru`.
+
+### What the parser refuses (RFC 9112)
+
+`Content-Length` together with `Transfer-Encoding` (400), a `Content-Length` declared twice
+with different values or one that is not a number, negative or too large to be one (400), a
+`Transfer-Encoding` whose last coding is not `chunked` (400) or one that names a coding this
+server does not implement (501), whitespace between a header name and its colon (400), a
+header line that continues the one before it (obs-fold, 400), a header name that is not a
+token (400), an HTTP version other than 1.0 or 1.1 (505), a chunk size that is not
+hexadecimal or that overflows (400), a chunk over the body limit (413), and an `Expect`
+naming something other than `100-continue` (417). An absolute-form request target is routed
+by its path.
+
+A request that is refused closes the connection: the bytes it declared may still be on their
+way, and a stream whose position is known only to the client is not one the next request can
+be read from.
+
+That is verified as behaviour and not only as a list: `tests/programs/t222_http_parser_fuzz.teyru`
+(4000 mutated requests, 0 crashes) next to the table in `tests/programs/t221_http_limits.teyru`.
+
 ### Starting up, and settings
 
 ```teyru
@@ -382,34 +483,37 @@ serving.join()
 `server.bind()` has to come before the thread starts: the port
 (`server.getPort()`) is what the URLs are built from, and a listener that is
 already bound answers a connection that arrives while the serving thread is
-still on its way to accept. `stop()` asks the loop to finish between two
-connections and does not interrupt the one being answered, and `isRunning()`
-answers whether it is still going. A port of 0 asks the kernel for a free one.
+still on its way to accept. `stop()` stops accepting, ends a connection that has not started
+reading a request rather than waiting with it, gives the requests in flight two seconds to
+finish, and then closes what is left; `isRunning()` answers whether it is still going. A port
+of 0 asks the kernel for a free one.
 `tests/programs/t162_http_roundtrip.teyru` is exactly this: the server on a
 thread, the main thread as the client, a round trip inside one program.
 
 ## Known limitations
 
-1. **One connection at a time.** The loop still answers one connection at a
-   time, but it can run on a thread of its own now (the `ServerTask` above), so
-   "a second connection waits for the first" is the shape of the loop, not of
-   the program: a client and a server fit in one program. Serving several
-   connections at once needs thread-per-connection, which is not there; the
-   shape is already the shape it needs.
-2. **Almost no content negotiation.** Only the method's declared type is looked at, not
+1. **The connection count is bounded, and past the bound the answer is 503.** 64 connections
+   are answered at once by default and 100 more may wait; past that the accepting thread
+   answers 503 and closes (the Concurrency section above). That is a deliberate bound:
+   thread-per-connection with no ceiling lets one client decide how many threads this process
+   uses. Serving more connections means raising those two numbers, and paying for it in
+   memory and scheduling.
+2. **No HTTP/2, and no HTTP/3.** A version that is not 1.0 or 1.1 is a 505; there is no ALPN
+   negotiation over TLS either, so HTTPS speaks HTTP/1.1 and nothing else.
+3. **Almost no content negotiation.** Only the method's declared type is looked at, not
    `Accept`; the one exception is `Accept-Encoding` and gzip — and that needs the handler to
    turn `gzipBody` on first. brotli, deflate and the other codings are not there.
-3. **Sessions live in the process.** With two processes behind one address a
+4. **Sessions live in the process.** With two processes behind one address a
    request has to come back to the one that made the session, and the id is 128
    bits of `java.util.Random` — enough for one server, not a cryptographic
    source.
-4. **No SSE.** Multipart uploads and validation annotations are both there, in
+5. **No SSE.** Multipart uploads and validation annotations are both there, in
    the two sections above; server push is not.
-5. **No `@Conditional`, `@Import`, `@Lazy`, AOP or transactions**, and no scope
+6. **No `@Conditional`, `@Import`, `@Lazy`, AOP or transactions**, and no scope
    control for `@ComponentScan`: the whole program is in scan scope, because the
    compiler sees everything — if you want to exclude something, just don't
    annotate it.
-6. **`SpringApplication.run` does not read `server.ssl.certificate`.** What reads
+7. **`SpringApplication.run` does not read `server.ssl.certificate`.** What reads
    those two properties is `Application.serve`, which builds the server itself;
    `SpringApplication.run` also builds one, but has no such branch. To serve HTTPS
    from that entry point, build an `HttpServer` yourself, call `ssl(cert, key)` and

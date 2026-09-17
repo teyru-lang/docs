@@ -667,11 +667,14 @@ table has no compiler for the Apple rows `resolveTarget` refuses before it ever 
 `--cc`. Using `zig cc` as the compiler for those rows is the manual route described above,
 not something `teyru build` can do.
 
-This project has **no CI**: there are no GitHub Actions, the gate for every change is those
-two commands, run on this machine, which is why the numbers in these pages say how and where
-they were measured. arm64 therefore no longer stands at "implemented, nobody has run it" —
-it has been run, 250 cases, all of them passing; the two macOS rows still do, and with no CI
-and no macOS they will stay that way.
+There is **no CI on a push or a pull request**: the gate for every change is those two
+commands, run on this machine by a person, which is why the numbers in these pages say how
+and where they were measured. `.github/workflows/release.yml` is this repository's **only**
+workflow and it runs when a release is published: it builds that tag, runs the whole suite
+against it and attaches the executables to the release, calling the same targets a person
+does (`make ci`, `make jdk-diff`, `make notices`, `tests/run.sh`). arm64 therefore no longer
+stands at "implemented, nobody has run it" — it has been run, and the two macOS rows still
+stand there, and with no macOS machine they will stay that way.
 
 
 ---
@@ -689,6 +692,20 @@ To add a test, drop `xxx.teyru` and `xxx.expected` into `tests/programs/`; if th
 takes command line arguments, add `xxx.args` (one argument per line); if the program is
 *meant* to fail, add `xxx.exit` with the status it must exit with and `xxx.experr` with
 what it should write to stderr. `go test` handles the rest.
+
+Three files in the test repository decide what counts as passing today (see `README.md` in
+`teyru-lang/tests`):
+
+- `known-failures.txt`: one `<case> <work item> <reason>` per line. A case listed here that
+  fails is a **known failure** — reported, but it does not fail the run; a listed case that
+  *passes* fails the run, so an entry cannot outlive the bug it describes. Both drivers
+  (`go test` in the compiler repository and `tests/run.sh`) read the same file, and an entry
+  without a reason is not accepted.
+- `jdk-diff-allow.txt`: `<case> <kind> <work item> <reason>`, for a difference from the JDK
+  that has been **decided** (or that Java cannot express). An entry without a work item, or
+  an explicit `none`, is not accepted.
+- `<part>/<case>.skip`: the platforms a case cannot run on (`windows`, `darwin/arm64`, or
+  `!linux` for the one platform it can), with the reason after `#`.
 
 Please read [AGENTS.md](https://github.com/teyru-lang/Teyru/blob/main/AGENTS.md) before contributing.
 
