@@ -661,7 +661,7 @@ teyru help                                     print usage
 | `-o <path>` | Output path (default `a.out`) |
 | `-c <path>` | Keep the generated C at this path |
 | `--cc <name>` | C compiler to use (defaults to `clang`, then `gcc`, then `cc`) |
-| `-O0`…`-O3` | Optimisation level (default `-O2`) |
+| `-O0`…`-O3` | Optimisation level (`-O2` by default for `build`, `-O0` for `run`; `-O0`/`-O1` use the standard library cache, below) |
 | `--llvm-ir <path>` | Also write the LLVM IR module here |
 | `--native <file.c>` | Compile a C file into the program, implementing native methods (repeatable) |
 | `--native-header <path>` | Write the declarations of the native methods (see [docs/native.md](/en/docs/native)) |
@@ -670,6 +670,8 @@ teyru help                                     print usage
 | `--no-lto` | Disable LTO (the build retries without it when the toolchain lacks support) |
 | `--target <os>/<arch>` | Which platform to build for (the default is this machine); an unknown target is refused by name |
 | `--backend <c\|llvm>` | Which back end compiles the program (the default is `c`, see "Back ends and platforms" below) |
+| `TEYRU_CACHE_DIR` | Where the standard library cache lives (default `teyru/` under `os.UserCacheDir()`) |
+| `TEYRU_NOCACHE` | Any non-empty value other than `0` disables the cache |
 | `-v` | Print the compiler command being run |
 
 ---
@@ -899,6 +901,35 @@ The make targets wrap these up (`make` on its own is `make build`):
 | `make ci` | everything a CI job would run, run here by hand instead: `lint`, the whole suite built once with clang and once with gcc, and the JDK differential when `TEYRU_JDK` is set. With only one C compiler installed, the gcc half says out loud that it did not run |
 | `make jdk-diff` | compile and run every translatable program in `tests/programs/` with JDK 21 and compare stdout and exit status; `TEYRU_JDK` must point at a JDK 21 home |
 | `make java-compat` | compile and run every **unmodified Java** program in `tests/java-compat/` and compare with `.expected` (the corpus and its cases are described in `teyru-lang/tests`) |
+### The standard library cache, and debug builds
+
+`teyru run` defaults to `-O0`, and an `-O0`/`-O1` build **does not optimise the whole program as one
+unit**: the standard library is compiled once into the **user cache directory** and linked from
+there, and each build compiles only the program itself. `-O2` (the `teyru build` default) and above
+keep the whole-program build and behave exactly as before -- **the cache changes a debug build's
+compile time, never its product**.
+
+| | |
+|---|---|
+| Where | `teyru/` under `os.UserCacheDir()`; `TEYRU_CACHE_DIR=<dir>` moves it |
+| Off | `TEYRU_NOCACHE=1` (any non-empty value other than `0` disables it). A cache that **cannot be written is not an error**: that build is simply cold, so a container with a read-only HOME still builds |
+| The key | the compiler's version, a hash of the runtime sources, a hash of the standard library sources, the target, the optimisation flag, the back end (`c`/`llvm`) and the variant (whether the program can reach reflection) -- so a one-character change in `lib/`, a different `-O` or the other back end never reuses an object |
+| What it costs | that variant's `prelude.o`: 5,331,720 B for hello world's (about 12 MB of cache), 12,716,024 B for the web example's reflection variant (about 23 MB) |
+
+Measured (one machine, `-O0`): hello world is 2.39 s cold and 0.66 s warm; the web program from
+appendix A.1 is 4.02 s cold and 1.28 s warm (the plan's target for it is 10 s). Release builds are
+untouched: `-O2` **does not write to the cache**, and that web program takes 25.26 s with the cache
+and 25.03 s with `TEYRU_NOCACHE=1`, the two executables byte-identical.
+
+**The sentence to test first is this one**: the same program built cold and warm produces a
+**sha256-identical** executable, with identical output and exit status (I checked hello's four cells,
+`-O0`/`-O2` x `c`/`llvm`; the plan's run was 20 cells with 0 differences).
+
+**One question this method cannot settle**: the plan sets a "under one second" line for hello's warm
+compile, and on a loaded machine the identical measurement came out 73% apart between two runs
+(0.88 s against 1.12 s), so this page does not use it as a number. On a quiet machine I measured
+0.66 s (twice, identical), but that line needs something more careful than "run it once".
+
 | `make unicode-tables` | re-run the generator over the Unicode 15.0 data in `internal/tools/genunicode/data/`, writing `internal/runtime/src/tyrt_unicode.c` (re-running changes nothing) |
 | `make progen` | the random-program differential: `internal/tools/progen` generates 200 programs from fixed seeds and builds each spelling and diffs them |
 | `make backend-matrix` | every program × six back-end cells (C+clang, C+gcc, LLVM at `-O0` and `-O2`), each cell compared with the suite and the cells with each other; the divergences allowed are in `scripts/backend-matrix-allow.txt` |

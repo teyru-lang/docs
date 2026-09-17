@@ -607,7 +607,7 @@ teyru help                                     說明
 | `-o <path>` | 輸出檔名（預設 `a.out`） |
 | `-c <path>` | 保留產生的 C 檔在指定路徑 |
 | `--cc <name>` | 使用的 C 編譯器（預設依序找 `clang`、`gcc`、`cc`） |
-| `-O0`…`-O3` | 最佳化等級（預設 `-O2`） |
+| `-O0`…`-O3` | 最佳化等級（`build` 預設 `-O2`，`run` 預設 `-O0`；`-O0`／`-O1` 會用標準庫快取，見下） |
 | `--llvm-ir <path>` | 額外輸出 LLVM IR 模組 |
 | `--native <file.c>` | 加入 C 檔一起編譯，實作 native 方法（可重複） |
 | `--native-header <path>` | 產生 native 方法的宣告（見 [docs/native.md](/docs/native)） |
@@ -616,6 +616,8 @@ teyru help                                     說明
 | `--no-lto` | 關閉 LTO（工具鏈不支援時會自動退回） |
 | `--target <os>/<arch>` | 編譯給哪個平台（預設是這台機器）；未知的目標會以名字被拒絕 |
 | `--backend <c\|llvm>` | 用哪個後端編譯程式（預設 `c`，見下面〈後端與平台〉） |
+| `TEYRU_CACHE_DIR` | 標準庫快取的目錄（預設是 `os.UserCacheDir()` 下的 `teyru/`） |
+| `TEYRU_NOCACHE` | 設成非空、非 `0` 的值就關掉快取 |
 | `-v` | 顯示實際執行的編譯命令 |
 
 ---
@@ -774,6 +776,31 @@ sh scripts/bench.sh       # 與 JVM 對照的效能測試（需要 java 才會�
 | `make ci` | 一次 CI job 會跑的東西，在這裡由人跑：`lint`、整套測試分別用 clang 與 gcc 各建一次，`TEYRU_JDK` 有設就再加上 JDK 差分。只裝了一個 C 編譯器時，gcc 那一半會明說它沒跑 |
 | `make jdk-diff` | 把 `tests/programs/` 裡能翻譯的程式用 JDK 21 編譯執行，比對 stdout 與結束狀態；需要 `TEYRU_JDK` 指向 JDK 21 的家目錄 |
 | `make java-compat` | 把 `tests/java-compat/` 裡**未修改的 Java 原始碼**逐支編譯、執行，再與 `.expected` 比（語料與案例說明在 `teyru-lang/tests`） |
+### 標準庫快取與 debug 建置
+
+`teyru run` 預設用 `-O0`，而 `-O0`／`-O1` 的建置**不把整份程式當成一個單元最佳化**：標準程式庫
+先在**使用者快取目錄**裡編成一個物件檔，之後的建置直接連結它，只編譯程式自己。`-O2`（`teyru
+build` 的預設）以上維持整程式建置，行為與以前一樣——**快取只影響 debug 建置的編譯時間，不影響
+產物**。
+
+| 項目 | 內容 |
+|---|---|
+| 位置 | `os.UserCacheDir()` 下的 `teyru/`；`TEYRU_CACHE_DIR=<dir>` 換位置 |
+| 關掉 | `TEYRU_NOCACHE=1`（任何非空、非 `0` 的值都算關）。快取不能寫**不是錯誤**：那就是一次冷建置，容器裡把 HOME 掛成唯讀也一樣會建起來 |
+| 鍵 | 編譯器版本、執行期原始碼的雜湊、標準程式庫原始碼的雜湊、目標、`-O` 等級、後端（`c`／`llvm`）與變體（程式會不會用到反射）——所以 `lib/` 改一個字、換一個 `-O` 或換後端都不會拿到舊的物件 |
+| 成本 | 該變體的 `prelude.o`：hello world 那個變體 5,331,720 B（整個快取目錄約 12 MB），web 範例的反射變體 12,716,024 B（約 23 MB） |
+
+量到的（同一台機器、`-O0`）：hello world 冷建置 2.39 s → 暖 0.66 s；附錄 A.1 那支 web 程式
+冷 4.02 s → 暖 1.28 s（計畫給它的目標是 10 s）。release 不受影響：`-O2` **不寫入快取**，同一支
+web 程式開著快取 25.26 s、`TEYRU_NOCACHE=1` 25.03 s，產物逐位元組相同。
+
+**最該被測的那一句是這一句**：同一個程式冷建置與暖建置產生的執行檔是 **sha256 相同**的，輸出與
+結束狀態也相同（我驗了 hello 的 `-O0`／`-O2` × `c`／`llvm` 四格；計畫量的是 20 格、0 個不同）。
+
+**一個方法回答不了的問題**：計畫給 hello 的暖編譯定了一條「小於 1 秒」的線，而在有負載的機器上
+同一個量測跑兩次可以差 73%（0.88 s 對 1.12 s），所以這一頁不把它當數字用；安靜時我量到的是
+0.66 s（兩次相同），但那條線要靠比「跑一次」更嚴謹的方法才判得出來。
+
 | `make unicode-tables` | 從 `internal/tools/genunicode/data/` 的 Unicode 15.0 資料重跑產生器，寫出 `internal/runtime/src/tyrt_unicode.c`（重跑不會改動檔案） |
 | `make progen` | 隨機程式差分：`internal/tools/progen` 依固定種子產生 200 個程式，兩種寫法各編一次再比對 |
 | `make backend-matrix` | 每一支程式 × 六個後端格子（C＋clang、C＋gcc、LLVM × `-O0`、`-O2`），逐格與套件比、格子之間再互相比；允許的跨格差異寫在 `scripts/backend-matrix-allow.txt` |

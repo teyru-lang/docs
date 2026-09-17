@@ -605,7 +605,7 @@ teyru help                                     帮助
 | `-o <path>` | 输出文件名（默认 `a.out`） |
 | `-c <path>` | 保留生成的 C 文件到指定路径 |
 | `--cc <name>` | 使用的 C 编译器（默认依次查找 `clang`、`gcc`、`cc`） |
-| `-O0`…`-O3` | 优化等级（默认 `-O2`） |
+| `-O0`…`-O3` | 优化等级（`build` 默认 `-O2`，`run` 默认 `-O0`；`-O0`／`-O1` 会使用标准库缓存，见下） |
 | `--llvm-ir <path>` | 额外输出 LLVM IR 模块 |
 | `--native <file.c>` | 加入 C 文件一起编译，实现 native 方法（可重复） |
 | `--native-header <path>` | 生成 native 方法的声明（见 [docs/native.md](/zh-CN/docs/native)） |
@@ -614,6 +614,8 @@ teyru help                                     帮助
 | `--no-lto` | 关闭 LTO（工具链不支持时自动退回） |
 | `--target <os>/<arch>` | 编译给哪个平台（默认是这台机器）；未知的目标会以名字被拒绝 |
 | `--backend <c\|llvm>` | 用哪个后端编译程序（默认 `c`，见下面〈后端与平台〉） |
+| `TEYRU_CACHE_DIR` | 标准库缓存的目录（预设是 `os.UserCacheDir()` 下的 `teyru/`） |
+| `TEYRU_NOCACHE` | 设成非空、非 `0` 的值就关掉缓存 |
 | `-v` | 显示实际执行的编译命令 |
 
 ---
@@ -773,6 +775,30 @@ sh scripts/bench.sh       # 与 JVM 对照的性能测试（需要 java 才会�
 | `make ci` | 一次 CI job 会跑的东西，在这里由人跑：`lint`、整套测试分别用 clang 与 gcc 各构建一次，`TEYRU_JDK` 有设就再加上 JDK 差分。只装了一个 C 编译器时，gcc 那一半会明说它没跑 |
 | `make jdk-diff` | 把 `tests/programs/` 里能翻译的程序用 JDK 21 编译执行，比对 stdout 与结束状态；需要 `TEYRU_JDK` 指向 JDK 21 的家目录 |
 | `make java-compat` | 把 `tests/java-compat/` 里**未经修改的 Java 源代码**逐支编译、运行，再与 `.expected` 比（语料与案例说明在 `teyru-lang/tests`） |
+### 标准库缓存与 debug 构建
+
+`teyru run` 默认用 `-O0`，而 `-O0`／`-O1` 的构建**不把整份程序当成一个单元优化**：标准库先在
+**用户缓存目录**里编译成一个目标文件，之后的构建直接链接它，只编译程序自己。`-O2`（`teyru build`
+的默认）以上保持整程序构建，行为与以前一样——**缓存只影响 debug 构建的编译时间，不影响产物**。
+
+| 项目 | 内容 |
+|---|---|
+| 位置 | `os.UserCacheDir()` 下的 `teyru/`；`TEYRU_CACHE_DIR=<dir>` 换位置 |
+| 关掉 | `TEYRU_NOCACHE=1`（任何非空、非 `0` 的值都算关）。缓存不能写**不是错误**：那就是一次冷构建，容器里把 HOME 挂成只读也一样能建起来 |
+| 键 | 编译器版本、运行期源码的散列、标准库源码的散列、目标、`-O` 等级、后端（`c`／`llvm`）与变体（程序会不会用到反射）——所以 `lib/` 改一个字、换一个 `-O` 或换后端都不会拿到旧目标文件 |
+| 成本 | 该变体的 `prelude.o`：hello world 那个变体 5,331,720 B（整个缓存目录约 12 MB），web 示例的反射变体 12,716,024 B（约 23 MB） |
+
+量到的（同一台机器、`-O0`）：hello world 冷构建 2.39 s → 暖 0.66 s；附录 A.1 那支 web 程序
+冷 4.02 s → 暖 1.28 s（计划给它的目标是 10 s）。release 不受影响：`-O2` **不写入缓存**，同一支
+web 程序开着缓存 25.26 s、`TEYRU_NOCACHE=1` 25.03 s，产物逐字节相同。
+
+**最该被测的那一句是这一句**：同一个程序冷构建与暖构建产生的可执行文件是 **sha256 相同**的，输出
+与结束状态也相同（我验了 hello 的 `-O0`／`-O2` × `c`／`llvm` 四格；计划量的是 20 格、0 个不同）。
+
+**一个方法回答不了的问题**：计划给 hello 的暖编译定了一条「小于 1 秒」的线，而在有负载的机器上
+同一个测量跑两次可以差 73%（0.88 s 对 1.12 s），所以这一页不把它当数字用；安静时我量到的是
+0.66 s（两次相同），但那条线要靠比「跑一次」更严谨的方法才判得出来。
+
 | `make unicode-tables` | 从 `internal/tools/genunicode/data/` 的 Unicode 15.0 数据重跑生成器，写出 `internal/runtime/src/tyrt_unicode.c`（重跑不会改动文件） |
 | `make progen` | 随机程序差分：`internal/tools/progen` 依固定种子生成 200 个程序，两种写法各编译一次再比对 |
 | `make backend-matrix` | 每一支程序 × 六个后端格子（C＋clang、C＋gcc、LLVM × `-O0`、`-O2`），逐格与套件比、格子之间再互相比；允许的跨格差异写在 `scripts/backend-matrix-allow.txt` |
