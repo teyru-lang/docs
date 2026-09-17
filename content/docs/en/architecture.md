@@ -156,7 +156,7 @@ default back end.
 ### The platform layer
 
 Everything the runtime asks of the operating system is collected in
-`internal/runtime/src/tyrt_plat.h`: forty `typlat_*` functions grouped into time and CPU,
+`internal/runtime/src/tyrt_plat.h`: forty-two `typlat_*` functions grouped into time and CPU,
 mutexes, condition variables, threads, startup, sockets and files, implemented in two halves,
 `tyrt_plat_posix.c` and `tyrt_plat_win.c`. Only `tyrt.c`, `tyrt2.c`, `tyrt_thread.c`,
 `tyrt_net.c` and `tyrt_tls.c` call them (`tyrt_reflect.c` calls none). What is deliberately

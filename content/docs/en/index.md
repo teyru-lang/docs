@@ -10,7 +10,8 @@ description: "Teyru is an independently implemented programming language whose c
 The syntax will feel familiar to Java developers (classes, interfaces, generics, lambdas,
 exceptions, records, enums, annotations), but Teyru drops semicolons, adds native
 properties, and runs as **native machine code**: the compiler lowers the whole program to
-C and hands it to clang/LLVM (or gcc). The runtime is about 5000 lines of C — a
+C and hands it to clang/LLVM (or gcc). The runtime is **8,524 lines** of C (the eight
+`.c` files under `internal/runtime/src`; 10,135 with the headers, by `wc -l`) — a
 conservative mark-and-sweep collector, strings, arrays and exceptions — with no virtual
 machine of any kind.
 

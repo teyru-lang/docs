@@ -9,7 +9,8 @@ description: "Teyru 是一门独立实现的编程语言：编译器完全用 Go
 
 Teyru 的语法对 Java 开发者非常熟悉（类、接口、泛型、lambda、异常、record、enum、annotation），
 但去掉了分号、加入了原生 property，并且以**原生机器码**运行：编译器把整个程序降级为 C，
-再交给 clang/LLVM（或 gcc）编译成可执行文件。运行时只有约 5000 行 C，其中包含自己的垃圾回收器
+再交给 clang/LLVM（或 gcc）编译成可执行文件。运行时是 **8,524 行**的 C（`internal/runtime/src`
+的八个 `.c`；连头文件一起算是 10,135 行，`wc -l`），其中包含自己的垃圾回收器
 （conservative mark-and-sweep）、字符串、数组与异常实现，没有任何虚拟机。
 
 ```

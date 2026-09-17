@@ -9,7 +9,8 @@ description: "編譯器完全用 Go 撰寫、直接產生原生執行檔的程�
 
 Teyru 的語法對 Java 開發者高度熟悉（類別、介面、泛型、lambda、例外、record、enum、annotation），
 但拿掉了分號、補上原生 property，並且用**原生機器碼**執行：編譯器把整個程式降成 C，
-再交給 clang/LLVM（或 gcc）編成執行檔。執行期只有約 5000 行的 C，裡頭有自己的垃圾回收器
+再交給 clang/LLVM（或 gcc）編成執行檔。執行期是 **8,524 行**的 C（`internal/runtime/src`
+的八個 `.c`；連標頭一起算是 10,135 行，`wc -l`），裡頭有自己的垃圾回收器
 （conservative mark-and-sweep）、字串、陣列與例外實作，沒有任何虛擬機。
 
 ```

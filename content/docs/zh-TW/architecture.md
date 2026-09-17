@@ -135,7 +135,7 @@ clang 不收**（最後一項不為零就讓掃描以非零結束，因為 clang
 
 ### 平台層
 
-執行期對作業系統的每一項需求都收在 `internal/runtime/src/tyrt_plat.h` 裡，四十個
+執行期對作業系統的每一項需求都收在 `internal/runtime/src/tyrt_plat.h` 裡，四十二個
 `typlat_*` 函式，分成時間與 CPU、mutex、condition variable、執行緒、啟動、socket
 與檔案幾組；實作有兩半，`tyrt_plat_posix.c` 與 `tyrt_plat_win.c`。呼叫它們的只有
 `tyrt.c`、`tyrt2.c`、`tyrt_thread.c`、`tyrt_net.c` 與 `tyrt_tls.c`（`tyrt_reflect.c`
