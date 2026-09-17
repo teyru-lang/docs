@@ -151,9 +151,10 @@ passed, 0 failed** (my own runs, twice).
 re-ran the behaviour on main rather than trusting the branch: a `.teyru` may keep its semicolons, a
 `.java` file is accepted as input, `xs.sort(naturalOrder())` and
 `Comparator.comparing(f).thenComparing(g)` no longer need a type witness, and `String.join` resolves.
-What is still missing is W5's group (`new String(char[])`, `String.codePointAt`), and a nested
-generic inference -- where the body is itself a generic call that needs a target type -- still has to
-be written out.
+When this section was written W5 was not in yet (what was missing then was `new String(char[])` and
+`String.codePointAt`); both are in now (see the W5 section above). What is still missing is a nested
+generic inference -- where the body is itself a generic call that needs a target type -- which still
+has to be written out.
 
 **The corpus is reproducible from main now.** `teyru-lang/tests` main is `af41a7d` (45 unmodified Java
 programs), and Teyru main's submodule pointer reaches it since PR

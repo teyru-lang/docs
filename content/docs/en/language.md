@@ -518,8 +518,9 @@ are not empty today.
 `floorMod`/`round`/trigonometric functions), `System` (`out`/`err`/`currentTimeMillis`/
 `nanoTime`/`arraycopy`/`getenv`/`exit`), `PrintStream`, `InputStream`, `IO` (`println`/
 `readln`), `Number` and the eight wrapper classes (the static API such as
-`Integer.parseInt`, `Long.toHexString` and `Character.isDigit` — **not** the complete set; what
-is missing is in §12 item 12 and §13), the `Throwable` family, `Enum`, `Record`,
+`Integer.parseInt`, `Long.toHexString` and `Character.isDigit` — **not** the complete set:
+`Character` now has the Unicode 15.0 classification and case mappings (see §12 item 12), and what
+is missing is the locale-sensitive mappings and what §13 lists), the `Throwable` family, `Enum`, `Record`,
 `Comparable`/`Iterable`/`Iterator`/`Cloneable`/`AutoCloseable`, `Logger`.
 
 ### java.util (`lib/08`, `lib/14_*`)

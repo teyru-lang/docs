@@ -489,7 +489,8 @@ JLS §14.22、常见的泛型推断），但那句话本身没有范围——§1
 `System`（`out`／`err`／`currentTimeMillis`／`nanoTime`／`arraycopy`／`getenv`／
 `exit`）、`PrintStream`、`InputStream`、`IO`（`println`／`readln`）、
 `Number` 与八个包装类（`Integer.parseInt`、`Long.toHexString`、`Character.isDigit`
-等静态 API；**不是**完整的一组，缺的见 §12 第 12 条与 §13）、`Throwable` 家族、`Enum`、
+等静态 API；**不是**完整的一组——`Character` 现在有 Unicode 15.0 的分类与大小写映射
+（见 §12 第 12 条），缺的是 locale 相关的映射与 §13 列的那些）、`Throwable` 家族、`Enum`、
 `Record`、`Comparable`／`Iterable`／
 `Iterator`／`Cloneable`／`AutoCloseable`、`Logger`。
 

@@ -127,8 +127,9 @@ sigma）；`strip`／`isBlank` 走 `Character.isWhitespace`，所以 **U+3000 �
 **合入了**：main `07ce0a3`（PR [#124](https://github.com/teyru-lang/Teyru/pull/124)，8 个 commit）。
 main 上的行为我自己重跑过：`.teyru` 的语句写了分号也编得过、`.java` 文件可以直接作为输入、
 `xs.sort(naturalOrder())` 与 `Comparator.comparing(f).thenComparing(g)` 不再需要类型见证、
-`String.join` 解析得到；仍然缺的是 W5 那一组（`new String(char[])`、`String.codePointAt`），
-而嵌套的泛型推断（主体本身是需要目标类型的泛型调用时）还是要先把类型写出来。
+`String.join` 解析得到。这一节写的时候 W5 还没合入（那时缺的是 `new String(char[])`、
+`String.codePointAt`），现在两个都在了（见上面 W5 那一节）；仍然缺的是嵌套的泛型推断
+（主体本身是需要目标类型的泛型调用时还是要先把类型写出来）。
 
 **语料现在从 main 就重现得出来。** `teyru-lang/tests` 的 main 是 `af41a7d`（45 支未经修改的 Java
 程序），而 Teyru main 的指标在 PR [#128](https://github.com/teyru-lang/Teyru/pull/128) 合入后

@@ -400,7 +400,7 @@ class Main {
 文件可以直接作为输入、JLS §14.22 的可达性与明确赋值、常见的泛型推断（`xs.sort(naturalOrder())`、
 `Comparator.comparing(f).thenComparing(g)` 都不再需要类型见证）。**但那不等于「Java 源代码
 不改就能编译」这句没有范围的话**：适用范围就是下面两节——〈语言参考〉§12 与 §13——而它们
-现在不是空的（`new String(char[])`、`String.codePointAt` 这种还是缺的）。宣称跟着语料走，
+现在不是空的（locale 相关的大小写映射、`HashMap` 的桶内树化，见 §13）。宣称跟着语料走，
 不跟着「Java」三个字走，而语料就是 45 支未经修改的 Java 程序（`tests/java-compat`，在 `teyru-lang/tests` main `af41a7d` 上，
 Teyru main `0e8e592` 的 submodule 指标指到它）：`sh tests/run.sh java-compat` 在那个内容上是
 **45 过、0 失败**。

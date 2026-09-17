@@ -489,7 +489,8 @@ try {
 `System`（`out`／`err`／`currentTimeMillis`／`nanoTime`／`arraycopy`／`getenv`／
 `exit`）、`PrintStream`、`InputStream`、`IO`（`println`／`readln`）、
 `Number` 與八個包裝類別（`Integer.parseInt`、`Long.toHexString`、`Character.isDigit`
-等靜態 API；**不是**完整的一組，缺的見 §12 第 12 條與 §13）、`Throwable` 家族、`Enum`、
+等靜態 API；**不是**完整的一組——`Character` 現在有 Unicode 15.0 的分類與大小寫映射
+（見 §12 第 12 條），缺的是 locale 相關的映射與 §13 列的那些）、`Throwable` 家族、`Enum`、
 `Record`、`Comparable`／`Iterable`／
 `Iterator`／`Cloneable`／`AutoCloseable`、`Logger`。
 

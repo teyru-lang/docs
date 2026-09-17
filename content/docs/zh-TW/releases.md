@@ -129,8 +129,9 @@ U+3000、全角 `parseInt` 的接受與拒絕都在 39 項裡面）。語料
 **合入了**：main `07ce0a3`（PR [#124](https://github.com/teyru-lang/Teyru/pull/124)，8 個 commit）。
 main 上的行為我自己重跑過：`.teyru` 的敘述寫了分號也編得過、`.java` 檔可以直接當輸入、
 `xs.sort(naturalOrder())` 與 `Comparator.comparing(f).thenComparing(g)` 不再需要型別見證、
-`String.join` 解析得到；仍然缺的是 W5 那一組（`new String(char[])`、`String.codePointAt`），
-而巢狀的泛型推論（主體本身是需要目標型別的泛型呼叫時）還是要先把型別寫出來。
+`String.join` 解析得到。這一節寫的時候 W5 還沒合入（那時缺的是 `new String(char[])`、
+`String.codePointAt`），現在兩個都在了（見上面 W5 那一節）；仍然缺的是巢狀的泛型推論
+（主體本身是需要目標型別的泛型呼叫時還是要先把型別寫出來）。
 
 **語料現在從 main 就重現得出來。** `teyru-lang/tests` 的 main 是 `af41a7d`（45 支未修改的 Java
 程式），而 Teyru main 的指標在 PR [#128](https://github.com/teyru-lang/Teyru/pull/128) 合入後

@@ -431,7 +431,7 @@ is accepted as input, JLS §14.22 reachability and definite assignment hold, and
 inferences work (`xs.sort(naturalOrder())` and `Comparator.comparing(f).thenComparing(g)`
 no longer need a type witness). **That is not "Java source compiles unchanged", which is a
 claim with no bounds on it**: the bounds are §12 and §13 of the language reference, and
-those are not empty today (`new String(char[])` and `String.codePointAt` are still
+those are not empty today (the locale-sensitive case mappings, `HashMap` treeification -- see §13;
 missing). A claim follows its corpus, not the word "Java", and the corpus is 45 unmodified
 Java programs (`tests/java-compat`, on `teyru-lang/tests` main `af41a7d`, which Teyru main `0e8e592`
 points at through its submodule): `sh tests/run.sh java-compat` is **45 passed, 0 failed** on that
