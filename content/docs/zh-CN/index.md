@@ -601,6 +601,12 @@ handler，arm64 的可执行文件直接执行就会被 qemu 接手，但那支 
 程序每一支都构建、运行、逐字节相同，另外 3 个套件、23 个拒绝案例与 2 个 native 案例也全过
 （native 那支 C 测试是编成 arm64 在 qemu 下跑的）。
 
+W9 之后的重测走另一条路（`TEYRU_TARGET=linux/arm64 CC=aarch64-linux-gnu-gcc
+QEMU_LD_PREFIX=/usr/aarch64-linux-gnu/sys-root sh run.sh`，不用编译器包装），它还在跑：跑到
+一半的纪录是 **65 个案例、0 失败、0 已知失败、0 跳过**，其中包含 W9 之前在 arm64 上**根本
+建不起来**的三支——`t138_request_mapping_forms`、`t140_json_binding_edges`、
+`t141_web_param_errors`——这三支现在是 PASS。
+
 **macOS 那两列只到「编译并链接」，而且要说清楚是怎么到的。** 现在它走得通 `teyru build`：目标表上 Apple 那两列没有 C 编译器，但 `resolveTarget` 看的是这次构建真的会跑的编译器，所以调用端给的 `--cc` 算数。没有 `--cc` 时仍然是具名拒绝（`teyru: no C compiler for darwin/arm64 on a linux/amd64 host: building for it needs a compiler that runs here and targets it, and neither this table nor --cc names one`）；给了之后——例如一个两行的包装 `exec …/zig cc -target aarch64-macos "$@"`——
 `teyru build --target darwin/arm64 --cc <包装> -o hello-darwin hello.teyru` 产出 Mach-O 64-bit arm64 可执行文件。链接时 zig 对 `-flto` 回 `LTO requires using LLD`；编译器本来就会对没有 LTO 的工具链退回不带 `-flto` 的第二次尝试，成功的是那一次，不是默认那条。
 

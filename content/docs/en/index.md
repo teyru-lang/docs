@@ -661,6 +661,13 @@ passed, 0 failed**: every one of the 222 test programs built, ran and was byte-i
 so were the 3 packages, the 23 rejection cases and the 2 native cases (the native C test was
 built for arm64 and run under qemu).
 
+The post-W9 re-run takes the other route (`TEYRU_TARGET=linux/arm64 CC=aarch64-linux-gnu-gcc
+QEMU_LD_PREFIX=/usr/aarch64-linux-gnu/sys-root sh run.sh`, with no compiler wrapper) and is
+still running: the record so far is **65 cases, 0 failed, 0 known, 0 skipped**, and it includes
+the three programs that could not be **built** for arm64 at all before W9 —
+`t138_request_mapping_forms`, `t140_json_binding_edges` and `t141_web_param_errors` — which now
+PASS.
+
 **The macOS rows reach "compiles and links", and how they got there matters.** `teyru build`
 is the route now: the Apple rows of the target table have no C compiler, but `resolveTarget`
 checks the compiler the build will actually run, so a `--cc` from the caller counts. Without
