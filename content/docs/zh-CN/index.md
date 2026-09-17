@@ -617,13 +617,15 @@ teyru help                                     帮助
 | `linux/amd64` | ✅ | ✅ 在这台机器上原生跑完整套件：`go test ./...` 与 `TEYRU=<compiler> sh tests/run.sh`（250 项） |
 | `windows/amd64` | ✅ 用 `x86_64-w64-mingw32-gcc` 交叉编译；**碰得到 TLS 的程序除外**（见下） | ✅ 在 Wine 下跑：当时 195 支测试程序有 179 支逐字节相同（16 支不符里 14 支在改动前的编译器上用 gcc 编 Linux 也一样失败，2 支是 Windows 的路径与文件名事实） |
 | `linux/arm64` | ✅ 用 `aarch64-linux-gnu-gcc` 交叉编译；那个目标的 sysroot 是另外装上去的（见下） | ✅ 在 qemu-aarch64 下跑完整套件：**250 项全过**——222 支测试程序全部构建、运行、逐字节相同，3 个套件、23 个拒绝案例与 2 个 native 案例也全过 |
-| `darwin/amd64`、`darwin/arm64` | ⚠️ **只到「编译并链接」**：`teyru build --target darwin/arm64 --cc <zig 包装>`（W9 之后 `resolveTarget` 看的是这次构建真的会跑的编译器）在 `tests/programs` 的 **257 支**里 **240 支建得起来并链接**、9 支因 TLS 被**具名拒绝**、8 支那个版本的编译器编不过（W5／W7 之后才落地的 API 与检查器）；`darwin/amd64` 的同一个计数还在跑（停止点 67 支，全部建得起来）。产物是 Mach-O，**没有任何一行被运行过**（见下） | ❌ 这里没有 macOS，所以没有任何人跑过它们 |
+| `darwin/amd64`、`darwin/arm64` | ⚠️ **只到「编译并链接」**：`teyru build --target darwin/arm64 --cc <zig 包装>`（W9 之后 `resolveTarget` 看的是这次构建真的会跑的编译器）在 `tests/programs` 的 **257 支**里 **240 支建得起来并链接**、9 支因 TLS 被**具名拒绝**、8 支那个版本的编译器编不过（W5／W7 之后才落地的 API 与检查器）。**两个架构逐支相同**：`darwin/amd64` 用同一支脚本量出同样的 240／9／8，拒绝与编不过的是**同一批 17 支程序**（一个不差），所以这两行共用一句话。产物是 Mach-O，**没有任何一行被运行过**（见下） | ❌ 这里没有 macOS，所以没有任何人跑过它们 |
 
 证据是分开量的，因为「编得出来」与「跑得起来」不同，而这次新增的量测是 `linux/arm64` 与
 macOS 这两列。**表里的数字要连着测量当时的树读**：`linux/amd64`、`windows/amd64` 与 `linux/arm64`
 的套件数字都是 2026-09-17 量的，那时 `tests/programs` 有 222 支程序、整套 250 项；那个目录现在更多
-（257 支），所以那两个数字是当时的纪录，不是今天的计数。W9 之后 arm64 与 macOS 这两列正在用
-`TEYRU_TARGET` 与 `--cc` 重测，重测完成前它们标的是 W9 之前的测量。
+（257 支），所以那两个数字是当时的纪录，不是今天的计数。macOS 那两行已经用 `--cc` 重测完
+（见下），`linux/arm64` 那一行还是 W9 之前的测量——用 `TEYRU_TARGET` 的重测只跑到一部分
+（65 项、0 项不符，其中 `t138`／`t140`／`t141` 三支在 W9 之前是编不过的），所以它标的仍是
+W9 之前的数字。
 
 **`linux/arm64` 是这样量的。** 这台机器原本有 `aarch64-linux-gnu-gcc`，但它的 sysroot 是
 空的——不是头文件不对，是根本没有头文件（`fatal error: stdint.h`）。先把那个 sysroot 装
@@ -654,7 +656,10 @@ QEMU_LD_PREFIX=/usr/aarch64-linux-gnu/sys-root sh run.sh`，不用编译器包�
 
 碰得到 TLS 的程序在 darwin 上是**驱动的具名拒绝，发生在 C 编译器之前**（`teyru: TLS is not available for darwin/arm64: macOS ships SecureTransport rather than OpenSSL, …`），而不是从前那种 `tyrt_tls.c: openssl/err.h` 找不到。
 
-**这是怎么量的，以及为什么两个数字都要说清楚。** 2026-09-17、`zig 0.16.0`、`zig cc -target aarch64-macos` 包成 `--cc`、`-O1`、一次 4 支（`tests` @ `e4268a6`，编译器取自 W9 落地的 `5ac017b`）。257 支里 **240 支建得起来并链接**；**9 支由驱动具名拒绝**（`t154_http_client`、`t162_http_roundtrip`、`t163_https_roundtrip`、`t191_tls_keepalive`、`t192_tls_handshake_timeout`、`t207_http_server_certificate`、`t210_http_gzip_edges`、`t212_stream_end_of_stream`、`t225_http_serve_loop`）；剩下 **8 支不是 darwin 的失败**，是那个版本的编译器还不接受的程序（`t180_http_gzip`、`t196_string_bytes`、`t226`／`t227`／`t241`、`t237`／`t238`／`t239`——W5／W7 的 API 与检查器），换成今天 main 的编译器重跑应该会少掉那 8 支。**没有任何一支被运行过。**
+**这是怎么量的，以及为什么两个数字都要说清楚。** 2026-09-17、`zig 0.16.0`、`zig cc -target aarch64-macos` 包成 `--cc`、`-O1`、一次 4 支（`tests` @ `e4268a6`，编译器取自 W9 落地的 `5ac017b`）。257 支里 **240 支建得起来并链接**；**9 支由驱动具名拒绝**（`t154_http_client`、`t162_http_roundtrip`、`t163_https_roundtrip`、`t191_tls_keepalive`、`t192_tls_handshake_timeout`、`t207_http_server_certificate`、`t210_http_gzip_edges`、`t212_stream_end_of_stream`、`t225_http_serve_loop`）；剩下 **8 支不是 darwin 的失败**，是那个版本的编译器还不接受的程序（`t180_http_gzip`、`t196_string_bytes`、`t226`／`t227`／`t241`、`t237`／`t238`／`t239`——W5／W7 的 API 与检查器），换成今天 main 的编译器重跑应该会少掉那 8 支。
+**`darwin/amd64` 是把同一支脚本的目标换成 `x86_64-macos` 再跑一次**（同样 P=4、`-O1`、同样的
+编译器与 `tests`），三个数字一模一样，具名拒绝的 9 支与编不过的 8 支也是同一批程序——所以
+那两行共用一句话，而不是各有各的说法。**没有任何一支被运行过。**
 
 W9 之前那条绕道（`teyru emit` 的 C 加上运行期六个文件交给 `zig cc`）与它量到的两个数字（不碰 TLS 的 188 支全部编译并链接成功、碰得到 TLS 的 34 支不行）在这里保留为历史，而且两半都过时了：188 是 222 支程序时的数字，34 是**旧规则**下的碰得到 TLS（任何会反射的程序都算），W9 之后算的是程序自己的调用图，所以那 34 支现在多数建得起来，剩下的就是上面那 9 支。
 

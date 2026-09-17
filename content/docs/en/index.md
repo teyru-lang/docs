@@ -676,15 +676,17 @@ other's cell is claiming a measurement that was never taken:
 | `linux/amd64` | ✅ | ✅ The full suite, natively on this machine: `go test ./...` and `TEYRU=<compiler> sh tests/run.sh` (250 cases) |
 | `windows/amd64` | ✅ Cross-compiled with `x86_64-w64-mingw32-gcc`; **except a program that can reach TLS** (see below) | ✅ Run under Wine: 179 of the 195 test programs of the time were byte-identical (14 of the 16 that were not also failed on Linux with gcc under the pre-change compiler, and 2 were Windows path and filename facts) |
 | `linux/arm64` | ✅ Cross-compiled with `aarch64-linux-gnu-gcc`; that target's sysroot had to be installed first (see below) | ✅ The full suite under qemu-aarch64: **all 250 cases passed** — all 222 test programs built, ran and were byte-identical, as were the 3 packages, the 23 rejection cases and the 2 native cases |
-| `darwin/amd64`, `darwin/arm64` | ⚠️ **Compile and link only**: `teyru build --target darwin/arm64 --cc <zig wrapper>` (after W9, `resolveTarget` checks the compiler the build will actually run) builds and links **240 of the 257** programs in `tests/programs`, refuses **9 by name** for TLS and is refused by that compiler for **8** (APIs and checker work that landed after it); the same count for `darwin/amd64` is still running (67 programs at the stop, all built). The product is a Mach-O executable and **not one line has been executed** (see below) | ❌ Nothing here can run macOS, so no one has run them |
+| `darwin/amd64`, `darwin/arm64` | ⚠️ **Compile and link only**: `teyru build --target darwin/arm64 --cc <zig wrapper>` (after W9, `resolveTarget` checks the compiler the build will actually run) builds and links **240 of the 257** programs in `tests/programs`, refuses **9 by name** for TLS and is refused by that compiler for **8** (APIs and checker work that landed after it). **The two architectures agree program for program**: `darwin/amd64` measured the same 240/9/8 with the same script, and the refused and rejected programs are the same seventeen, to the program. The product is a Mach-O executable and **not one line has been executed** (see below) | ❌ Nothing here can run macOS, so no one has run them |
 
 The evidence is measured separately, because "it builds" and "it runs" are different
 questions, and the rows added here are `linux/arm64` and macOS. **Read the table's numbers with
 the tree they were measured on**: the suite figures for `linux/amd64`, `windows/amd64` and `linux/arm64`
 were all measured on 2026-09-17, when `tests/programs` held 222 programs and the whole suite was 250
 cases; that directory holds more now (257), so those two are records of that day rather than
-today's count. After W9 the arm64 and macOS rows are being re-measured with `TEYRU_TARGET` and `--cc`,
-and until that run lands they carry the pre-W9 measurement.
+today's count. The macOS rows have been re-measured with `--cc` (below); the `linux/arm64` row is
+still a pre-W9 measurement -- the re-run under `TEYRU_TARGET` only reached part of the suite
+(65 cases, 0 mismatches, including `t138`/`t140`/`t141`, three programs that did not build before
+W9), so that row keeps the older numbers.
 
 **How `linux/arm64` was measured.** This machine had `aarch64-linux-gnu-gcc`, but its sysroot
 was empty — not the wrong headers, no headers at all (`fatal error: stdint.h`). So the
@@ -743,7 +745,11 @@ build and link**; **9 are refused by the driver by name** (`t154_http_client`,
 `t212_stream_end_of_stream`, `t225_http_serve_loop`); and the remaining **8 are not darwin
 failures** but programs that compiler does not accept yet (`t180_http_gzip`,
 `t196_string_bytes`, `t226`/`t227`/`t241`, `t237`/`t238`/`t239` — W5's and W7's APIs and
-checker), which a re-run with today's main compiler should drop. **Nothing was executed.**
+checker), which a re-run with today's main compiler should drop.
+**`darwin/amd64` is the same script with the target changed to `x86_64-macos`** (same P=4,
+`-O1`, same compiler and same `tests`), and it produced the same three numbers, with the
+same nine refused and the same eight rejected, to the program -- so the two table rows
+share one sentence instead of each having its own. **Nothing was executed.**
 
 The bypass of the W9 era (the C from `teyru emit` plus the runtime's six files, handed to
 `zig cc`) and the two numbers it produced (188 programs that cannot reach TLS compiled and
