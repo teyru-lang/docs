@@ -653,16 +653,23 @@ the offset in force before the transition, and offsets in POSIX's inverted sense
 +08:00 east of UT); one it cannot read raises `ZoneRulesException` naming the source (a file
 path, or `TZ=...`) and the part it could not read.
 
-**A known defect, not yet fixed**: what is affected is the zones tzdata describes with **negative
-DST** -- where the file's **standard-time type is not the winter one**: Ireland (`Europe/Dublin`,
-standard time IST +01 with a GMT winter at `isdst=1`) and Morocco (`Africa/Casablanca`, standard +01
-with a Ramadan +00 at `isdst=1`) are two examples. Telling whether a zone is affected is one command:
-`zdump -v <zone>` and read the winter entry's `isdst` (I checked this machine's files: Dublin's
-winter is `GMT isdst=1 gmtoff=0` against a summer `IST isdst=0 gmtoff=3600`, and Casablanca is
-`+00 isdst=1` against `+01 isdst=0`). Those zones currently report `dst` as `std`. That is why `t189_timezone_lookup` and `t190_timezone_tzif` are red on a newer host tzdata
-and green on this machine; the fix is filed as its own work item and goes out in `v0.4.1`. **This is
-not a case of "different data, different answer"**: the expectation is Java's answer and the reading
-side is what is wrong.
+**This was not the reader's fault, it was the test's (fixed).** tzdata has two **build layouts**, and
+they disagree about Ireland: **vanguard** (this machine's 2026b) treats IST +01 as standard (summer
+`isdst=0`, winter GMT `isdst=1`), while **rearguard** (what Debian and Ubuntu build from) is the
+mirror image -- GMT is standard (winter `isdst=0`, summer IST +01 `isdst=1`). **The offsets and the
+abbreviations are identical and `isdst` is opposite**, so the same program reads its own file
+correctly under either layout, and **no single fixed expectation can satisfy both**.
+
+To reproduce it (this is how I checked it): copy the machine's `/usr/share/zoneinfo/tzdata.zi`, invert
+the SAVE field of the seven `R IE` rules and change `Z Europe/Dublin`'s last line from `1 IE IST/GMT`
+to `0 IE GMT/IST`, run `zic -d out <file>` over each, and read them with `TZDIR`: the March 2026 entry
+is `GMT isdst=1` under vanguard and `GMT isdst=0` under rearguard (October is the other way round,
+with offsets 0 and 3600 on both sides). So `t189`/`t190` were changed to **carry their own data**
+(`t190` now writes the negative-DST files for both layouts) rather than the reader being changed --
+`lib/46_timezone.teyru` is **unchanged**.
+
+(What used to stand here was "a known defect in negative-DST zones", and that conclusion was wrong:
+the test was at fault, not the reader.)
 
 **What is deliberately absent**: `java.util.TimeZone` is not implemented *by decision* — this
 library's whole date and time layer is java.time's, there is no `Date` and no `Calendar` for

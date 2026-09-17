@@ -24,8 +24,11 @@ description: "Teyru 的版本：0.4.0 是正确性版本——改了什么、量
 `3cd9c70` 上的**首跑失败**在两支时区测试（`TestPrograms/t189_timezone_lookup`、
 `t190_timezone_tzif`）：**负 DST** 的时区（`Europe/Dublin` 的标准时间是 +01、冬天是 GMT 而
 `isdst=1`；`Africa/Casablanca` 同理）在这台机器上绿、在 runner 较新的**宿主 tzdata** 上红——
-差别不在代码，在它读的数据版本。测试的期望值是对的（是 `lib/46_timezone.teyru` 把 `dst` 报成
-`std`），已列为独立工作项，修正之后会走 `v0.4.1`。
+差别不在代码，而在宿主 **tzdata 的构建布局**：vanguard（本机）与 rearguard（Debian／Ubuntu）
+对爱尔兰给出**相同的 offset 与缩写、相反的 `isdst`**，所以**错的是测试，不是读取程序**——没有
+任何一个固定的期望值能同时满足两种布局。修法是让测试自己带数据（`t189`／`t190`），
+`lib/46_timezone.teyru` **一行未改**；这件事走 `v0.4.1`，而它的说明会写成「**套件以前会因为
+机器的 tzdata 布局而过或不过**」，不是「修好了一个时区缺陷」。
 
 ---
 

@@ -605,15 +605,19 @@ fork/join、`CompletionService`、`ThreadFactory`、`CyclicBarrier`／`Semaphore
 +08:00 以东）；读不下去的会抛 `ZoneRulesException`，消息指名来源（文件路径或 `TZ=...`）
 与读不下去的地方。
 
-**已知缺陷（未修）**：受影响的是 tzdata 用**负 DST** 描述的那些区——文件的**标准时间类型不是
-冬季那个**：爱尔兰（`Europe/Dublin`，标准时间 IST +01、冬天 GMT 而 `isdst=1`）与摩洛哥
-（`Africa/Casablanca`，标准 +01、斋月 +00 而 `isdst=1`）是两个例子。判断某个区中不中很简单：
-`zdump -v <zone>` 看冬季那一笔的 `isdst` 是不是 1（我对这台机器的文件验过：Dublin 冬季是
-`GMT isdst=1 gmtoff=0`、夏季是 `IST isdst=0 gmtoff=3600`；Casablanca 是 `+00 isdst=1` 对
-`+01 isdst=0`）。这些区目前把 `dst` 报成 `std`。`t189_timezone_lookup` 与
-`t190_timezone_tzif` 在较新的宿主 tzdata 上就是这样红的（同一台机器上绿），修正列为独立工作项，
-出在 `v0.4.1`。**这不是「数据不同所以答案不同」的借口**：期望值是 Java 的答案，错的是读文件的
-那一边。
+**这不是读取程序的错，而是测试的问题（已修）。** tzdata 有两种**构建布局**，而它们对爱尔兰不一致：
+**vanguard**（这台机器的 2026b）把 IST +01 当标准（夏天 `isdst=0`、冬天 GMT `isdst=1`）；
+**rearguard**（Debian／Ubuntu 用它构建）正好相反——GMT 是标准（冬天 `isdst=0`、夏天 +01 的 IST
+`isdst=1`）。**offset 与缩写完全相同、`isdst` 相反**，所以同一支程序在两种布局下都读对自己那个
+文件，而**没有任何一个固定的期望值能同时满足两者**。
+
+重现方式（我就是这样验的）：复制机器的 `/usr/share/zoneinfo/tzdata.zi`，把 `R IE` 那七条的 SAVE
+反向、并把 `Z Europe/Dublin` 最后一段从 `1 IE IST/GMT` 改成 `0 IE GMT/IST`，各自 `zic -d out <文件>`
+再用 `TZDIR` 读：2026 年三月那一笔在 vanguard 是 `GMT isdst=1`、在 rearguard 是 `GMT isdst=0`
+（十月那笔相反，offset 两边都是 0 与 3600）。所以 `t189`／`t190` 改成**自己带数据**（`t190` 现在
+自己写出两种布局的 negative-DST 文件），而不是去改读取程序——`lib/46_timezone.teyru` **一行未改**。
+
+（原本写在这里的是「负 DST 时区的已知缺陷」，那个结论是错的：错的是测试，不是读者。）
 
 **刻意没有的东西**：`java.util.TimeZone` 是**决定不做**——这个标准库的日期时间层
 整套是 java.time 的，没有 `Date`／`Calendar` 给它服务，而它会被要的三件事

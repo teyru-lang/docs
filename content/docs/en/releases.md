@@ -29,9 +29,12 @@ they are not the same thing.** The workflow's **first run failed** on the same t
 two time zone tests (`TestPrograms/t189_timezone_lookup` and `t190_timezone_tzif`): a **negative-DST**
 zone (`Europe/Dublin`'s standard time is +01 and its winter is GMT with `isdst=1`; `Africa/Casablanca`
 likewise) is green on this machine and red on the runner's newer **host tzdata** -- the difference is
-not in the code but in the data version it reads. The tests' expectations are right (it is
-`lib/46_timezone.teyru` reporting `dst` as `std`), it is filed as its own work item, and the fix goes
-out as `v0.4.1`.
+not in the code but in the host's **tzdata build layout**: vanguard (this machine) and rearguard (what
+Debian and Ubuntu build from) give Ireland **the same offset and abbreviation with opposite
+`isdst`**, so **the test was wrong, not the reader** -- no single fixed expectation can satisfy both
+layouts. The fix makes the tests carry their own data (`t189`/`t190`) with `lib/46_timezone.teyru`
+**unchanged**, and it goes out as `v0.4.1`, whose notes will say "**the suite used to pass or fail
+depending on the machine's tzdata layout**" rather than "a time zone defect was fixed".
 
 ---
 
