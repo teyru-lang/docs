@@ -228,6 +228,19 @@ GraalVM 的 `native-image` 对照**未测**（这台机器上没有 GraalVM）�
 （macOS 那一列是 W9 之后重测的（2026-09-17，`tests` @ `e4268a6`，编译器 `5ac017b`）；
 `linux/arm64` 那一列 W9 之后的 `TEYRU_TARGET` 重测已经跑完，两个数字都写在上面的表里。）
 
+**三条已知失败，具名。** 「3 已知失败」不该是一个装饰用的数字，所以三条都写出来（括号里是
+`known-failures.txt` 那一行的原因）：
+
+- `t235_probe_exceptions`（W6：类名已经对上 `java.lang.*`，剩下的是转型的括号注记、有帮助的
+  `NullPointerException` 消息，与 `ArrayStoreException` 的元素类）
+- `t237_probe_missing_api`（W6：`new Integer(int)` 与 `new Boolean(boolean)` 没有声明；这支探针
+  另外要的字符串 API 已经随 W5 的写入那一半到位）
+- `t239_probe_negative_array`（W7：负的数组大小在这里是编译错误，在 Java 是运行期异常）
+
+那个文件自己的规则让这份名单有牙齿：**列出的案例如果通过，整次跑就失败——所以一个条目活不过
+它描述的那个缺陷**。所以这三行同时是进度表（每一条都挂着工作项）与承诺（哪一条修好，它就必须
+从文件里消失）。
+
 ---
 
 ## 3. 还没实现

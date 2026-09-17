@@ -271,6 +271,20 @@ ones this release is about:
 `5ac017b`), and the `linux/arm64` row's `TEYRU_TARGET` re-run has finished, so both of its
 numbers are in the table above.)
 
+**Three cases do not pass, and they are named.** "3 known" should not be a decorative number,
+so here are the three, with the reason each `known-failures.txt` line gives:
+
+- `t235_probe_exceptions` (W6: the class names match `java.lang.*` now; left are the cast
+  parenthetical, the helpful `NullPointerException` message and `ArrayStoreException`'s element class)
+- `t237_probe_missing_api` (W6: `new Integer(int)` and `new Boolean(boolean)` are not declared; the
+  string API this probe also asks for landed with W5's write work)
+- `t239_probe_negative_array` (W7: a negative array size is a compile error here and a run-time
+  exception in Java)
+
+The file's own rule is what gives the list teeth: **a listed case that *passes* fails the run, so an
+entry cannot outlive the bug it describes.** The three lines are therefore a progress table (each one
+carries a work item) and a promise (fix one, and its entry must disappear).
+
 ---
 
 ## 3. Not implemented
