@@ -40,9 +40,10 @@ whatever `tests/programs/` exercises is verified, and what it does not exercise 
   applies in both ordinary strings and text blocks. An escape sequence outside this list is an
   error and yields `TY-SYN-0011` (`\q` is not `q`).
 
-**No semicolons.** A semicolon is not a legal token and produces `TY-SYN-0001` outright;
-semicolons inside strings, character literals, comments and text blocks are data and are
-unaffected.
+**Semicolons are optional.** Statements end at a newline, and a semicolon is **ignored** by the
+compiler (since W7; `TY-SYN-0001` is no longer produced here), so a `.teyru` that keeps its
+semicolons and an unmodified `.java` both compile. Semicolons inside strings, character
+literals, comments and text blocks are data, as before.
 
 ## 2. Newlines and statement termination
 
@@ -807,7 +808,8 @@ When you need your own native library, a `native` method can be implemented in C
 
 ## 12. Differences from Java
 
-1. **No semicolons** (`TY-SYN-0001`).
+1. **Semicolons are optional** (accepted since W7; `TY-SYN-0001` is removed): statements end at a
+   newline and a `for` header uses colons.
 2. The `for` header uses colons: `for (init : condition : update)`.
 3. try-with-resources separates resources with newlines.
 4. The enum constant section and member section are separated by a single colon.
@@ -903,9 +905,10 @@ When you need your own native library, a `native` method can be implemented in C
   measured): `String.codePointAt`, `codePointCount` and `offsetByCodePoints` do not exist
   (`TY-TYP-0076`, cannot find method), and neither do `Character.getType`, `isSurrogate`,
   `toCodePoint` and `charCount`; `new String(char[])` and
-  `new String(char[], int, int)` do not exist (`TY-TYP-0072`, no suitable constructor), and
-  a method that ends in a `switch` whose every branch (including `default`) returns is
-  misreported as `TY-TYP-0020` missing return; the semicolon is §12 item 1
+  `new String(char[], int, int)` do not exist (`TY-TYP-0072`, no suitable constructor). W7 closed
+  two older gaps: a method that ends in a `switch` whose every branch (including `default`)
+  returns is no longer misreported as `TY-TYP-0020` (measured: `pick(2)` answers 20), and a
+  semicolon is no longer an error (see §12 item 1).
 - Standard library gaps: `String.format`'s `%t`/`%T` (date-time conversions) are not
   implemented, and hitting them stops with `ty_unimplemented` rather than printing
   something that looks reasonable; the rest are written where they belong, in §11's package

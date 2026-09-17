@@ -113,14 +113,14 @@ What is still missing is W5's group (`new String(char[])`, `String.codePointAt`)
 generic inference -- where the body is itself a generic call that needs a target type -- still has to
 be written out.
 
-**The corpus never made it into main, and that is the one loose end.** The two lines in the PR body --
+**The corpus is on tests main now; what is missing is Teyru's pointer to it.** The two lines in the PR body --
 `sh tests/run.sh` at **320 passed, 1 failed, 9 known, 0 skipped** (the one red is `native/net_c_test`,
 a link failure in that C test that was red before this change, and I reproduce the same
 `undefined reference` compiling it natively on main), and `go test ./... -count=1 -p 1 -parallel 1`
 exiting 0 -- measure **the branch pair**. The corpus (`tests/java-compat/`, 45 unmodified Java
-programs) is on `teyru-lang/tests`' `w7-java-compat` branch (`79901cc`; tests main has no such
-directory), while Teyru main's submodule pointer is `0dca80b`: the commit that carries the corpus,
-`400d7d2`, is not in main's history. **So `make java-compat` on main has nothing to run, and the
+programs) **is on `teyru-lang/tests` main (`af41a7d`)**, while Teyru main's submodule pointer still
+reads `0dca80b`: the PR that moves it to `af41a7d` is
+[#128](https://github.com/teyru-lang/Teyru/pull/128) (`4270b66`), not merged yet. **So `make java-compat` on main has nothing to run, and the
 release workflow calls exactly that** -- pushing tests and bumping the pointer is the owner's or W7's
 step, and until it happens this page does not treat those two numbers as facts about main.
 
@@ -208,7 +208,7 @@ ones this release is about:
 | The Windows target | 179 of 195 programs byte-identical (run under Wine) | same table |
 | The two macOS rows | **compile and link only**: 240 of 257 programs build, 9 are refused by name for TLS and 8 are not accepted by the compiler used; the artifact is Mach-O and **not one line has been executed** | `teyru build --cc <zig wrapper>` (`zig cc -target aarch64-macos`); same table |
 | What deep recursion costs | `bench_fib`'s long run is about 32% slower | `scripts/bench.sh`, long run, before and after; the owner has accepted it |
-| W7's corpus | **45 unmodified Java programs** (`tests/java-compat`), **on `teyru-lang/tests`' `w7-java-compat` branch and not yet in main's submodule pointer** | `make java-compat`; main's pointer (`0dca80b`) has no such directory, so that number is a branch fact for now (above) |
+| W7's corpus | **45 unmodified Java programs** (`tests/java-compat`) on `teyru-lang/tests` main (`af41a7d`); Teyru main's submodule pointer still reads `0dca80b`, and PR [#128](https://github.com/teyru-lang/Teyru/pull/128) moves it | `make java-compat`; once #128 merges the number is reproducible from Teyru main (until then it is tests' fact, not Teyru main's) |
 
 (The macOS row was re-measured after W9 (2026-09-17, `tests` at `e4268a6`, compiler at
 `5ac017b`), and the `linux/arm64` row's `TEYRU_TARGET` re-run has finished, so both of its

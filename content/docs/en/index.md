@@ -433,8 +433,8 @@ no longer need a type witness). **That is not "Java source compiles unchanged", 
 claim with no bounds on it**: the bounds are §12 and §13 of the language reference, and
 those are not empty today (`new String(char[])` and `String.codePointAt` are still
 missing). A claim follows its corpus, not the word "Java", and the corpus (45 unmodified
-Java programs) is on the `w7-java-compat` branch of `teyru-lang/tests` and not yet in
-main's submodule pointer:
+Java programs) is on `teyru-lang/tests` main (`af41a7d`), and Teyru main's submodule pointer
+reaches it only through PR [#128](https://github.com/teyru-lang/Teyru/pull/128):
 
 | Package | Contents |
 |---|---|
@@ -588,7 +588,8 @@ See [`docs/native.md`](/en/docs/native).
 Teyru is not a subset of Java; it is a separate language designed to feel immediately
 familiar to Java developers. The main differences:
 
-1. **No semicolons.** A semicolon is rejected by the compiler (`TY-SYN-0001`).
+1. **Semicolons are optional.** Statements end at a newline and a semicolon is ignored (since W7;
+   `TY-SYN-0001` is removed), which is what lets an unmodified `.java` compile.
 2. **`for` headers use colons**: `for (int i = 0 : i < n : i++)`.
 3. **try-with-resources separates resources with newlines**, not semicolons.
 4. **Enum constants are separated from members by a single colon** (omitted when there are

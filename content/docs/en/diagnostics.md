@@ -19,7 +19,8 @@ The output format is `file:line:column: error[code]: message`, for example:
 hello.teyru:4:11: error[TY-TYP-0051]: incompatible types: String cannot be converted to int
 ```
 
-`TY-SYN-0001`, `0002`, `0004`–`0011` are produced by the lexer (`TY-SYN-0003` is the exception: it is
+`TY-SYN-0002`, `0004`–`0011` are produced by the lexer (`TY-SYN-0001` is removed, see the table below;
+`TY-SYN-0003` is the exception: it is
 emitted by the parser at the end of a statement and at a `throw` line break), and everything from
 `TY-SYN-0100` onwards is produced by the parser too.
 
@@ -29,7 +30,7 @@ emitted by the parser at the end of a statement and at a `throw` line break), an
 
 | Code | Message | Explanation and fix |
 |---|---|---|
-| TY-SYN-0001 | `';' is not Teyru syntax; end statements with a newline` | Teyru has no semicolons. Delete the semicolon and let the statement end with a newline; in a `for` header, separate the parts with a colon instead. |
+| TY-SYN-0001 | (removed) | A semicolon used to be an error; since W7 it is ignored (see §1 of the language reference), and this code is no longer produced. The old message read `';' is not Teyru syntax; end statements with a newline`. |
 | TY-SYN-0002 | `unexpected character %q` | A character that belongs to no token appeared (usually a full-width punctuation mark or a pasted control character). |
 | TY-SYN-0003 | `expected end of line, found %s`／`throw expression must start on the same line` | There are leftover tokens after the statement; or the `throw` expression is cut off by a line break. Write the expression on the same line, or start it with `(` so that it spans lines. A `yield` that needs a value does not get this message: after a line break it is treated as an identifier, and you get `cannot find symbol yield`. |
 | TY-SYN-0004 | `unterminated block comment` | A `/*` with no matching `*/`. |

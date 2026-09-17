@@ -401,8 +401,8 @@ class Main {
 `Comparator.comparing(f).thenComparing(g)` 都不再需要类型见证）。**但那不等于「Java 源代码
 不改就能编译」这句没有范围的话**：适用范围就是下面两节——〈语言参考〉§12 与 §13——而它们
 现在不是空的（`new String(char[])`、`String.codePointAt` 这种还是缺的）。宣称跟着语料走，
-不跟着「Java」三个字走，而语料（45 支未经修改的 Java 程序）目前在 `teyru-lang/tests` 的
-`w7-java-compat` 分支上、还没进 main 的 submodule 指标。
+不跟着「Java」三个字走，而语料（45 支未经修改的 Java 程序）已经在 `teyru-lang/tests` main（`af41a7d`）上，
+Teyru main 的 submodule 指标要靠 PR [#128](https://github.com/teyru-lang/Teyru/pull/128) 才指到它。
 
 | 包 | 内容 |
 |---|---|
@@ -539,7 +539,8 @@ teyru build --native impl.c program.teyru            # 一起编译
 
 Teyru 不是 Java 的子集，而是“Java 开发者一看就懂”的独立语言。主要差异：
 
-1. **没有分号。** 分号会被编译器拒绝（`TY-SYN-0001`）。
+1. **分号可省。** 语句以换行结束，分号会被忽略（W7 之后；`TY-SYN-0001` 已移除），所以未经修改的
+   `.java` 可以直接编译。
 2. **`for` 头部用冒号**：`for (int i = 0 : i < n : i++)`。
 3. **try-with-resources 用换行分隔**，不用分号。
 4. **enum 常量区与成员区用一个冒号**分隔（没有成员时可省略）。

@@ -38,8 +38,9 @@ description: "Teyru 0.4 的語法與語意：原始檔與詞法、型別、宣�
   與 text block 都適用。這份清單以外的跳脫序列是錯誤，會得到 `TY-SYN-0011`
   （`\q` 不是 `q`）。
 
-**沒有分號。** 分號不是合法 token，會直接產生 `TY-SYN-0001`；
-字串、字元、註解與 text block 內的分號是資料，不受影響。
+**分號是可選的。** 敘述以換行結束，分號會被編譯器**忽略**（W7 之後；`TY-SYN-0001` 已經不再
+由這裡產生），所以一份寫著分號的 `.teyru` 或未修改的 `.java` 都編得過。字串、字元、註解與
+text block 內的分號照舊是資料。
 
 ## 2. 換行與敘述終止
 
@@ -729,7 +730,7 @@ SHA-3 是因為 `getInstance` 寧可丟 `NoSuchAlgorithmException`，也不要�
 
 ## 12. 與 Java 的差異
 
-1. **沒有分號**（`TY-SYN-0001`）。
+1. **分號可省**（W7 之後寫了也收，`TY-SYN-0001` 已移除）：敘述以換行結束，`for` 標頭用冒號分隔三段。
 2. `for` 標頭用冒號：`for (init : condition : update)`。
 3. try-with-resources 以換行分隔資源。
 4. enum 常數區與成員區用一個冒號分隔。
@@ -814,8 +815,8 @@ SHA-3 是因為 `getInstance` 寧可丟 `NoSuchAlgorithmException`，也不要�
   `codePointCount`／`offsetByCodePoints` 不存在（`TY-TYP-0076` 找不到方法），
   `Character.getType`／`isSurrogate`／`toCodePoint`／`charCount` 同理、
   `new String(char[])` 與 `new String(char[], int, int)` 不存在（`TY-TYP-0072` 找不到
-  建構子）、每條分支（含 `default`）都 `return` 卻以 `switch` 結尾的方法被誤報
-  `TY-TYP-0020` missing return；分號見 §12 第 1 條
+  建構子）。W7 收掉了兩條舊缺口：以 `switch` 結尾、每條分支（含 `default`）都 `return` 的
+  方法不再被誤報 `TY-TYP-0020`（實測 `pick(2)` 得到 20），而分號也不再是錯誤（見 §12 第 1 條）。
 - 標準程式庫缺口：`String.format` 的 `%t`／`%T`（日期時間轉換）未實作，遇到會以
   `ty_unimplemented` 停止而不是印出看起來合理的東西；其餘缺口寫在 §11 的套件表與
   〈並行工具〉（`Scanner` 只讀一個 `String`、`MessageDigest` 沒有 SHA-3 與

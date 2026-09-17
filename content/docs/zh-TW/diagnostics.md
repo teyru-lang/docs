@@ -19,7 +19,7 @@ description: "每個診斷的穩定代碼格式 TY-<階段>-<四位數字>，以
 hello.teyru:4:11: error[TY-TYP-0051]: incompatible types: String cannot be converted to int
 ```
 
-`TY-SYN-0001`、`0002`、`0004`–`0011` 由詞法分析器產生（`TY-SYN-0003` 例外：它是剖析器
+`TY-SYN-0002`、`0004`–`0011` 由詞法分析器產生（`TY-SYN-0001` 已移除，見下表；`TY-SYN-0003` 例外：它是剖析器
 在敘述結尾與 `throw` 換行時發出的），`TY-SYN-0100` 之後也由剖析器產生。
 
 ---
@@ -28,7 +28,7 @@ hello.teyru:4:11: error[TY-TYP-0051]: incompatible types: String cannot be conve
 
 | 代碼 | 訊息 | 說明與修法 |
 |---|---|---|
-| TY-SYN-0001 | `';' is not Teyru syntax; end statements with a newline` | Teyru 沒有分號。刪掉分號，讓敘述以換行結束；`for` 標頭改用冒號分隔。 |
+| TY-SYN-0001 | （已移除） | 分號曾經是錯誤；W7 之後分號被忽略（見〈語言參考〉§1），這個碼不再由編譯器產生。 |
 | TY-SYN-0002 | `unexpected character %q` | 出現不屬於任何 token 的字元（多半是全形標點或貼上的控制字元）。 |
 | TY-SYN-0003 | `expected end of line, found %s`／`throw expression must start on the same line` | 敘述後面還有殘餘 token；或 `throw` 的運算式被換行切斷。把運算式寫在同一行，或用 `(` 開頭讓它跨行。需要值的 `yield` 沒有這個訊息：換行後它被當成識別字，會得到 `cannot find symbol yield`。 |
 | TY-SYN-0004 | `unterminated block comment` | `/*` 沒有對應的 `*/`。 |

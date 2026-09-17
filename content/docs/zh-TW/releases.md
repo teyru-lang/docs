@@ -96,13 +96,13 @@ main 上的行為我自己重跑過：`.teyru` 的敘述寫了分號也編得過
 `String.join` 解析得到；仍然缺的是 W5 那一組（`new String(char[])`、`String.codePointAt`），
 而巢狀的泛型推論（主體本身是需要目標型別的泛型呼叫時）還是要先把型別寫出來。
 
-**語料還沒進 main，這是唯一沒收尾的地方。** PR 描述裡那兩行——`sh tests/run.sh` **320 過、
+**語料已經在 tests 的 main 上，缺的是 Teyru 的指標。** PR 描述裡那兩行——`sh tests/run.sh` **320 過、
 1 失敗、9 已知失敗、0 跳過**（唯一的紅是 `native/net_c_test`，那支 C 測試的連結失敗在改動之前
 就是紅的，同一個 `undefined reference` 我在 main 上原生編譯也重現），以及
 `go test ./... -count=1 -p 1 -parallel 1` 結束碼 0——量的是**分支那一對**。語料
-`tests/java-compat/`（45 支未修改的 Java 程式）在 `teyru-lang/tests` 的 `w7-java-compat`
-分支上（`79901cc`；測試 main 沒有這個目錄），而 Teyru main 的 submodule 指標是 `0dca80b`：
-帶著語料的那個指標 commit（`400d7d2`）不在 main 的歷史裡。**後果是 main 上的 `make java-compat`
+`tests/java-compat/`（45 支未修改的 Java 程式）**已經進了 `teyru-lang/tests` 的 main（`af41a7d`）**，
+而 Teyru main 的 submodule 指標還是 `0dca80b`：把指標移到 `af41a7d` 的是 PR
+[#128](https://github.com/teyru-lang/Teyru/pull/128)（`4270b66`），還沒合入。**後果是 main 上的 `make java-compat`
 找不到語料，而 release 工作流程正好呼叫它**——把 tests 推進 main 並補上指標，是 owner 或 W7
 作者那一步；在那之前，這一頁不把那兩個數字當成 main 的事實。
 
@@ -177,7 +177,7 @@ GraalVM 的 `native-image` 對照**未測**（這台機器上沒有 GraalVM）�
 | Windows 目標 | 195 支裡 179 支逐位元組相同（Wine 下跑） | 同上 |
 | macOS 兩列 | **只到「編譯並連結」**：257 支裡 240 支建得起來、9 支因 TLS 被具名拒絕、8 支那個版本的編譯器還不接受；產物是 Mach-O，**沒有任何一行被執行過** | `teyru build --cc <zig 包裝>`（`zig cc -target aarch64-macos`），見平台表 |
 | 遞迴過深的代價 | `bench_fib` 長跑回退約 32% | `scripts/bench.sh` 長跑前後，owner 已裁決接受 |
-| W7 的語料 | **45 支未修改的 Java 程式**（`tests/java-compat`），**在 `teyru-lang/tests` 的 `w7-java-compat` 分支上，尚未進 main 的 submodule 指標** | `make java-compat`；main 上的指標（`0dca80b`）還沒有這個目錄，所以那個數字目前是分支的事實（見上） |
+| W7 的語料 | **45 支未修改的 Java 程式**（`tests/java-compat`）在 `teyru-lang/tests` main（`af41a7d`）；Teyru main 的 submodule 指標還指在 `0dca80b`，移動它的 PR [#128](https://github.com/teyru-lang/Teyru/pull/128) 尚未合入 | `make java-compat`；等 #128 合入，這個數字就可以從 Teyru main 重現（在那之前它是 tests 的事實，不是 Teyru main 的） |
 
 （macOS 那一列是 W9 之後重量的（2026-09-17，`tests` @ `e4268a6`，編譯器 `5ac017b`）；
 `linux/arm64` 那一列 W9 之後的 `TEYRU_TARGET` 重測已經跑完，兩個數字都寫在上面。）
