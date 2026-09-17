@@ -629,7 +629,12 @@ other's cell is claiming a measurement that was never taken:
 | `darwin/amd64`, `darwin/arm64` | ⚠️ **Compile and link only**: `teyru build --target darwin/arm64 --cc <zig wrapper>` works now (`resolveTarget` checks the compiler the build will actually run, so a target that names none is refused only when the caller named none either), and the product is a Mach-O executable; **not one line has been executed**. The two pre-W9 numbers (188 programs that cannot reach TLS built and linked, the 34 that do reach TLS did not) are being re-measured — a program that reaches TLS is now refused by the driver **before the C compiler**, rather than failing on a missing `openssl/err.h` | ❌ Nothing here can run macOS, so no one has run them |
 
 The evidence is measured separately, because "it builds" and "it runs" are different
-questions, and the rows added here are `linux/arm64` and macOS.
+questions, and the rows added here are `linux/arm64` and macOS. **Read the table's numbers with
+the tree they were measured on**: the suite figures for `linux/amd64` and `linux/arm64` were
+measured on 2026-09-17, when `tests/programs` held 222 programs and the whole suite was 250
+cases; there are 256 programs today, so those two are records of that day rather than today's
+count. After W9 the arm64 and macOS rows are being re-measured with `TEYRU_TARGET` and `--cc`,
+and until that run lands they carry the pre-W9 measurement.
 
 **How `linux/arm64` was measured.** This machine had `aarch64-linux-gnu-gcc`, but its sysroot
 was empty — not the wrong headers, no headers at all (`fatal error: stdint.h`). So the

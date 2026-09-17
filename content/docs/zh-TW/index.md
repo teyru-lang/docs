@@ -580,7 +580,10 @@ teyru help                                     說明
 | `darwin/amd64`、`darwin/arm64` | ⚠️ **只到「編譯並連結」**：`teyru build --target darwin/arm64 --cc <zig 包裝>` 現在走得通（`resolveTarget` 看的是這次建置真的會跑的編譯器，所以目標表沒有編譯器而呼叫端給了 `--cc` 時不再拒絕），產物是 Mach-O 執行檔；**沒有任何一行被執行過**。W9 之前那兩個數字（不碰 TLS 的 188 支建得起來、碰得到 TLS 的 34 支不行）正在重測——碰得到 TLS 的程式現在是在 C 編譯器**之前**由驅動具名拒絕，而不是 `openssl/err.h` 找不到 | ❌ 這裡沒有 macOS，所以沒有任何人跑過它們 |
 
 證據是分開量的，因為「編得出來」與「跑得起來」不同，而這次新增的量測是 `linux/arm64` 與
-macOS 這兩列。
+macOS 這兩列。**表裡的數字要連著量測當時的樹讀**：`linux/amd64` 與 `linux/arm64` 的套件數字
+是 2026-09-17 量的，那時 `tests/programs` 有 222 支程式、整套 250 項；今天那裡有 256 支，
+所以那兩個數字是當時的紀錄，不是今天的計數。W9 之後 arm64 與 macOS 這兩列正在用
+`TEYRU_TARGET` 與 `--cc` 重測，重測完成前它們標的是 W9 之前的量測。
 
 **`linux/arm64` 是這樣量的。** 這台機器原本有 `aarch64-linux-gnu-gcc`，但它的 sysroot 是
 空的——不是標頭不對，是根本沒有標頭（`fatal error: stdint.h`）。先把那個 sysroot 裝起來：
