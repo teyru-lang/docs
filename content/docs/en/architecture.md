@@ -126,6 +126,26 @@ take `[0]`, `ty_obj_hash` `[1]`, `ty_obj_equal` `[2]`), so their owner is the hi
 and going further would need the fact that a class is never instantiated, which the emitted C
 does not decide — and a wrong answer there is a jump to `NULL` rather than a wasted byte.
 
+### The emitted C must not depend on any order C leaves unspecified
+
+Java specifies that operands and arguments are evaluated **left to right**; C does not -- the
+evaluation order of a function's arguments is unspecified. So a back end that hands Java's operands
+straight to a C call is handing the semantics to the compiler. **The rule is therefore: the emitted C
+must not depend on any order C leaves unspecified**; where that order matters, temporaries pin it
+down (the same machinery the `new Foo(...)` row above needs from a GNU statement expression).
+
+The rule was forced by running **two C compilers**, not by reasoning: the same program
+
+```teyru
+two(f(1), f(2))     // f prints the order it was called in
+```
+
+prints `1(1)2(2)` under clang (as javac does) and **`2(1)1(2)` under gcc** -- a wrong answer rather
+than a crash, and identical at `-O0`, `-O1` and `-O2`, so no optimiser is responsible. That is why
+the back-end matrix builds every program with both compilers: **with one compiler, this family of
+defect is invisible**. This one is still being fixed (temporaries to make the order explicit); when
+it lands this section becomes a plain statement of the rule, and the matrix keeps it pinned.
+
 ## Back Ends and Platforms
 
 ### Two back ends
