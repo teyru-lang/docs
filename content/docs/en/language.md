@@ -887,6 +887,13 @@ When you need your own native library, a `native` method can be implemented in C
   onto the generated members and has no runtime effect whatsoever
 - The semantics of the module system (`import module X` is parsed and then ignored, there is no
   module system at runtime; `module-info` is not supported)
+- **`HashMap`/`HashSet` iteration order is not JDK 21's**: with five keys inserted
+  (`banana`, `apple`, `cherry`, `date`, `elderberry`) this iterates them as `banana, apple,
+  cherry, date, elderberry` where the JDK gives `banana, date, apple, cherry, elderberry`.
+  The JDK's algorithm (`h ^ (h >>> 16)` mixing, power-of-two capacity, 0.75 load factor, the
+  lo/hi split that keeps relative order on resize) is not implemented yet; `LinkedHashMap`'s
+  insertion order and `TreeMap`'s key order do follow the JDK (see §11). The program that
+  measures it is `t234_probe_collections` in the test repository.
 - An array's runtime element type is always `teyru.Array`, so `String[].class` and
   `int[].class` are the same object (in Java they are two)
 - **Known gaps in Java source compatibility** (javac accepts, this compiler refuses; all

@@ -799,6 +799,12 @@ SHA-3 是因為 `getInstance` 寧可丟 `NoSuchAlgorithmException`，也不要�
 - `java.lang.annotation` 套件（註解反射本身有，見 §11）：`@Retention` 收得下但沒有
   作用；Lombok 的 `@onX` 只把註解複製到產生的成員上，不會有任何執行期效果
 - 模組系統的語意（`import module X` 會被剖析後忽略，執行期沒有模組系統；`module-info` 不支援）
+- **`HashMap`／`HashSet` 的迭代順序不是 JDK 21 的**：實測五個鍵（依序放入 `banana`、
+  `apple`、`cherry`、`date`、`elderberry`）在這裡迭代出 `banana, apple, cherry, date,
+  elderberry`，JDK 是 `banana, date, apple, cherry, elderberry`。JDK 的演算法（`h ^ (h >>> 16)`
+  擾動、2 的冪容量、0.75 負載因子、擴容時 lo/hi 拆分並保持相對順序）還沒有實作；
+  `LinkedHashMap` 的插入序與 `TreeMap` 的鍵序照 JDK（見 §11）。實測程式是測試倉庫的
+  `t234_probe_collections`。
 - 陣列的執行期元素型別一律是 `teyru.Array`，所以 `String[].class` 與
   `int[].class` 是同一個物件（Java 是兩個）
 - **Java 原始碼相容的已知缺口**（`javac` 收、這裡拒絕，都是實測）：`String.codePointAt`／
