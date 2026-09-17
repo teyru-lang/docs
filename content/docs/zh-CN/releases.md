@@ -90,10 +90,12 @@ obs-fold、冒号前空白、非十六进制的 chunk……）一律拒绝并关
 
 ### Java 源代码相容（W7，**尚未合入 main**）
 
-**这一项由 JavaCompat 进行中，main 上还没有东西**：下面是它的目标，不是状态，也没有任何数字。
-语料（`tests/java-compat/`）目前是 **45 支**未经修改的 Java 程序，而它不会在语料与宣称一致之前落地
-——推断能力有一半（把嵌套调用的实参对着形参检查）会让两支既有程序退步，所以那一半现在是关掉的，
-等它回来才开 PR。
+**main 上还没有东西，但分支上有一半量得到的东西**：`w7-java-compat` @ `be050f0` 的语料
+（`tests/java-compat/`）是 **45 支**未经修改的 Java 程序、**45 支全绿**，而**推断的那一半回来了**
+（子类型遍历会终止，所以把嵌套调用的实参对着形参检查不再让既有程序退步）。覆盖到的推断现在包含
+**collector 链**（`collect(Collectors.toList())`、`groupingBy(…, counting())`、`partitioningBy`）与
+**经过接收者的链**（`Comparator.comparing(f).thenComparing(g)`、`nullsFirst(nat)` 放在另一个调用里），
+所以下面清单不再把那两族列成没做。**这一页仍然不宣称那句话**，因为它在分支上，不在 main。
 
 目标是让「Java 源代码不改就能编译」在一个可测试的子集上成立：分号可选、接受 `.java` 扩展名、
 依 JLS §14.22 与第 16 章做可达性与明确赋值（修掉 `switch` 结尾方法的 `TY-TYP-0020` 误报）、

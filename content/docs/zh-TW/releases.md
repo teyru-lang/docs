@@ -90,10 +90,12 @@ WTF-8 加麵包屑（`tystr` 仍是 24 位元組），「改用 JDK 式 compact 
 
 ### Java 原始碼相容（W7，**尚未合入 main**）
 
-**這一項由 JavaCompat 進行中，main 上還沒有東西**：下面是它的目標，不是狀態，也沒有任何數字。
-語料（`tests/java-compat/`）目前是 **45 支**未經修改的 Java 程式，而它不會在語料與宣稱一致之前落地
-——推論能力有一半（把巢狀呼叫的引數對著參數檢查）會讓兩支既有程式退步，所以那一半現在是關掉的，
-等它回來才開 PR。
+**main 上還沒有東西，但分支上有一半量得到的東西**：`w7-java-compat` @ `be050f0` 的語料
+（`tests/java-compat/`）是 **45 支**未經修改的 Java 程式、**45 支全綠**，而**推論的那一半回來了**
+（子型別走訪會終止，所以把巢狀呼叫的引數對著參數檢查不再讓既有程式退步）。覆蓋到的推論現在包含
+**collector 鏈**（`collect(Collectors.toList())`、`groupingBy(…, counting())`、`partitioningBy`）與
+**經過接收者的鏈**（`Comparator.comparing(f).thenComparing(g)`、`nullsFirst(nat)` 放在另一個呼叫裡），
+所以下面清單不再把那兩族列成沒做。**這一頁仍然不宣稱那句話**，因為它在分支上，不在 main。
 
 目標是讓「Java 原始碼不改就能編」在一個可測試的子集上成立：分號可選、接受 `.java` 副檔名、
 依 JLS §14.22 與第 16 章做可達性與明確指派（修掉 `switch` 結尾方法的 `TY-TYP-0020` 誤報）、

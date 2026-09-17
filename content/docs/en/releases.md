@@ -105,11 +105,14 @@ boundary's test (`t196_string_bytes`) is in the test repository.
 
 ### Java source compatibility (W7 — **not in main yet**)
 
-**JavaCompat is working on this one and nothing is on main yet**: the paragraph below is the goal,
-not a status, and there are no numbers to give. The corpus (`tests/java-compat/`) is **45**
-unmodified Java programs today, and it will not land a claim its corpus disagrees with — one half
-of the inference work (checking a nested call's argument against the parameter it is passed to)
-regresses two existing programs, so that half is off until it returns, and the PR opens after that. The goal is to make "Java source compiles unchanged" true of a testable subset: semicolons optional,
+**Nothing is on main yet, but the branch has something measurable**: on `w7-java-compat` @ `be050f0`
+the corpus (`tests/java-compat/`) is **45** unmodified Java programs and all **45 are green**, and
+**the inference half is back** (the subtype walk terminates, so checking a nested call's argument
+against the parameter it is passed to no longer regresses the existing programs). What it covers now
+includes **collector chains** (`collect(Collectors.toList())`, `groupingBy(..., counting())`,
+`partitioningBy`) and **chains reached through a receiver** (`Comparator.comparing(f).thenComparing(g)`,
+`nullsFirst(nat)` inside another call), so neither family is listed as missing below. **The page still
+does not claim the sentence**, because this is on a branch and not on main. The goal is to make "Java source compiles unchanged" true of a testable subset: semicolons optional,
 `.java` files accepted as input, reachability and definite assignment by JLS §14.22 and Chapter 16
 (which fixes the `TY-TYP-0020` false positive on a method ending in a `switch`), the missing APIs,
 and the common generic inferences. Until it lands, this page does not claim that sentence — today's
