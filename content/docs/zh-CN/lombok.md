@@ -34,7 +34,7 @@ System.out.println(p)                  // Person(name=ada, age=36)
 
 | 注解 | 状态 | 说明 |
 |---|---|---|
-| `@Getter` | ⚠️ 部分 | 含 `AccessLevel`（Lombok 的参数名是 `value`：位置形式与 `value = AccessLevel.X` 都读）、`@Accessors` 影响命名；`lazy = true` 在第一次读取时计算一次并缓存（原生类型也支持），但没有 Lombok 的线程安全 |
+| `@Getter` | ✅ 完整 | 含 `AccessLevel`（Lombok 的参数名是 `value`：位置形式与 `value = AccessLevel.X` 都读）、`@Accessors` 影响命名；`lazy = true` 在第一次读取时计算一次并缓存（原生类型也支持），双重检查，与 Lombok 一样线程安全 |
 | `@Setter` | ✅ 完整 | 含 `AccessLevel`（Lombok 的参数名是 `value`：位置形式与 `value = AccessLevel.X` 都读）、`@Accessors(chain)`、`@NonNull` 字段的检查；名称已被占用时不生成（与 Lombok 相同） |
 | `@ToString` | ⚠️ 部分 | `of`／`exclude`／`callSuper`／`includeFieldNames`／`onlyExplicitlyIncluded`（配合字段上的 `@ToString.Include`／`@ToString.Exclude`）；`callSuper` 的格式与 Lombok 不同（见 §2） |
 | `@EqualsAndHashCode` | ⚠️ 部分 | `of`／`exclude`／`callSuper`／`onlyExplicitlyIncluded`（`@EqualsAndHashCode.Include`／`@EqualsAndHashCode.Exclude`）；`hashCode` 的常量与 `canEqual` 与 Lombok 不同（见 §2） |
@@ -154,8 +154,11 @@ class Person {
   要全参构造函数请同时加上 `@AllArgsConstructor`。
 - `@Builder` **不会**生成 getter，与 Lombok 相同。
 - `@Getter(lazy = true)` 把字段的初始值搬进 getter：构造函数不再计算它，第一次读取时
-  计算一次之后缓存（与 Lombok 相同）。持有的值是 boxed 的，所以原生类型也可以。差别是
-  生成的 getter 没有加锁（Lombok 的会同步），它只有一个持有字段。
+  计算一次之后缓存（与 Lombok 相同）。持有的值是 boxed 的，所以原生类型也可以。getter
+  是双重检查的，与 Lombok 相同；Lombok 的持有字段是一个 `AtomicReference`，把“还没算”
+  与“算出来是 null”分开，并同步在那个 reference 上，这里的持有字段就是值本身（所以
+  null 不能拿来当“还没算”用），monitor 因此是实例本身，而“算过了”是一个 `volatile`
+  的标志——先写值、后写标志，读到标志就读得到值。
 - `@EqualsAndHashCode` 的 `hashCode` 用 31 与 0（Lombok 用 59 与 43），字段顺序按声明
   顺序（Lombok 会排序），而且不生成 `canEqual`——所以父类和子类只要字段相同就相等，
   Lombok 会说它们不相等。

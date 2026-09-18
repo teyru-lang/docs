@@ -35,7 +35,7 @@ for readability; the compiler matches on the annotation's **simple name**, so `@
 
 | Annotation | Status | Notes |
 |---|---|---|
-| `@Getter` | ⚠️ Partial | Includes `AccessLevel` (the parameter is Lombok's `value`: both the positional form and `value = AccessLevel.X` are read), `@Accessors` affects the naming; `lazy = true` computes the value once on the first read and caches it (primitive types included), but without Lombok's thread safety |
+| `@Getter` | ✅ Complete | Includes `AccessLevel` (the parameter is Lombok's `value`: both the positional form and `value = AccessLevel.X` are read), `@Accessors` affects the naming; `lazy = true` computes the value once on the first read and caches it (primitive types included), double-checked and as thread safe as Lombok's |
 | `@Setter` | ✅ Complete | Includes `AccessLevel` (the parameter is Lombok's `value`: both the positional form and `value = AccessLevel.X` are read), `@Accessors(chain)`, checks for `@NonNull` fields; not generated when the name is already taken (same as Lombok) |
 | `@ToString` | ⚠️ Partial | `of` / `exclude` / `callSuper` / `includeFieldNames` / `onlyExplicitlyIncluded` (together with `@ToString.Include` / `@ToString.Exclude` on fields); the `callSuper` format differs from Lombok (see §2) |
 | `@EqualsAndHashCode` | ⚠️ Partial | `of` / `exclude` / `callSuper` / `onlyExplicitlyIncluded` (`@EqualsAndHashCode.Include` / `@EqualsAndHashCode.Exclude`); the constants used by `hashCode` and `canEqual` differ from Lombok (see §2) |
@@ -162,8 +162,11 @@ Notes on the differences:
 - `@Builder` does **not** generate getters, the same as Lombok.
 - `@Getter(lazy = true)` moves the field's initial value into the getter: the constructor no
   longer computes it, and it is computed once on the first read and cached after that (the
-  same as Lombok). The held value is boxed, so primitive types work too. The difference is
-  that the generated getter does not lock (Lombok's does); it keeps only a holder field.
+  same as Lombok). The held value is boxed, so primitive types work too. The getter is
+  double-checked, as Lombok's is. Lombok's holder is an `AtomicReference`, which tells "not
+  computed yet" apart from "computed as null" and is what its `synchronized` block locks;
+  here the holder is the value itself (so null cannot carry that meaning), which is why the
+  monitor is the instance and "computed" is a `volatile` flag written after the value.
 - The `hashCode` of `@EqualsAndHashCode` uses 31 and 0 (Lombok uses 59 and 43), the field
   order follows declaration order (Lombok sorts), and no `canEqual` is generated — so a
   parent class and a child class are equal as long as their fields are the same, whereas

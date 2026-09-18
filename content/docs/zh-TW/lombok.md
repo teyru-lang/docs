@@ -34,7 +34,7 @@ System.out.println(p)                  // Person(name=ada, age=36)
 
 | 註解 | 狀態 | 說明 |
 |---|---|---|
-| `@Getter` | ⚠️ 部分 | 含 `AccessLevel`（Lombok 的參數名是 `value`：位置形式與 `value = AccessLevel.X` 都讀）、`@Accessors` 影響命名；`lazy = true` 在第一次讀取時算一次並快取（原生型別也支援），但沒有 Lombok 的執行緒安全 |
+| `@Getter` | ✅ 完整 | 含 `AccessLevel`（Lombok 的參數名是 `value`：位置形式與 `value = AccessLevel.X` 都讀）、`@Accessors` 影響命名；`lazy = true` 在第一次讀取時算一次並快取（原生型別也支援），雙重檢查，與 Lombok 同樣執行緒安全 |
 | `@Setter` | ✅ 完整 | 含 `AccessLevel`（Lombok 的參數名是 `value`：位置形式與 `value = AccessLevel.X` 都讀）、`@Accessors(chain)`、`@NonNull` 欄位的檢查；名稱已經被佔用時不產生（Lombok 同） |
 | `@ToString` | ⚠️ 部分 | `of`／`exclude`／`callSuper`／`includeFieldNames`／`onlyExplicitlyIncluded`（搭配欄位上的 `@ToString.Include`／`@ToString.Exclude`）；`callSuper` 的格式與 Lombok 不同（見 §2） |
 | `@EqualsAndHashCode` | ⚠️ 部分 | `of`／`exclude`／`callSuper`／`onlyExplicitlyIncluded`（`@EqualsAndHashCode.Include`／`@EqualsAndHashCode.Exclude`）；`hashCode` 的常數與 `canEqual` 與 Lombok 不同（見 §2） |
@@ -154,8 +154,11 @@ class Person {
   要全參數建構子請同時加 `@AllArgsConstructor`。
 - `@Builder` **不會**產生 getter，與 Lombok 相同。
 - `@Getter(lazy = true)` 把欄位的初始值搬進 getter：建構子不再算它，第一次讀取算一次
-  之後快取（與 Lombok 相同）。持有值是 boxed 的，所以原生型別也可以。差別是產生的
-  getter 沒有加鎖（Lombok 的會同步），它只有一個持有欄位。
+  之後快取（與 Lombok 相同）。持有值是 boxed 的，所以原生型別也可以。getter 是雙重
+  檢查的，與 Lombok 相同；Lombok 的持有欄位是一個 `AtomicReference`，把「還沒算」與
+  「算出來是 null」分開，並同步在那個 reference 上，這裡的持有欄位就是值本身（所以
+  null 不能拿來當「還沒算」用），monitor 因此是實例本身，而「算過了」是一個
+  `volatile` 的旗標——值先寫、旗標後寫，讀到旗標就讀得到值。
 - `@EqualsAndHashCode` 的 `hashCode` 用 31 與 0（Lombok 用 59 與 43），欄位順序照宣告
   順序（Lombok 會排序），而且不產生 `canEqual`——所以父類別與子類別只要欄位相同就相等，
   Lombok 會說不相等。
