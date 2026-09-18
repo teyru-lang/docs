@@ -36,7 +36,7 @@ System.out.println(p)                  // Person(name=ada, age=36)
 |---|---|---|
 | `@Getter` | ✅ 完整 | 含 `AccessLevel`（Lombok 的参数名是 `value`：位置形式与 `value = AccessLevel.X` 都读）、`@Accessors` 影响命名；`lazy = true` 在第一次读取时计算一次并缓存（原生类型也支持），双重检查，与 Lombok 一样线程安全 |
 | `@Setter` | ✅ 完整 | 含 `AccessLevel`（Lombok 的参数名是 `value`：位置形式与 `value = AccessLevel.X` 都读）、`@Accessors(chain)`、`@NonNull` 字段的检查；名称已被占用时不生成（与 Lombok 相同） |
-| `@ToString` | ⚠️ 部分 | `of`／`exclude`／`callSuper`／`includeFieldNames`／`onlyExplicitlyIncluded`（配合字段上的 `@ToString.Include`／`@ToString.Exclude`）；`callSuper` 的格式与 Lombok 不同（见 §2） |
+| `@ToString` | ✅ 完整 | `of`／`exclude`／`callSuper`／`includeFieldNames`／`onlyExplicitlyIncluded`（配合字段上的 `@ToString.Include`／`@ToString.Exclude`）；`callSuper` 的 super 那一段写字段前面，与 Lombok 相同 |
 | `@EqualsAndHashCode` | ⚠️ 部分 | `of`／`exclude`／`callSuper`／`onlyExplicitlyIncluded`（`@EqualsAndHashCode.Include`／`@EqualsAndHashCode.Exclude`）；`hashCode` 的常量与 `canEqual` 与 Lombok 不同（见 §2） |
 | `@NoArgsConstructor` | ✅ 完整 | `staticName` 会产生静态工厂；`access`（Lombok 的参数名就叫 `access`：位置形式与 `access = AccessLevel.X` 都读） |
 | `@RequiredArgsConstructor` | ✅ 完整 | final（无初始值）与 `@NonNull` 字段 |
@@ -162,8 +162,6 @@ class Person {
 - `@EqualsAndHashCode` 的 `hashCode` 用 31 与 0（Lombok 用 59 与 43），字段顺序按声明
   顺序（Lombok 会排序），而且不生成 `canEqual`——所以父类和子类只要字段相同就相等，
   Lombok 会说它们不相等。
-- `@ToString(callSuper = true)` 生成的字符串是 `Child(c=2; super=Base(b=1))`，
-  Lombok 是 `Child(super=Base(b=1), c=2)`：自己的字段先写，super 那一段在最后。
 - `@StandardException` 的 `E(Throwable)` 是
   `super(cause == null ? null : cause.getMessage(), cause)`，所以
   `new E(new RuntimeException("c")).getMessage()` 是 `c`（与 Lombok 相同）。全参

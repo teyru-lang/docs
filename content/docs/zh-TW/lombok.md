@@ -36,7 +36,7 @@ System.out.println(p)                  // Person(name=ada, age=36)
 |---|---|---|
 | `@Getter` | ✅ 完整 | 含 `AccessLevel`（Lombok 的參數名是 `value`：位置形式與 `value = AccessLevel.X` 都讀）、`@Accessors` 影響命名；`lazy = true` 在第一次讀取時算一次並快取（原生型別也支援），雙重檢查，與 Lombok 同樣執行緒安全 |
 | `@Setter` | ✅ 完整 | 含 `AccessLevel`（Lombok 的參數名是 `value`：位置形式與 `value = AccessLevel.X` 都讀）、`@Accessors(chain)`、`@NonNull` 欄位的檢查；名稱已經被佔用時不產生（Lombok 同） |
-| `@ToString` | ⚠️ 部分 | `of`／`exclude`／`callSuper`／`includeFieldNames`／`onlyExplicitlyIncluded`（搭配欄位上的 `@ToString.Include`／`@ToString.Exclude`）；`callSuper` 的格式與 Lombok 不同（見 §2） |
+| `@ToString` | ✅ 完整 | `of`／`exclude`／`callSuper`／`includeFieldNames`／`onlyExplicitlyIncluded`（搭配欄位上的 `@ToString.Include`／`@ToString.Exclude`）；`callSuper` 的 super 那一段寫在欄位前面，與 Lombok 相同 |
 | `@EqualsAndHashCode` | ⚠️ 部分 | `of`／`exclude`／`callSuper`／`onlyExplicitlyIncluded`（`@EqualsAndHashCode.Include`／`@EqualsAndHashCode.Exclude`）；`hashCode` 的常數與 `canEqual` 與 Lombok 不同（見 §2） |
 | `@NoArgsConstructor` | ✅ 完整 | `staticName` 會產生靜態工廠；`access`（Lombok 的參數名就叫 `access`：位置形式與 `access = AccessLevel.X` 都讀） |
 | `@RequiredArgsConstructor` | ✅ 完整 | final（無初始值）與 `@NonNull` 欄位 |
@@ -162,8 +162,6 @@ class Person {
 - `@EqualsAndHashCode` 的 `hashCode` 用 31 與 0（Lombok 用 59 與 43），欄位順序照宣告
   順序（Lombok 會排序），而且不產生 `canEqual`——所以父類別與子類別只要欄位相同就相等，
   Lombok 會說不相等。
-- `@ToString(callSuper = true)` 產生的字串是 `Child(c=2; super=Base(b=1))`，
-  Lombok 是 `Child(super=Base(b=1), c=2)`：自己的欄位先寫，super 那一段在最後。
 - `@StandardException` 的 `E(Throwable)` 是
   `super(cause == null ? null : cause.getMessage(), cause)`，所以
   `new E(new RuntimeException("c")).getMessage()` 是 `c`（與 Lombok 相同）。全參數
