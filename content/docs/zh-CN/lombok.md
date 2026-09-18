@@ -46,7 +46,7 @@ System.out.println(p)                  // Person(name=ada, age=36)
 | `@Builder` | ⚠️ 部分 | 类、构造函数与方法；`builderMethodName`／`buildMethodName`／`builderClassName`／`toBuilder`／`@Builder.Default`／`@Builder.ObtainVia`／`setterPrefix`（首字母会大写：`with` 加 `name` 是 `withName`） |
 | `@NonNull` | ⚠️ 部分 | 字段与参数都检查：字段被收进生成的构造函数时插入检查，`@Setter` 生成的 setter 也检查，手写方法与构造函数的参数（只标在参数上即可）同样检查。直接赋值字段不检查（Lombok 也一样）；`@Builder` 的检查位置与 Lombok 不同（见 §3） |
 | `@With` | ⚠️ 部分 | 字段上的 `@With` 生成 `withX(T)`，以全参构造函数复制；写在类上不会为所有字段生成（Lombok 会） |
-| `@Accessors` | ⚠️ 部分 | `chain`／`fluent`／`prefix`；`fluent = true` 不会像 Lombok 那样连带把 setter 变成可链式（要另外写 `chain = true`，见 §3） |
+| `@Accessors` | ✅ 完整 | `chain`／`fluent`／`prefix`；`fluent = true` 会连带把 setter 变成可链式，写出来的 `chain` 仍然自己决定，静态字段的 setter 一律 `void`（都与 Lombok 相同） |
 | `@FieldDefaults` | ✅ 完整 | `level`／`makeFinal` |
 | `@UtilityClass` | ⚠️ 部分 | 构造函数 private、成员 static；继承会被 `TY-TYP-0007` 拦下 |
 | `@StandardException` | ⚠️ 部分 | 生成 4 个标准异常构造函数；`E(Throwable)` 用 `cause.getMessage()` 当消息。差异：全参构造函数是 `super(message, cause)`，Lombok 是 `super(message)` 加 `initCause(cause)` |
@@ -204,9 +204,6 @@ class Person {
    `@Helper is legal only on method-local classes`）。
    `@Tolerate` 则是让生成器“看不到”被标的成员：`@Setter private Instant date` 加上
    `@Tolerate public void setDate(String)` 之后两个重载都在，与 Lombok 相同。
-10. **`@Accessors(fluent = true)` 不会顺便开启链式。** Lombok 的 `fluent` 会连带把
-    setter 的返回值改成自身，所以 `new F().n(5).n()` 在 Lombok 成立；这里的 setter
-    仍是 `void`，要链式得自己加 `chain = true`。
 
 ---
 

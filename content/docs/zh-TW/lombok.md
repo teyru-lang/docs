@@ -46,7 +46,7 @@ System.out.println(p)                  // Person(name=ada, age=36)
 | `@Builder` | ⚠️ 部分 | 類別、建構子與方法；`builderMethodName`／`buildMethodName`／`builderClassName`／`toBuilder`／`@Builder.Default`／`@Builder.ObtainVia`／`setterPrefix`（首字母會大寫：`with` 加 `name` 是 `withName`） |
 | `@NonNull` | ⚠️ 部分 | 欄位與參數都檢查：欄位被收進產生的建構子時插檢查，`@Setter` 產生的 setter 也檢查，手寫方法與建構子的參數（只標在參數上即可）同樣檢查。直接指派欄位不檢查（Lombok 也一樣）；`@Builder` 的檢查位置與 Lombok 不同（見 §3） |
 | `@With` | ⚠️ 部分 | 欄位上的 `@With` 產生 `withX(T)`，以全參數建構子複製；寫在類別上不會替所有欄位產生（Lombok 會） |
-| `@Accessors` | ⚠️ 部分 | `chain`／`fluent`／`prefix`；`fluent = true` 不會像 Lombok 那樣連帶把 setter 變成可鏈式（要另外寫 `chain = true`，見 §3） |
+| `@Accessors` | ✅ 完整 | `chain`／`fluent`／`prefix`；`fluent = true` 會連帶把 setter 變成可鏈式，寫出來的 `chain` 仍然自己決定，靜態欄位的 setter 一律 `void`（都與 Lombok 相同） |
 | `@FieldDefaults` | ✅ 完整 | `level`／`makeFinal` |
 | `@UtilityClass` | ⚠️ 部分 | 建構子 private、成員 static；繼承會被 `TY-TYP-0007` 擋下 |
 | `@StandardException` | ⚠️ 部分 | 產生 4 個標準例外界建構子；`E(Throwable)` 用 `cause.getMessage()` 當訊息。差異：全參數建構子是 `super(message, cause)`，Lombok 是 `super(message)` 加 `initCause(cause)` |
@@ -204,9 +204,6 @@ class Person {
    `@Helper is legal only on method-local classes`）。
    `@Tolerate` 則是讓產生器「看不到」被標的成員：`@Setter private Instant date` 加上
    `@Tolerate public void setDate(String)` 之後兩個多載都在，與 Lombok 相同。
-10. **`@Accessors(fluent = true)` 不會順便開啟鏈式。** Lombok 的 `fluent` 會連帶把
-    setter 的回傳值改成自身，所以 `new F().n(5).n()` 在 Lombok 成立；這裡的 setter
-    仍是 `void`，要鏈式得自己加 `chain = true`。
 
 ---
 
