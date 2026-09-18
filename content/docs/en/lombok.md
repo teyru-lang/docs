@@ -35,8 +35,8 @@ for readability; the compiler matches on the annotation's **simple name**, so `@
 
 | Annotation | Status | Notes |
 |---|---|---|
-| `@Getter` | ⚠️ Partial | Includes `AccessLevel` (positional-only form), `@Accessors` affects the naming; `lazy = true` computes the value once on the first read and caches it (primitive types included), but without Lombok's thread safety |
-| `@Setter` | ✅ Complete | Includes `AccessLevel` (positional-only form), `@Accessors(chain)`, checks for `@NonNull` fields; not generated when the name is already taken (same as Lombok) |
+| `@Getter` | ⚠️ Partial | Includes `AccessLevel` (the parameter is Lombok's `value`: both the positional form and `value = AccessLevel.X` are read), `@Accessors` affects the naming; `lazy = true` computes the value once on the first read and caches it (primitive types included), but without Lombok's thread safety |
+| `@Setter` | ✅ Complete | Includes `AccessLevel` (the parameter is Lombok's `value`: both the positional form and `value = AccessLevel.X` are read), `@Accessors(chain)`, checks for `@NonNull` fields; not generated when the name is already taken (same as Lombok) |
 | `@ToString` | ⚠️ Partial | `of` / `exclude` / `callSuper` / `includeFieldNames` / `onlyExplicitlyIncluded` (together with `@ToString.Include` / `@ToString.Exclude` on fields); the `callSuper` format differs from Lombok (see §2) |
 | `@EqualsAndHashCode` | ⚠️ Partial | `of` / `exclude` / `callSuper` / `onlyExplicitlyIncluded` (`@EqualsAndHashCode.Include` / `@EqualsAndHashCode.Exclude`); the constants used by `hashCode` and `canEqual` differ from Lombok (see §2) |
 | `@NoArgsConstructor` | ⚠️ Partial | `staticName` generates a static factory; `access` is positional-only, and when the class has no hand-written constructor the one it generates is blocked by the implicit no-args constructor, so it has no effect (see §3) |
@@ -224,13 +224,11 @@ Notes on the differences:
 10. **`@Accessors(fluent = true)` does not turn on chaining as well.** Lombok's `fluent` also
     changes the setter's return value to itself, so `new F().n(5).n()` holds in Lombok; here
     the setter is still `void`, and to get chaining you have to add `chain = true` yourself.
-11. **`access` on constructors is positional-only.** `@AllArgsConstructor(AccessLevel.PRIVATE)`
-    works, whereas `@AllArgsConstructor(access = AccessLevel.PRIVATE)` (Lombok's idiomatic
-    form) is ignored and produces a `public` constructor. `@NoArgsConstructor` goes further:
-    when the class has no hand-written constructor, the implicit public no-args constructor
-    already occupies the slot, so the generated one is skipped per the rules in §6, which
-    means `access` has no effect at all — to make it take effect you first have to write
-    another constructor yourself.
+11. **The constructor `@NoArgsConstructor` generates is blocked by the implicit one.**
+    When the class has no hand-written constructor, the implicit public no-args constructor
+    already occupies the slot, so the generated one is skipped per the rules in §6 — which
+    means `@NoArgsConstructor` has no effect at all, and making it take effect requires
+    writing another constructor yourself first.
 
 ---
 

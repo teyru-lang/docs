@@ -34,8 +34,8 @@ System.out.println(p)                  // Person(name=ada, age=36)
 
 | 註解 | 狀態 | 說明 |
 |---|---|---|
-| `@Getter` | ⚠️ 部分 | 含 `AccessLevel`（只讀位置形式）、`@Accessors` 影響命名；`lazy = true` 在第一次讀取時算一次並快取（原生型別也支援），但沒有 Lombok 的執行緒安全 |
-| `@Setter` | ✅ 完整 | 含 `AccessLevel`（只讀位置形式）、`@Accessors(chain)`、`@NonNull` 欄位的檢查；名稱已經被佔用時不產生（Lombok 同） |
+| `@Getter` | ⚠️ 部分 | 含 `AccessLevel`（Lombok 的參數名是 `value`：位置形式與 `value = AccessLevel.X` 都讀）、`@Accessors` 影響命名；`lazy = true` 在第一次讀取時算一次並快取（原生型別也支援），但沒有 Lombok 的執行緒安全 |
+| `@Setter` | ✅ 完整 | 含 `AccessLevel`（Lombok 的參數名是 `value`：位置形式與 `value = AccessLevel.X` 都讀）、`@Accessors(chain)`、`@NonNull` 欄位的檢查；名稱已經被佔用時不產生（Lombok 同） |
 | `@ToString` | ⚠️ 部分 | `of`／`exclude`／`callSuper`／`includeFieldNames`／`onlyExplicitlyIncluded`（搭配欄位上的 `@ToString.Include`／`@ToString.Exclude`）；`callSuper` 的格式與 Lombok 不同（見 §2） |
 | `@EqualsAndHashCode` | ⚠️ 部分 | `of`／`exclude`／`callSuper`／`onlyExplicitlyIncluded`（`@EqualsAndHashCode.Include`／`@EqualsAndHashCode.Exclude`）；`hashCode` 的常數與 `canEqual` 與 Lombok 不同（見 §2） |
 | `@NoArgsConstructor` | ⚠️ 部分 | `staticName` 會產生靜態工廠；`access` 只讀位置形式，而且類別沒有手寫建構子時產生的那一個會被隱含的無參數建構子擋掉，等於沒作用（見 §3） |
@@ -203,11 +203,9 @@ class Person {
 10. **`@Accessors(fluent = true)` 不會順便開啟鏈式。** Lombok 的 `fluent` 會連帶把
     setter 的回傳值改成自身，所以 `new F().n(5).n()` 在 Lombok 成立；這裡的 setter
     仍是 `void`，要鏈式得自己加 `chain = true`。
-11. **建構子的 `access` 只讀位置形式。** `@AllArgsConstructor(AccessLevel.PRIVATE)`
-    有效，`@AllArgsConstructor(access = AccessLevel.PRIVATE)`（Lombok 的慣用寫法）
-    會被忽略而產生 `public` 建構子。`@NoArgsConstructor` 更進一步：類別沒有手寫建構子
-    時，隱含的公開無參數建構子已經佔位，產生的那一個照 §6 的規則被跳過，所以
-    `access` 完全沒有作用——要它生效得先自己寫一個別的建構子。
+11. **`@NoArgsConstructor` 產生的建構子會被隱含的那一個擋掉。** 類別沒有手寫建構子時，
+    隱含的公開無參數建構子已經佔位，產生的那一個照 §6 的規則被跳過，所以
+    `@NoArgsConstructor` 完全沒有作用——要它生效得先自己寫一個別的建構子。
 
 ---
 
