@@ -34,11 +34,11 @@ System.out.println(p)                  // Person(name=ada, age=36)
 
 | 注解 | 状态 | 说明 |
 |---|---|---|
-| `@Getter` | ⚠️ 部分 | 含 `AccessLevel`（只读位置形式）、`@Accessors` 影响命名；`lazy = true` 在第一次读取时计算一次并缓存（原生类型也支持），但没有 Lombok 的线程安全 |
-| `@Setter` | ✅ 完整 | 含 `AccessLevel`（只读位置形式）、`@Accessors(chain)`、`@NonNull` 字段的检查；名称已被占用时不生成（与 Lombok 相同） |
-| `@ToString` | ⚠️ 部分 | `of`／`exclude`／`callSuper`／`includeFieldNames`／`onlyExplicitlyIncluded`（配合字段上的 `@ToString.Include`／`@ToString.Exclude`）；`callSuper` 的格式与 Lombok 不同（见 §2） |
-| `@EqualsAndHashCode` | ⚠️ 部分 | `of`／`exclude`／`callSuper`／`onlyExplicitlyIncluded`（`@EqualsAndHashCode.Include`／`@EqualsAndHashCode.Exclude`）；`hashCode` 的常量与 `canEqual` 与 Lombok 不同（见 §2） |
-| `@NoArgsConstructor` | ⚠️ 部分 | `staticName` 会生成静态工厂；`access` 只读位置形式，而且类没有手写构造函数时生成的那一个会被隐式的无参构造函数挡掉，等于没有作用（见 §3） |
+| `@Getter` | ✅ 完整 | 含 `AccessLevel`（Lombok 的参数名是 `value`：位置形式与 `value = AccessLevel.X` 都读）、`@Accessors` 影响命名；`lazy = true` 在第一次读取时计算一次并缓存（原生类型也支持），双重检查，与 Lombok 一样线程安全 |
+| `@Setter` | ✅ 完整 | 含 `AccessLevel`（Lombok 的参数名是 `value`：位置形式与 `value = AccessLevel.X` 都读）、`@Accessors(chain)`、`@NonNull` 字段的检查；名称已被占用时不生成（与 Lombok 相同） |
+| `@ToString` | ✅ 完整 | `of`／`exclude`／`callSuper`／`includeFieldNames`／`onlyExplicitlyIncluded`（配合字段上的 `@ToString.Include`／`@ToString.Exclude`）；`callSuper` 的 super 那一段写字段前面，与 Lombok 相同 |
+| `@EqualsAndHashCode` | ✅ 完整 | `of`／`exclude`／`callSuper`／`onlyExplicitlyIncluded`（`@EqualsAndHashCode.Include`／`@EqualsAndHashCode.Exclude`）；`hashCode` 的常量（59／43／79／97）、字段顺序（原生类型，再 boxed 原生类型，再其余）与 `canEqual` 都与 Lombok 相同 |
+| `@NoArgsConstructor` | ✅ 完整 | `staticName` 会产生静态工厂；`access`（Lombok 的参数名就叫 `access`：位置形式与 `access = AccessLevel.X` 都读） |
 | `@RequiredArgsConstructor` | ✅ 完整 | final（无初始值）与 `@NonNull` 字段 |
 | `@AllArgsConstructor` | ✅ 完整 | 略过已有初始值的 final 字段 |
 | `@Data` | ⚠️ 部分 | getter + setter + `@RequiredArgsConstructor` + `@ToString` + `@EqualsAndHashCode`；隐式构造函数收 `@NonNull` 字段并在里面插入检查 |
@@ -46,7 +46,7 @@ System.out.println(p)                  // Person(name=ada, age=36)
 | `@Builder` | ⚠️ 部分 | 类、构造函数与方法；`builderMethodName`／`buildMethodName`／`builderClassName`／`toBuilder`／`@Builder.Default`／`@Builder.ObtainVia`／`setterPrefix`（首字母会大写：`with` 加 `name` 是 `withName`） |
 | `@NonNull` | ⚠️ 部分 | 字段与参数都检查：字段被收进生成的构造函数时插入检查，`@Setter` 生成的 setter 也检查，手写方法与构造函数的参数（只标在参数上即可）同样检查。直接赋值字段不检查（Lombok 也一样）；`@Builder` 的检查位置与 Lombok 不同（见 §3） |
 | `@With` | ⚠️ 部分 | 字段上的 `@With` 生成 `withX(T)`，以全参构造函数复制；写在类上不会为所有字段生成（Lombok 会） |
-| `@Accessors` | ⚠️ 部分 | `chain`／`fluent`／`prefix`；`fluent = true` 不会像 Lombok 那样连带把 setter 变成可链式（要另外写 `chain = true`，见 §3） |
+| `@Accessors` | ✅ 完整 | `chain`／`fluent`／`prefix`；`fluent = true` 会连带把 setter 变成可链式，写出来的 `chain` 仍然自己决定，静态字段的 setter 一律 `void`（都与 Lombok 相同） |
 | `@FieldDefaults` | ✅ 完整 | `level`／`makeFinal` |
 | `@UtilityClass` | ⚠️ 部分 | 构造函数 private、成员 static；继承会被 `TY-TYP-0007` 拦下 |
 | `@StandardException` | ⚠️ 部分 | 生成 4 个标准异常构造函数；`E(Throwable)` 用 `cause.getMessage()` 当消息。差异：全参构造函数是 `super(message, cause)`，Lombok 是 `super(message)` 加 `initCause(cause)` |
@@ -124,22 +124,28 @@ class Person {
       return false
     }
     Person other = (Person) o
-    if (this.name == null) {
-      if (other.name != null) {
-        return false
-      }
-    } else if (!this.name.equals(other.name)) {
+    if (!other.canEqual(this)) {
       return false
     }
+    /* the members are read in Lombok's order: the int, then the String */
     if (this.age != other.age) {
+      return false
+    }
+    Object $this$name = this.name
+    Object $other$name = other.name
+    if ($this$name == null ? $other$name != null : !$this$name.equals($other$name)) {
       return false
     }
     return true
   }
+  protected boolean canEqual(Object other) {
+    return other instanceof Person
+  }
   public int hashCode() {
     int result = 1
-    result = 31 * result + (this.name == null ? 0 : this.name.hashCode())
-    result = 31 * result + this.age
+    result = 59 * result + this.age
+    Object $hash$name = this.name
+    result = 59 * result + ($hash$name == null ? 43 : $hash$name.hashCode())
     return result
   }
 }
@@ -154,13 +160,11 @@ class Person {
   要全参构造函数请同时加上 `@AllArgsConstructor`。
 - `@Builder` **不会**生成 getter，与 Lombok 相同。
 - `@Getter(lazy = true)` 把字段的初始值搬进 getter：构造函数不再计算它，第一次读取时
-  计算一次之后缓存（与 Lombok 相同）。持有的值是 boxed 的，所以原生类型也可以。差别是
-  生成的 getter 没有加锁（Lombok 的会同步），它只有一个持有字段。
-- `@EqualsAndHashCode` 的 `hashCode` 用 31 与 0（Lombok 用 59 与 43），字段顺序按声明
-  顺序（Lombok 会排序），而且不生成 `canEqual`——所以父类和子类只要字段相同就相等，
-  Lombok 会说它们不相等。
-- `@ToString(callSuper = true)` 生成的字符串是 `Child(c=2; super=Base(b=1))`，
-  Lombok 是 `Child(super=Base(b=1), c=2)`：自己的字段先写，super 那一段在最后。
+  计算一次之后缓存（与 Lombok 相同）。持有的值是 boxed 的，所以原生类型也可以。getter
+  是双重检查的，与 Lombok 相同；Lombok 的持有字段是一个 `AtomicReference`，把“还没算”
+  与“算出来是 null”分开，并同步在那个 reference 上，这里的持有字段就是值本身（所以
+  null 不能拿来当“还没算”用），monitor 因此是实例本身，而“算过了”是一个 `volatile`
+  的标志——先写值、后写标志，读到标志就读得到值。
 - `@StandardException` 的 `E(Throwable)` 是
   `super(cause == null ? null : cause.getMessage(), cause)`，所以
   `new E(new RuntimeException("c")).getMessage()` 是 `c`（与 Lombok 相同）。全参
@@ -200,14 +204,6 @@ class Person {
    `@Helper is legal only on method-local classes`）。
    `@Tolerate` 则是让生成器“看不到”被标的成员：`@Setter private Instant date` 加上
    `@Tolerate public void setDate(String)` 之后两个重载都在，与 Lombok 相同。
-10. **`@Accessors(fluent = true)` 不会顺便开启链式。** Lombok 的 `fluent` 会连带把
-    setter 的返回值改成自身，所以 `new F().n(5).n()` 在 Lombok 成立；这里的 setter
-    仍是 `void`，要链式得自己加 `chain = true`。
-11. **构造函数的 `access` 只读位置形式。** `@AllArgsConstructor(AccessLevel.PRIVATE)`
-    有效，`@AllArgsConstructor(access = AccessLevel.PRIVATE)`（Lombok 的惯用写法）
-    会被忽略而生成 `public` 构造函数。`@NoArgsConstructor` 更进一步：类没有手写构造函数
-    时，隐式的公开无参构造函数已经占位，生成的那一个照 §6 的规则被跳过，所以
-    `access` 完全没有作用——要它生效得先自己写一个别的构造函数。
 
 ---
 

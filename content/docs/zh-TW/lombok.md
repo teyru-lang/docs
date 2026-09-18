@@ -34,11 +34,11 @@ System.out.println(p)                  // Person(name=ada, age=36)
 
 | 註解 | 狀態 | 說明 |
 |---|---|---|
-| `@Getter` | ⚠️ 部分 | 含 `AccessLevel`（只讀位置形式）、`@Accessors` 影響命名；`lazy = true` 在第一次讀取時算一次並快取（原生型別也支援），但沒有 Lombok 的執行緒安全 |
-| `@Setter` | ✅ 完整 | 含 `AccessLevel`（只讀位置形式）、`@Accessors(chain)`、`@NonNull` 欄位的檢查；名稱已經被佔用時不產生（Lombok 同） |
-| `@ToString` | ⚠️ 部分 | `of`／`exclude`／`callSuper`／`includeFieldNames`／`onlyExplicitlyIncluded`（搭配欄位上的 `@ToString.Include`／`@ToString.Exclude`）；`callSuper` 的格式與 Lombok 不同（見 §2） |
-| `@EqualsAndHashCode` | ⚠️ 部分 | `of`／`exclude`／`callSuper`／`onlyExplicitlyIncluded`（`@EqualsAndHashCode.Include`／`@EqualsAndHashCode.Exclude`）；`hashCode` 的常數與 `canEqual` 與 Lombok 不同（見 §2） |
-| `@NoArgsConstructor` | ⚠️ 部分 | `staticName` 會產生靜態工廠；`access` 只讀位置形式，而且類別沒有手寫建構子時產生的那一個會被隱含的無參數建構子擋掉，等於沒作用（見 §3） |
+| `@Getter` | ✅ 完整 | 含 `AccessLevel`（Lombok 的參數名是 `value`：位置形式與 `value = AccessLevel.X` 都讀）、`@Accessors` 影響命名；`lazy = true` 在第一次讀取時算一次並快取（原生型別也支援），雙重檢查，與 Lombok 同樣執行緒安全 |
+| `@Setter` | ✅ 完整 | 含 `AccessLevel`（Lombok 的參數名是 `value`：位置形式與 `value = AccessLevel.X` 都讀）、`@Accessors(chain)`、`@NonNull` 欄位的檢查；名稱已經被佔用時不產生（Lombok 同） |
+| `@ToString` | ✅ 完整 | `of`／`exclude`／`callSuper`／`includeFieldNames`／`onlyExplicitlyIncluded`（搭配欄位上的 `@ToString.Include`／`@ToString.Exclude`）；`callSuper` 的 super 那一段寫在欄位前面，與 Lombok 相同 |
+| `@EqualsAndHashCode` | ✅ 完整 | `of`／`exclude`／`callSuper`／`onlyExplicitlyIncluded`（`@EqualsAndHashCode.Include`／`@EqualsAndHashCode.Exclude`）；`hashCode` 的常數（59／43／79／97）、欄位順序（原生型別，再 boxed 原生型別，再其餘）與 `canEqual` 都與 Lombok 相同 |
+| `@NoArgsConstructor` | ✅ 完整 | `staticName` 會產生靜態工廠；`access`（Lombok 的參數名就叫 `access`：位置形式與 `access = AccessLevel.X` 都讀） |
 | `@RequiredArgsConstructor` | ✅ 完整 | final（無初始值）與 `@NonNull` 欄位 |
 | `@AllArgsConstructor` | ✅ 完整 | 略過已有初始值的 final 欄位 |
 | `@Data` | ⚠️ 部分 | getter + setter + `@RequiredArgsConstructor` + `@ToString` + `@EqualsAndHashCode`；隱含建構子收 `@NonNull` 欄位並在裡面插檢查 |
@@ -46,7 +46,7 @@ System.out.println(p)                  // Person(name=ada, age=36)
 | `@Builder` | ⚠️ 部分 | 類別、建構子與方法；`builderMethodName`／`buildMethodName`／`builderClassName`／`toBuilder`／`@Builder.Default`／`@Builder.ObtainVia`／`setterPrefix`（首字母會大寫：`with` 加 `name` 是 `withName`） |
 | `@NonNull` | ⚠️ 部分 | 欄位與參數都檢查：欄位被收進產生的建構子時插檢查，`@Setter` 產生的 setter 也檢查，手寫方法與建構子的參數（只標在參數上即可）同樣檢查。直接指派欄位不檢查（Lombok 也一樣）；`@Builder` 的檢查位置與 Lombok 不同（見 §3） |
 | `@With` | ⚠️ 部分 | 欄位上的 `@With` 產生 `withX(T)`，以全參數建構子複製；寫在類別上不會替所有欄位產生（Lombok 會） |
-| `@Accessors` | ⚠️ 部分 | `chain`／`fluent`／`prefix`；`fluent = true` 不會像 Lombok 那樣連帶把 setter 變成可鏈式（要另外寫 `chain = true`，見 §3） |
+| `@Accessors` | ✅ 完整 | `chain`／`fluent`／`prefix`；`fluent = true` 會連帶把 setter 變成可鏈式，寫出來的 `chain` 仍然自己決定，靜態欄位的 setter 一律 `void`（都與 Lombok 相同） |
 | `@FieldDefaults` | ✅ 完整 | `level`／`makeFinal` |
 | `@UtilityClass` | ⚠️ 部分 | 建構子 private、成員 static；繼承會被 `TY-TYP-0007` 擋下 |
 | `@StandardException` | ⚠️ 部分 | 產生 4 個標準例外界建構子；`E(Throwable)` 用 `cause.getMessage()` 當訊息。差異：全參數建構子是 `super(message, cause)`，Lombok 是 `super(message)` 加 `initCause(cause)` |
@@ -124,22 +124,28 @@ class Person {
       return false
     }
     Person other = (Person) o
-    if (this.name == null) {
-      if (other.name != null) {
-        return false
-      }
-    } else if (!this.name.equals(other.name)) {
+    if (!other.canEqual(this)) {
       return false
     }
+    /* the members are read in Lombok's order: the int, then the String */
     if (this.age != other.age) {
+      return false
+    }
+    Object $this$name = this.name
+    Object $other$name = other.name
+    if ($this$name == null ? $other$name != null : !$this$name.equals($other$name)) {
       return false
     }
     return true
   }
+  protected boolean canEqual(Object other) {
+    return other instanceof Person
+  }
   public int hashCode() {
     int result = 1
-    result = 31 * result + (this.name == null ? 0 : this.name.hashCode())
-    result = 31 * result + this.age
+    result = 59 * result + this.age
+    Object $hash$name = this.name
+    result = 59 * result + ($hash$name == null ? 43 : $hash$name.hashCode())
     return result
   }
 }
@@ -154,13 +160,11 @@ class Person {
   要全參數建構子請同時加 `@AllArgsConstructor`。
 - `@Builder` **不會**產生 getter，與 Lombok 相同。
 - `@Getter(lazy = true)` 把欄位的初始值搬進 getter：建構子不再算它，第一次讀取算一次
-  之後快取（與 Lombok 相同）。持有值是 boxed 的，所以原生型別也可以。差別是產生的
-  getter 沒有加鎖（Lombok 的會同步），它只有一個持有欄位。
-- `@EqualsAndHashCode` 的 `hashCode` 用 31 與 0（Lombok 用 59 與 43），欄位順序照宣告
-  順序（Lombok 會排序），而且不產生 `canEqual`——所以父類別與子類別只要欄位相同就相等，
-  Lombok 會說不相等。
-- `@ToString(callSuper = true)` 產生的字串是 `Child(c=2; super=Base(b=1))`，
-  Lombok 是 `Child(super=Base(b=1), c=2)`：自己的欄位先寫，super 那一段在最後。
+  之後快取（與 Lombok 相同）。持有值是 boxed 的，所以原生型別也可以。getter 是雙重
+  檢查的，與 Lombok 相同；Lombok 的持有欄位是一個 `AtomicReference`，把「還沒算」與
+  「算出來是 null」分開，並同步在那個 reference 上，這裡的持有欄位就是值本身（所以
+  null 不能拿來當「還沒算」用），monitor 因此是實例本身，而「算過了」是一個
+  `volatile` 的旗標——值先寫、旗標後寫，讀到旗標就讀得到值。
 - `@StandardException` 的 `E(Throwable)` 是
   `super(cause == null ? null : cause.getMessage(), cause)`，所以
   `new E(new RuntimeException("c")).getMessage()` 是 `c`（與 Lombok 相同）。全參數
@@ -200,14 +204,6 @@ class Person {
    `@Helper is legal only on method-local classes`）。
    `@Tolerate` 則是讓產生器「看不到」被標的成員：`@Setter private Instant date` 加上
    `@Tolerate public void setDate(String)` 之後兩個多載都在，與 Lombok 相同。
-10. **`@Accessors(fluent = true)` 不會順便開啟鏈式。** Lombok 的 `fluent` 會連帶把
-    setter 的回傳值改成自身，所以 `new F().n(5).n()` 在 Lombok 成立；這裡的 setter
-    仍是 `void`，要鏈式得自己加 `chain = true`。
-11. **建構子的 `access` 只讀位置形式。** `@AllArgsConstructor(AccessLevel.PRIVATE)`
-    有效，`@AllArgsConstructor(access = AccessLevel.PRIVATE)`（Lombok 的慣用寫法）
-    會被忽略而產生 `public` 建構子。`@NoArgsConstructor` 更進一步：類別沒有手寫建構子
-    時，隱含的公開無參數建構子已經佔位，產生的那一個照 §6 的規則被跳過，所以
-    `access` 完全沒有作用——要它生效得先自己寫一個別的建構子。
 
 ---
 
