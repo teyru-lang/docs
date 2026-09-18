@@ -38,7 +38,7 @@ System.out.println(p)                  // Person(name=ada, age=36)
 | `@Setter` | ✅ 完整 | 含 `AccessLevel`（Lombok 的参数名是 `value`：位置形式与 `value = AccessLevel.X` 都读）、`@Accessors(chain)`、`@NonNull` 字段的检查；名称已被占用时不生成（与 Lombok 相同） |
 | `@ToString` | ⚠️ 部分 | `of`／`exclude`／`callSuper`／`includeFieldNames`／`onlyExplicitlyIncluded`（配合字段上的 `@ToString.Include`／`@ToString.Exclude`）；`callSuper` 的格式与 Lombok 不同（见 §2） |
 | `@EqualsAndHashCode` | ⚠️ 部分 | `of`／`exclude`／`callSuper`／`onlyExplicitlyIncluded`（`@EqualsAndHashCode.Include`／`@EqualsAndHashCode.Exclude`）；`hashCode` 的常量与 `canEqual` 与 Lombok 不同（见 §2） |
-| `@NoArgsConstructor` | ⚠️ 部分 | `staticName` 会生成静态工厂；`access` 只读位置形式，而且类没有手写构造函数时生成的那一个会被隐式的无参构造函数挡掉，等于没有作用（见 §3） |
+| `@NoArgsConstructor` | ✅ 完整 | `staticName` 会产生静态工厂；`access`（Lombok 的参数名就叫 `access`：位置形式与 `access = AccessLevel.X` 都读） |
 | `@RequiredArgsConstructor` | ✅ 完整 | final（无初始值）与 `@NonNull` 字段 |
 | `@AllArgsConstructor` | ✅ 完整 | 略过已有初始值的 final 字段 |
 | `@Data` | ⚠️ 部分 | getter + setter + `@RequiredArgsConstructor` + `@ToString` + `@EqualsAndHashCode`；隐式构造函数收 `@NonNull` 字段并在里面插入检查 |
@@ -203,9 +203,6 @@ class Person {
 10. **`@Accessors(fluent = true)` 不会顺便开启链式。** Lombok 的 `fluent` 会连带把
     setter 的返回值改成自身，所以 `new F().n(5).n()` 在 Lombok 成立；这里的 setter
     仍是 `void`，要链式得自己加 `chain = true`。
-11. **`@NoArgsConstructor` 生成的构造函数会被隐式的那一个挡掉。** 类没有手写构造函数时，
-    隐式的公开无参构造函数已经占位，生成的那一个照 §6 的规则被跳过，所以
-    `@NoArgsConstructor` 完全没有作用——要它生效得先自己写一个别的构造函数。
 
 ---
 

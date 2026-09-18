@@ -39,7 +39,7 @@ for readability; the compiler matches on the annotation's **simple name**, so `@
 | `@Setter` | ✅ Complete | Includes `AccessLevel` (the parameter is Lombok's `value`: both the positional form and `value = AccessLevel.X` are read), `@Accessors(chain)`, checks for `@NonNull` fields; not generated when the name is already taken (same as Lombok) |
 | `@ToString` | ⚠️ Partial | `of` / `exclude` / `callSuper` / `includeFieldNames` / `onlyExplicitlyIncluded` (together with `@ToString.Include` / `@ToString.Exclude` on fields); the `callSuper` format differs from Lombok (see §2) |
 | `@EqualsAndHashCode` | ⚠️ Partial | `of` / `exclude` / `callSuper` / `onlyExplicitlyIncluded` (`@EqualsAndHashCode.Include` / `@EqualsAndHashCode.Exclude`); the constants used by `hashCode` and `canEqual` differ from Lombok (see §2) |
-| `@NoArgsConstructor` | ⚠️ Partial | `staticName` generates a static factory; `access` is positional-only, and when the class has no hand-written constructor the one it generates is blocked by the implicit no-args constructor, so it has no effect (see §3) |
+| `@NoArgsConstructor` | ✅ Complete | `staticName` generates a static factory; `access` (Lombok's parameter is called `access`: both the positional form and `access = AccessLevel.X` are read) |
 | `@RequiredArgsConstructor` | ✅ Complete | final (without an initial value) and `@NonNull` fields |
 | `@AllArgsConstructor` | ✅ Complete | skips final fields that already have an initial value |
 | `@Data` | ⚠️ Partial | getter + setter + `@RequiredArgsConstructor` + `@ToString` + `@EqualsAndHashCode`; the implicit constructor takes `@NonNull` fields and inserts checks in it |
@@ -224,11 +224,6 @@ Notes on the differences:
 10. **`@Accessors(fluent = true)` does not turn on chaining as well.** Lombok's `fluent` also
     changes the setter's return value to itself, so `new F().n(5).n()` holds in Lombok; here
     the setter is still `void`, and to get chaining you have to add `chain = true` yourself.
-11. **The constructor `@NoArgsConstructor` generates is blocked by the implicit one.**
-    When the class has no hand-written constructor, the implicit public no-args constructor
-    already occupies the slot, so the generated one is skipped per the rules in §6 — which
-    means `@NoArgsConstructor` has no effect at all, and making it take effect requires
-    writing another constructor yourself first.
 
 ---
 

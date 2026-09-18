@@ -38,7 +38,7 @@ System.out.println(p)                  // Person(name=ada, age=36)
 | `@Setter` | ✅ 完整 | 含 `AccessLevel`（Lombok 的參數名是 `value`：位置形式與 `value = AccessLevel.X` 都讀）、`@Accessors(chain)`、`@NonNull` 欄位的檢查；名稱已經被佔用時不產生（Lombok 同） |
 | `@ToString` | ⚠️ 部分 | `of`／`exclude`／`callSuper`／`includeFieldNames`／`onlyExplicitlyIncluded`（搭配欄位上的 `@ToString.Include`／`@ToString.Exclude`）；`callSuper` 的格式與 Lombok 不同（見 §2） |
 | `@EqualsAndHashCode` | ⚠️ 部分 | `of`／`exclude`／`callSuper`／`onlyExplicitlyIncluded`（`@EqualsAndHashCode.Include`／`@EqualsAndHashCode.Exclude`）；`hashCode` 的常數與 `canEqual` 與 Lombok 不同（見 §2） |
-| `@NoArgsConstructor` | ⚠️ 部分 | `staticName` 會產生靜態工廠；`access` 只讀位置形式，而且類別沒有手寫建構子時產生的那一個會被隱含的無參數建構子擋掉，等於沒作用（見 §3） |
+| `@NoArgsConstructor` | ✅ 完整 | `staticName` 會產生靜態工廠；`access`（Lombok 的參數名就叫 `access`：位置形式與 `access = AccessLevel.X` 都讀） |
 | `@RequiredArgsConstructor` | ✅ 完整 | final（無初始值）與 `@NonNull` 欄位 |
 | `@AllArgsConstructor` | ✅ 完整 | 略過已有初始值的 final 欄位 |
 | `@Data` | ⚠️ 部分 | getter + setter + `@RequiredArgsConstructor` + `@ToString` + `@EqualsAndHashCode`；隱含建構子收 `@NonNull` 欄位並在裡面插檢查 |
@@ -203,9 +203,6 @@ class Person {
 10. **`@Accessors(fluent = true)` 不會順便開啟鏈式。** Lombok 的 `fluent` 會連帶把
     setter 的回傳值改成自身，所以 `new F().n(5).n()` 在 Lombok 成立；這裡的 setter
     仍是 `void`，要鏈式得自己加 `chain = true`。
-11. **`@NoArgsConstructor` 產生的建構子會被隱含的那一個擋掉。** 類別沒有手寫建構子時，
-    隱含的公開無參數建構子已經佔位，產生的那一個照 §6 的規則被跳過，所以
-    `@NoArgsConstructor` 完全沒有作用——要它生效得先自己寫一個別的建構子。
 
 ---
 
