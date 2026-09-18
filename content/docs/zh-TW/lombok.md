@@ -37,7 +37,7 @@ System.out.println(p)                  // Person(name=ada, age=36)
 | `@Getter` | ✅ 完整 | 含 `AccessLevel`（Lombok 的參數名是 `value`：位置形式與 `value = AccessLevel.X` 都讀）、`@Accessors` 影響命名；`lazy = true` 在第一次讀取時算一次並快取（原生型別也支援），雙重檢查，與 Lombok 同樣執行緒安全 |
 | `@Setter` | ✅ 完整 | 含 `AccessLevel`（Lombok 的參數名是 `value`：位置形式與 `value = AccessLevel.X` 都讀）、`@Accessors(chain)`、`@NonNull` 欄位的檢查；名稱已經被佔用時不產生（Lombok 同） |
 | `@ToString` | ✅ 完整 | `of`／`exclude`／`callSuper`／`includeFieldNames`／`onlyExplicitlyIncluded`（搭配欄位上的 `@ToString.Include`／`@ToString.Exclude`）；`callSuper` 的 super 那一段寫在欄位前面，與 Lombok 相同 |
-| `@EqualsAndHashCode` | ⚠️ 部分 | `of`／`exclude`／`callSuper`／`onlyExplicitlyIncluded`（`@EqualsAndHashCode.Include`／`@EqualsAndHashCode.Exclude`）；`hashCode` 的常數與 `canEqual` 與 Lombok 不同（見 §2） |
+| `@EqualsAndHashCode` | ✅ 完整 | `of`／`exclude`／`callSuper`／`onlyExplicitlyIncluded`（`@EqualsAndHashCode.Include`／`@EqualsAndHashCode.Exclude`）；`hashCode` 的常數（59／43／79／97）、欄位順序（原生型別，再 boxed 原生型別，再其餘）與 `canEqual` 都與 Lombok 相同 |
 | `@NoArgsConstructor` | ✅ 完整 | `staticName` 會產生靜態工廠；`access`（Lombok 的參數名就叫 `access`：位置形式與 `access = AccessLevel.X` 都讀） |
 | `@RequiredArgsConstructor` | ✅ 完整 | final（無初始值）與 `@NonNull` 欄位 |
 | `@AllArgsConstructor` | ✅ 完整 | 略過已有初始值的 final 欄位 |
@@ -124,22 +124,28 @@ class Person {
       return false
     }
     Person other = (Person) o
-    if (this.name == null) {
-      if (other.name != null) {
-        return false
-      }
-    } else if (!this.name.equals(other.name)) {
+    if (!other.canEqual(this)) {
       return false
     }
+    /* the members are read in Lombok's order: the int, then the String */
     if (this.age != other.age) {
+      return false
+    }
+    Object $this$name = this.name
+    Object $other$name = other.name
+    if ($this$name == null ? $other$name != null : !$this$name.equals($other$name)) {
       return false
     }
     return true
   }
+  protected boolean canEqual(Object other) {
+    return other instanceof Person
+  }
   public int hashCode() {
     int result = 1
-    result = 31 * result + (this.name == null ? 0 : this.name.hashCode())
-    result = 31 * result + this.age
+    result = 59 * result + this.age
+    Object $hash$name = this.name
+    result = 59 * result + ($hash$name == null ? 43 : $hash$name.hashCode())
     return result
   }
 }
@@ -159,9 +165,6 @@ class Person {
   「算出來是 null」分開，並同步在那個 reference 上，這裡的持有欄位就是值本身（所以
   null 不能拿來當「還沒算」用），monitor 因此是實例本身，而「算過了」是一個
   `volatile` 的旗標——值先寫、旗標後寫，讀到旗標就讀得到值。
-- `@EqualsAndHashCode` 的 `hashCode` 用 31 與 0（Lombok 用 59 與 43），欄位順序照宣告
-  順序（Lombok 會排序），而且不產生 `canEqual`——所以父類別與子類別只要欄位相同就相等，
-  Lombok 會說不相等。
 - `@StandardException` 的 `E(Throwable)` 是
   `super(cause == null ? null : cause.getMessage(), cause)`，所以
   `new E(new RuntimeException("c")).getMessage()` 是 `c`（與 Lombok 相同）。全參數

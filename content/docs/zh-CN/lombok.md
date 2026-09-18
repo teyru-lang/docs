@@ -37,7 +37,7 @@ System.out.println(p)                  // Person(name=ada, age=36)
 | `@Getter` | ✅ 完整 | 含 `AccessLevel`（Lombok 的参数名是 `value`：位置形式与 `value = AccessLevel.X` 都读）、`@Accessors` 影响命名；`lazy = true` 在第一次读取时计算一次并缓存（原生类型也支持），双重检查，与 Lombok 一样线程安全 |
 | `@Setter` | ✅ 完整 | 含 `AccessLevel`（Lombok 的参数名是 `value`：位置形式与 `value = AccessLevel.X` 都读）、`@Accessors(chain)`、`@NonNull` 字段的检查；名称已被占用时不生成（与 Lombok 相同） |
 | `@ToString` | ✅ 完整 | `of`／`exclude`／`callSuper`／`includeFieldNames`／`onlyExplicitlyIncluded`（配合字段上的 `@ToString.Include`／`@ToString.Exclude`）；`callSuper` 的 super 那一段写字段前面，与 Lombok 相同 |
-| `@EqualsAndHashCode` | ⚠️ 部分 | `of`／`exclude`／`callSuper`／`onlyExplicitlyIncluded`（`@EqualsAndHashCode.Include`／`@EqualsAndHashCode.Exclude`）；`hashCode` 的常量与 `canEqual` 与 Lombok 不同（见 §2） |
+| `@EqualsAndHashCode` | ✅ 完整 | `of`／`exclude`／`callSuper`／`onlyExplicitlyIncluded`（`@EqualsAndHashCode.Include`／`@EqualsAndHashCode.Exclude`）；`hashCode` 的常量（59／43／79／97）、字段顺序（原生类型，再 boxed 原生类型，再其余）与 `canEqual` 都与 Lombok 相同 |
 | `@NoArgsConstructor` | ✅ 完整 | `staticName` 会产生静态工厂；`access`（Lombok 的参数名就叫 `access`：位置形式与 `access = AccessLevel.X` 都读） |
 | `@RequiredArgsConstructor` | ✅ 完整 | final（无初始值）与 `@NonNull` 字段 |
 | `@AllArgsConstructor` | ✅ 完整 | 略过已有初始值的 final 字段 |
@@ -124,22 +124,28 @@ class Person {
       return false
     }
     Person other = (Person) o
-    if (this.name == null) {
-      if (other.name != null) {
-        return false
-      }
-    } else if (!this.name.equals(other.name)) {
+    if (!other.canEqual(this)) {
       return false
     }
+    /* the members are read in Lombok's order: the int, then the String */
     if (this.age != other.age) {
+      return false
+    }
+    Object $this$name = this.name
+    Object $other$name = other.name
+    if ($this$name == null ? $other$name != null : !$this$name.equals($other$name)) {
       return false
     }
     return true
   }
+  protected boolean canEqual(Object other) {
+    return other instanceof Person
+  }
   public int hashCode() {
     int result = 1
-    result = 31 * result + (this.name == null ? 0 : this.name.hashCode())
-    result = 31 * result + this.age
+    result = 59 * result + this.age
+    Object $hash$name = this.name
+    result = 59 * result + ($hash$name == null ? 43 : $hash$name.hashCode())
     return result
   }
 }
@@ -159,9 +165,6 @@ class Person {
   与“算出来是 null”分开，并同步在那个 reference 上，这里的持有字段就是值本身（所以
   null 不能拿来当“还没算”用），monitor 因此是实例本身，而“算过了”是一个 `volatile`
   的标志——先写值、后写标志，读到标志就读得到值。
-- `@EqualsAndHashCode` 的 `hashCode` 用 31 与 0（Lombok 用 59 与 43），字段顺序按声明
-  顺序（Lombok 会排序），而且不生成 `canEqual`——所以父类和子类只要字段相同就相等，
-  Lombok 会说它们不相等。
 - `@StandardException` 的 `E(Throwable)` 是
   `super(cause == null ? null : cause.getMessage(), cause)`，所以
   `new E(new RuntimeException("c")).getMessage()` 是 `c`（与 Lombok 相同）。全参

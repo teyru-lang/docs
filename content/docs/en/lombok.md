@@ -38,7 +38,7 @@ for readability; the compiler matches on the annotation's **simple name**, so `@
 | `@Getter` | ✅ Complete | Includes `AccessLevel` (the parameter is Lombok's `value`: both the positional form and `value = AccessLevel.X` are read), `@Accessors` affects the naming; `lazy = true` computes the value once on the first read and caches it (primitive types included), double-checked and as thread safe as Lombok's |
 | `@Setter` | ✅ Complete | Includes `AccessLevel` (the parameter is Lombok's `value`: both the positional form and `value = AccessLevel.X` are read), `@Accessors(chain)`, checks for `@NonNull` fields; not generated when the name is already taken (same as Lombok) |
 | `@ToString` | ✅ Complete | `of` / `exclude` / `callSuper` / `includeFieldNames` / `onlyExplicitlyIncluded` (together with `@ToString.Include` / `@ToString.Exclude` on fields); `callSuper` writes the super part before the fields, as Lombok does |
-| `@EqualsAndHashCode` | ⚠️ Partial | `of` / `exclude` / `callSuper` / `onlyExplicitlyIncluded` (`@EqualsAndHashCode.Include` / `@EqualsAndHashCode.Exclude`); the constants used by `hashCode` and `canEqual` differ from Lombok (see §2) |
+| `@EqualsAndHashCode` | ✅ Complete | `of` / `exclude` / `callSuper` / `onlyExplicitlyIncluded` (`@EqualsAndHashCode.Include` / `@EqualsAndHashCode.Exclude`); the constants `hashCode` uses (59 / 43 / 79 / 97), the field order (primitives, then boxed primitives, then the rest) and `canEqual` are all Lombok's |
 | `@NoArgsConstructor` | ✅ Complete | `staticName` generates a static factory; `access` (Lombok's parameter is called `access`: both the positional form and `access = AccessLevel.X` are read) |
 | `@RequiredArgsConstructor` | ✅ Complete | final (without an initial value) and `@NonNull` fields |
 | `@AllArgsConstructor` | ✅ Complete | skips final fields that already have an initial value |
@@ -130,22 +130,28 @@ class Person {
       return false
     }
     Person other = (Person) o
-    if (this.name == null) {
-      if (other.name != null) {
-        return false
-      }
-    } else if (!this.name.equals(other.name)) {
+    if (!other.canEqual(this)) {
       return false
     }
+    /* the members are read in Lombok's order: the int, then the String */
     if (this.age != other.age) {
+      return false
+    }
+    Object $this$name = this.name
+    Object $other$name = other.name
+    if ($this$name == null ? $other$name != null : !$this$name.equals($other$name)) {
       return false
     }
     return true
   }
+  protected boolean canEqual(Object other) {
+    return other instanceof Person
+  }
   public int hashCode() {
     int result = 1
-    result = 31 * result + (this.name == null ? 0 : this.name.hashCode())
-    result = 31 * result + this.age
+    result = 59 * result + this.age
+    Object $hash$name = this.name
+    result = 59 * result + ($hash$name == null ? 43 : $hash$name.hashCode())
     return result
   }
 }
@@ -167,10 +173,6 @@ Notes on the differences:
   computed yet" apart from "computed as null" and is what its `synchronized` block locks;
   here the holder is the value itself (so null cannot carry that meaning), which is why the
   monitor is the instance and "computed" is a `volatile` flag written after the value.
-- The `hashCode` of `@EqualsAndHashCode` uses 31 and 0 (Lombok uses 59 and 43), the field
-  order follows declaration order (Lombok sorts), and no `canEqual` is generated — so a
-  parent class and a child class are equal as long as their fields are the same, whereas
-  Lombok would call them unequal.
 - `E(Throwable)` of `@StandardException` is
   `super(cause == null ? null : cause.getMessage(), cause)`, so
   `new E(new RuntimeException("c")).getMessage()` is `c` (the same as Lombok). The all-args
