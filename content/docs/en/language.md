@@ -493,6 +493,12 @@ try {
   elements (including taking `length`) all throw `NullPointerException`.
 - `catch` uses `|` for multiple types; `finally` always runs (including when a catch block
   throws again).
+- **When a class's initializer throws** (JLS 12.4.2): the use that ran it sees an
+  `ExceptionInInitializerError` (an `Error` is rethrown as it is), and every later use of that
+  class is refused with a `NoClassDefFoundError` whose message is `Could not initialize class X`;
+  the initializer never runs again. **This compiler runs a program's own classes before `main`**,
+  so a program whose initializer throws fails at startup (uncaught, status 1) rather than from a
+  `catch` in `main` -- that order is not JLS 12.4.1's "first active use".
 - **There is no checked exception checking**: `throws` is parsed but not enforced.
 - An uncaught exception prints a message and exits with status 1.
 

@@ -466,6 +466,12 @@ try {
 - 對 `null` 讀**寫**欄位、呼叫方法、讀寫陣列元素（含取 `length`）都會丟
   `NullPointerException`。
 - `catch` 多型別用 `|`；`finally` 一定會執行（含 catch 內再拋出的情況）。
+- **類別初始化區塊丟出時**（JLS 12.4.2）：跑它的那一次使用看到的是
+  `ExceptionInInitializerError`（丟的是 `Error` 就原樣重丟），而那個類別之後的每一次使用都以
+  `NoClassDefFoundError` 拒絕，訊息是 `Could not initialize class X`，初始化區塊不會再跑。
+  **但這個編譯器把程式自己的類別在 `main` 之前就跑完**，所以一支初始化區塊會丟的程式是在
+  啟動時失敗（未捕捉、狀態 1），而不是在 `main` 裡被 `catch` 到——那個順序與 JLS 12.4.1 的
+  「第一次主動使用」不同。
 - **沒有 checked exception 檢查**：`throws` 會被剖析但不強制。
 - 未捕捉的例外會印出訊息並以狀態 1 結束。
 

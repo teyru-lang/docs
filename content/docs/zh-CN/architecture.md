@@ -200,9 +200,13 @@ chunk 里（`valid_obj` 会拒绝它的地址），但它的引用字段就在 C
 - 标记：`tyclass.refoffs` 列出每个类需要追踪的引用字段位移；数组用 `refs` 标志。
 - **线程**：运行期为每条线程留一条注册记录（`internal/runtime/src/tyrt_thread.c`），
   回收开始前先停住每一条，再扫各自的栈，所以停止是**世界性**的。协议是**合作式**的：
-  安全点在循环回边、分配慢路径、等 heap 锁、sleep／join／监视器等待，以及线程启动；
-  一条既不循环、不分配也不阻塞的线程（卡在原生 `read()` 里的那种）到不了停止点，
-  回收就得等它回来。
+  安全点在循环回边、分配慢路径、等 heap 锁、sleep／join／监视器等待、线程启动，以及
+  **每一个会等的平台调用**：socket 的 `recv`／`send`／accept／connect、TLS 的握手与
+  `SSL_read`／`SSL_write`、从控制台读一行、文件的读写循环。最后一组是后来补的，补之前
+  一条卡在 socket 读的线程会让回收等到它的超时——量到的最差停顿是 **3799 ms**，补完是
+  **0.300 ms**（同一支程序、同一次分配量）。**一次调用就回来的**（`open`／`stat`／
+  `opendir`／`readdir`／`getaddrinfo`／stdio 的写入）刻意**不是**安全点：它们不等对端或
+  设备搬数据，包起来只是多两次 world lock。
 - 清除：未标记的块进入大小分级的 free list（`TY_NCLASS` 级，过大的走 `bigfree`），
   下一次分配优先重用；块大小字（header 第一个字）的最高位 `TY_FREE_BIT` 表示已释放，
   free list 的链接就放在第二个字。完全空掉的 chunk 直接 `free` 还给系统，所以长时间

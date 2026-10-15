@@ -232,9 +232,14 @@ for how to reproduce them.
 - **Threads**: the runtime keeps one registry entry per thread (`internal/runtime/src/tyrt_thread.c`),
   and a collection stops every thread first and then scans each stack, so the stop is world-wide.
   The protocol is **cooperative**: the stop points are the top of a loop body, the allocation slow
-  path, the wait for the heap lock, sleep/join/monitor waits, and the start of a thread; a thread
-  that neither loops nor allocates nor blocks (one stuck in a native `read()`) reaches no stop
-  point, and a collection waits for it to come back.
+  path, the wait for the heap lock, sleep/join/monitor waits, the start of a thread, and **every
+  platform call that waits** -- socket `recv`/`send`/accept/connect, the TLS handshake and
+  `SSL_read`/`SSL_write`, a line read from the console, and the file read and write loops. That last
+  group was added later: before it, a thread stuck in a socket read made a collection wait for its
+  timeout, and the worst pause measured was **3799 ms** against **0.300 ms** after (same program,
+  same amount of allocation). The calls that return without waiting -- `open`, `stat`, `opendir`,
+  `readdir`, `getaddrinfo`, stdio writes -- are deliberately **not** stop points: they do not wait
+  for a peer or a device to move data, so bracketing them would buy two world locks and nothing.
 - Sweep: unmarked blocks enter size-classed free lists (`TY_NCLASS` classes; oversized ones go to `bigfree`)
   and are reused first by the next allocation; the highest bit of the block size word (the first word of the
   header) is `TY_FREE_BIT`, meaning already freed, and the free list link sits in the second word. A chunk that

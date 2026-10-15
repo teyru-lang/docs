@@ -466,6 +466,12 @@ try {
 - 对 `null` 读**写**字段、调用方法、读写数组元素（含取 `length`）都会抛
   `NullPointerException`。
 - `catch` 多类型用 `|`；`finally` 一定会执行（包括 catch 内再次抛出的情况）。
+- **类初始化块抛出时**（JLS 12.4.2）：跑它的那一次使用看到的是
+  `ExceptionInInitializerError`（抛的是 `Error` 就原样重抛），而那个类之后的每一次使用都以
+  `NoClassDefFoundError` 拒绝，消息是 `Could not initialize class X`，初始化块不会再跑。
+  **但这个编译器把程序自己的类在 `main` 之前就跑完**，所以一支初始化块会抛的程序是在
+  启动时失败（未捕捉、状态 1），而不是在 `main` 里被 `catch` 到——那个顺序与 JLS 12.4.1 的
+  “第一次主动使用”不同。
 - **没有 checked exception 检查**：`throws` 会被解析但不强制。
 - 未捕获的异常会打印消息并以状态 1 结束。
 

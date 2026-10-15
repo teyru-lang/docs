@@ -200,9 +200,13 @@ chunk 裡（`valid_obj` 會拒絕它的位址），但它的參考欄位就在 C
 - 標記：`tyclass.refoffs` 列出每個類別需要追蹤的參考欄位位移；陣列用 `refs` 旗標。
 - **執行緒**：執行期為每條執行緒留一筆註冊資料（`internal/runtime/src/tyrt_thread.c`），
   回收開始前先停住每一條，再掃各自的堆疊，所以停止是**世界性**的。協定是**合作式**的：
-  安全點在迴圈回邊、配置慢路徑、等 heap 鎖、sleep／join／監視器等待，以及執行緒啟動；
-  一條既不迴圈、不配置也不阻塞的執行緒（卡在原生 `read()` 裡的那種）到不了停止點，
-  回收就得等它回來。
+  安全點在迴圈回邊、配置慢路徑、等 heap 鎖、sleep／join／監視器等待、執行緒啟動，以及
+  **每一個會等的平台呼叫**：socket 的 `recv`／`send`／accept／connect、TLS 的握手與
+  `SSL_read`／`SSL_write`、從主控台讀一行、檔案的讀寫迴圈。最後那一組是後來補的，補之前
+  一條卡在 socket 讀的執行緒會讓回收等到它的逾時——量到的最差停頓是 **3799 ms**，補完是
+  **0.300 ms**（同一支程式、同一次配置量）。**一次呼叫就回來的**（`open`／`stat`／
+  `opendir`／`readdir`／`getaddrinfo`／stdio 的寫入）刻意**不是**安全點：它們不等對端或
+  裝置搬資料，包起來只是多兩次 world lock。
 - 清除：未標記的區塊進入大小分級的 free list（`TY_NCLASS` 級，過大的走 `bigfree`），
   下一次配置優先重用；區塊大小字（header 第一個字）的最高位 `TY_FREE_BIT` 表示已釋放，
   free list 的鏈結就放在第二個字。完全空掉的 chunk 直接 `free` 還給系統，所以長時間
