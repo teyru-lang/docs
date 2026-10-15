@@ -843,28 +843,21 @@ When you need your own native library, a `native` method can be implemented in C
     Java blocks through capture (`add` on a `? extends` container) are not blocked here; reads
     are no different (`list.get(0).doubleValue()` is accepted by javac too, so it is not
     capture conversion that holds it back).
-12. **Strings are sequences of UTF-8 bytes, not Java's UTF-16 code units, and character
-    classification and case mapping are ASCII-only.** `length`, `charAt`, `substring`,
-    `indexOf`, `compareTo` and `hashCode` all count bytes, so the same expression answers
-    differently here and on JDK 21. Measured (`teyru build`, then run; JDK 21 alongside):
+12. **A string is a sequence of UTF-16 code units, stored as WTF-8.** `length`, `charAt`,
+    `substring`, `indexOf`, `compareTo`, `hashCode` and the width and precision of
+    `String.format` all count code units, and case mapping and character classification are
+    **Unicode 15.0** (the version JDK 21 uses). This item used to carry an eleven-row table of
+    differences (`"中文".length()` was 6, `"中".compareTo("文")` was -1,
+    `Character.isLetter('中')` was false, `"ß".toUpperCase()` was `ß`, ...); **none of it holds
+    any more**. They agree with JDK 21 byte for byte, and each one has a program whose
+    expectation the JDK printed (`t230`, `t231`, `t236`, `t250`-`t252`).
 
-    | Expression | Teyru | JDK 21 |
-    |---|---|---|
-    | `"中文".length()` | `6` | `2` |
-    | `(int) "中文".charAt(1)` | `184` | `25991` |
-    | `"😀".length()` | `4` | `2` |
-    | `"ab中c".indexOf("c")` | `5` | `3` |
-    | `"中".compareTo("文")` | `-1` | `-5978` |
-    | `"中文".hashCode()` | `-1887180642` | `646394` |
-    | `Character.isLetter('中')` | `false` | `true` |
-    | `Character.isWhitespace('\u3000')` | `false` | `true` |
-    | `Character.isDigit('１')` / `Character.digit('１', 10)` | `false` / `-1` | `true` / `1` |
-    | `"ß".toUpperCase()` | `ß` | `SS` |
-    | `"ΟΔΟΣ".toLowerCase()` | `ΟΔΟΣ` | `οδος` |
-
-    The APIs that split a string by code unit (`codePointAt`, `codePointCount`,
-    `offsetByCodePoints`) and `Character.getType`/`isSurrogate`/`toCodePoint`/`charCount` do
-    not exist, see §13.
+    What is still different, each measured: `StringBuilder` has no `offsetByCodePoints`,
+    `appendCodePoint` or `codePoints()` (it does have `codePointAt`, `codePointBefore` and
+    `codePointCount`); the regex engine reads `\uXXXX` and `\a` in a pattern as literal
+    characters, and the only line terminators `.` refuses are `\n` and `\r` (Java also refuses
+    U+0085, U+2028 and U+2029); and `StringBuilder`'s `setLength` and `setCharAt` answer the
+    builder where Java answers void.
 13. **A `char` literal is one UTF-16 code unit, and here we are stricter than javac.** `'😀'`
     is two code units, so this is `TY-SYN-0008` (`tests/diagnostics/emojiCharLiteral`), while
     **JDK 21 accepts it** and takes the surrogate pair's first code unit (it prints `55357`).
@@ -930,13 +923,18 @@ When you need your own native library, a `native` method can be implemented in C
 - An array's runtime element type is always `teyru.Array`, so `String[].class` and
   `int[].class` are the same object (in Java they are two)
 - **Known gaps in Java source compatibility** (javac accepts, this compiler refuses; all
-  measured): `String.codePointAt`, `codePointCount` and `offsetByCodePoints` do not exist
-  (`TY-TYP-0076`, cannot find method), and neither do `Character.getType`, `isSurrogate`,
-  `toCodePoint` and `charCount`; `new String(char[])` and
-  `new String(char[], int, int)` do not exist (`TY-TYP-0072`, no suitable constructor). W7 closed
-  two older gaps: a method that ends in a `switch` whose every branch (including `default`)
-  returns is no longer misreported as `TY-TYP-0020` (measured: `pick(2)` answers 20), and a
-  semicolon is no longer an error (see §12 item 1).
+  measured): `System.out` (`PrintStream`) has no `write(byte[])` and no `flush()`
+  (`TY-TYP-0076`, cannot find method) -- deliberately, not as a to-do: this `System.out` writes
+  every call straight out, so there is no buffer to push, and `write(byte[])` would need a
+  byte-level output interface. **This item used to list five more, and none of them is a gap
+  now**: `String.codePointAt`, `codePointCount` and `offsetByCodePoints`;
+  `Character.getType`, `isSurrogate`, `toCodePoint` and `charCount`; `new String(char[])` and
+  `new String(char[], int, int)`; and `StringBuilder`'s `codePointAt`, `codePointBefore` and
+  `codePointCount` all exist (measured: `new String(new char[] {'a','b'}).length()` is 2,
+  `"abc".codePointAt(1)` is 98, `Character.getType('a')` is 2). W7 closed two older gaps as
+  well: a method that ends in a `switch` whose every branch (including `default`) returns is no
+  longer misreported as `TY-TYP-0020` (measured: `pick(2)` answers 20), and a semicolon is no
+  longer an error (see §12 item 1).
 - Standard library gaps: `String.format`'s `%t`/`%T` (date-time conversions) are not
   implemented, and hitting them stops with `ty_unimplemented` rather than printing
   something that looks reasonable; the rest are written where they belong, in §11's package

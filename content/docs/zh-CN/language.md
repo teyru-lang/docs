@@ -764,27 +764,17 @@ SHA-3 是因为 `getInstance` 宁可抛 `NoSuchAlgorithmException`，也不要�
 11. **没有捕获转换**：`List<? extends Number>` 在这里就是 `List<Number>`。Java 靠捕获
     挡下的写入（对 `? extends` 的容器 `add`）这里挡不住；读取则没有差别
     （`list.get(0).doubleValue()` javac 也收，不是捕获转换挡的）。
-12. **字符串以 UTF-8 字节为单位，不是 Java 的 UTF-16 code unit；字符分类与大小写映射
-    只认 ASCII。** `length`、`charAt`、`substring`、`indexOf`、`compareTo`、`hashCode`
-    都按字节算，所以同样的表达式在 JDK 21 与这里答案不同。实测（`teyru build` 后执行；
-    JDK 21 的输出并列）：
-
-    | 表达式 | Teyru | JDK 21 |
-    |---|---|---|
-    | `"中文".length()` | `6` | `2` |
-    | `(int) "中文".charAt(1)` | `184` | `25991` |
-    | `"😀".length()` | `4` | `2` |
-    | `"ab中c".indexOf("c")` | `5` | `3` |
-    | `"中".compareTo("文")` | `-1` | `-5978` |
-    | `"中文".hashCode()` | `-1887180642` | `646394` |
-    | `Character.isLetter('中')` | `false` | `true` |
-    | `Character.isWhitespace('\u3000')` | `false` | `true` |
-    | `Character.isDigit('１')`／`Character.digit('１', 10)` | `false`／`-1` | `true`／`1` |
-    | `"ß".toUpperCase()` | `ß` | `SS` |
-    | `"ΟΔΟΣ".toLowerCase()` | `ΟΔΟΣ` | `οδος` |
-
-    按 code unit 拆字符串的 API（`codePointAt`／`codePointCount`／`offsetByCodePoints`）与
-    `Character.getType`／`isSurrogate`／`toCodePoint`／`charCount` 不存在，见 §13。
+12. **字符串是 UTF-16 code unit 的语义，存储是 WTF-8。** `length`、`charAt`、`substring`、
+    `indexOf`、`compareTo`、`hashCode`、`String.format` 的宽度与精度都按 code unit 算，
+    大小写映射与字符分类是 **Unicode 15.0**（JDK 21 用的版本）。这一条以前列过一张十一行的
+    差异表（`"中文".length()` 是 6、`"中".compareTo("文")` 是 -1、`Character.isLetter('中')`
+    是 false、`"ß".toUpperCase()` 是 `ß`……），**那些都不再成立**：现在它们与 JDK 21 逐字节
+    相同，而每一条都有一支对 JDK 跑过期望值的程序（`t230`、`t231`、`t236`、`t250`～`t252`）。
+    仍然不同的是这几条（都量过）：`StringBuilder` 没有 `offsetByCodePoints`／
+    `appendCodePoint`／`codePoints()`（`codePointAt`／`codePointBefore`／`codePointCount`
+    有）；正则引擎把 pattern 里的 `\uXXXX`／`\a` 这类转义当成字面字符，而 `.` 不吃的行终止符
+    只有 `\n` 与 `\r`（Java 另外不吃 U+0085／U+2028／U+2029）；`StringBuilder` 的
+    `setLength`／`setCharAt` 返回 builder（Java 返回 void）。
 13. **`char` 字面值只收一个 UTF-16 code unit，这里比 javac 严。** `'😀'` 是两个 code unit，
     所以这里是 `TY-SYN-0008`（`tests/diagnostics/emojiCharLiteral`），而 **JDK 21 收下它**、
     取代理对的第一个 code unit（打印 `55357`）。两边要不要一致还没有定案；在那之前把它读成
@@ -834,12 +824,17 @@ SHA-3 是因为 `getInstance` 宁可抛 `NoSuchAlgorithmException`，也不要�
   64 桶以下的表不会树化。`LinkedHashMap` 的插入序与 `TreeMap` 的键序照 JDK（见 §11）。
 - 数组的运行时元素类型一律是 `teyru.Array`，所以 `String[].class` 与
   `int[].class` 是同一个对象（Java 是两个）
-- **Java 源代码相容的已知缺口**（`javac` 收、这里拒绝，都是实测）：`String.codePointAt`／
-  `codePointCount`／`offsetByCodePoints` 不存在（`TY-TYP-0076` 找不到方法），
-  `Character.getType`／`isSurrogate`／`toCodePoint`／`charCount` 同理、
-  `new String(char[])` 与 `new String(char[], int, int)` 不存在（`TY-TYP-0072` 找不到
-  构造函数）。W7 收掉了两条旧缺口：以 `switch` 结尾、每条分支（含 `default`）都 `return` 的
-  方法不再被误报 `TY-TYP-0020`（实测 `pick(2)` 得到 20），而分号也不再是错误（见 §12 第 1 条）。
+- **Java 源代码相容的已知缺口**（`javac` 收、这里拒绝，都是实测）：`System.out`（`PrintStream`）
+  没有 `write(byte[])` 与 `flush()`（`TY-TYP-0076` 找不到方法）——那是**刻意的**，不是待办：
+  这里的 `System.out` 每一次调用都直接写出去，所以没有缓冲要推，而 `write(byte[])` 需要一个
+  字节级别的输出接口。**这一条以前还列了五项，现在都不是缺口**：`String.codePointAt`／
+  `codePointCount`／`offsetByCodePoints`、`Character.getType`／`isSurrogate`／`toCodePoint`／
+  `charCount`、`new String(char[])` 与 `new String(char[], int, int)`、以及
+  `StringBuilder` 的 `codePointAt`／`codePointBefore`／`codePointCount` 都存在（实测：
+  `new String(new char[] {'a','b'}).length()` 是 2、`"abc".codePointAt(1)` 是 98、
+  `Character.getType('a')` 是 2）。W7 也收掉了两条旧缺口：以 `switch` 结尾、每条分支
+  （含 `default`）都 `return` 的方法不再被误报 `TY-TYP-0020`（实测 `pick(2)` 得到 20），
+  而分号也不再是错误（见 §12 第 1 条）。
 - 标准库缺口：`String.format` 的 `%t`／`%T`（日期时间转换）未实现，遇到会以
   `ty_unimplemented` 停止而不是打印出看起来合理的东西；其余缺口写在 §11 的包表与
   〈并发工具〉（`Scanner` 只读一个 `String`、`MessageDigest` 没有 SHA-3 与
