@@ -93,8 +93,10 @@ WTF-8 加麵包屑（`tystr` 仍是 24 位元組），「改用 JDK 式 compact 
   未捕捉的例外因此印 `Exception in thread "main" java.lang.IllegalStateException: boom`，
   與 JDK 相同（`t251_exception_names`、`t79_uncaught`）；`System.arraycopy` 的型別不符訊息
   也是 JDK 的 `arraycopy: type mismatch: can not copy long[] into byte[]`（`t65_arraycopy`）。
-  還沒對齊的三條訊息（cast 的 module／loader 括號、有幫助的 NullPointerException 訊息、
-  `ArrayStoreException` 的元素類別）寫在測試倉庫的 `known-failures.txt`。
+  隨後（W6.4）那三條訊息也對齊了：cast 的 module／loader 括號、有幫助的
+  NullPointerException（JEP 358）、`ArrayStoreException` 的元素類別，連同
+  `new Integer(int)`／`new Boolean(boolean)` 兩個建構子與負陣列長度改為執行期例外，
+  期望值都由 JDK 21 產生（`t281`～`t284`）。
 
 ### Java 原始碼相容（W7，**已合入 main**）
 

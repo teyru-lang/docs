@@ -871,9 +871,17 @@ When you need your own native library, a `native` method can be implemented in C
     `Throwable.toString()` and for every class name that appears in a message.
     `Class.forName` still takes either spelling (`java.lang.String` and `teyru.String` are
     the same class, because a class is looked up by its binary name). The messages are
-    aligned with the JDK one by one; the three that are not -- a cast's module/loader
-    parenthetical, the helpful NullPointerException message, and `ArrayStoreException`'s
-    element class -- are listed in the test repository's `known-failures.txt`.
+    aligned with the JDK one by one, including the three that were not: a
+    `ClassCastException` carries the module and loader parenthetical (folded into one
+    `A and B are in ...` clause when the two are in the same place, split with a
+    semicolon when they are not), a NullPointerException is the helpful one (JEP 358,
+    with `<localN>`, `<parameterN>` and `the return value of "X.y()"`), and an
+    `ArrayStoreException`'s message is the class of the value that did not fit. The
+    expectations come from JDK 21 running `t282` and `t283`, and the two back ends'
+    six build cells agree line for line. `new Integer(int)` and `new Boolean(boolean)`
+    are declared (`t284`), and a negative array length is a run-time
+    `NegativeArraySizeException` rather than a compile error (its message is the
+    refused length, and the order is JLS 15.10.2's: `t281`).
 
 ## 13. Not yet implemented
 

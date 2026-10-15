@@ -93,8 +93,10 @@ obs-fold、冒号前空白、非十六进制的 chunk……）一律拒绝并关
   未捕获的异常因此打印 `Exception in thread "main" java.lang.IllegalStateException: boom`，
   与 JDK 相同（`t251_exception_names`、`t79_uncaught`）；`System.arraycopy` 的类型不符消息
   也是 JDK 的 `arraycopy: type mismatch: can not copy long[] into byte[]`（`t65_arraycopy`）。
-  还没对齐的三条消息（cast 的 module／loader 括号、有帮助的 NullPointerException 消息、
-  `ArrayStoreException` 的元素类）写在测试仓库的 `known-failures.txt`。
+  随后（W6.4）那三条消息也对齐了：cast 的 module／loader 括号、有帮助的
+  NullPointerException（JEP 358）、`ArrayStoreException` 的元素类，连同
+  `new Integer(int)`／`new Boolean(boolean)` 两个构造子与负数组长度改为运行期异常，
+  期望值都由 JDK 21 产生（`t281`～`t284`）。
 
 ### Java 源代码相容（W7，**已合入 main**）
 

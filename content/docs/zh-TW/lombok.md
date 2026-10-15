@@ -36,7 +36,7 @@ System.out.println(p)                  // Person(name=ada, age=36)
 |---|---|---|
 | `@Getter` | ⚠️ 部分 | 含 `AccessLevel`（只讀位置形式）、`@Accessors` 影響命名；`lazy = true` 在第一次讀取時算一次並快取（原生型別也支援），但沒有 Lombok 的執行緒安全 |
 | `@Setter` | ✅ 完整 | 含 `AccessLevel`（只讀位置形式）、`@Accessors(chain)`、`@NonNull` 欄位的檢查；名稱已經被佔用時不產生（Lombok 同） |
-| `@ToString` | ⚠️ 部分 | `of`／`exclude`／`callSuper`／`includeFieldNames`／`onlyExplicitlyIncluded`（搭配欄位上的 `@ToString.Include`／`@ToString.Exclude`）；`callSuper` 的格式與 Lombok 不同（見 §2） |
+| `@ToString` | ⚠️ 部分 | `of`／`exclude`／`callSuper`／`includeFieldNames`／`onlyExplicitlyIncluded`（搭配欄位上的 `@ToString.Include`／`@ToString.Exclude`）；`callSuper` 的格式已與 Lombok 相同（見 §2 的其餘項目） |
 | `@EqualsAndHashCode` | ⚠️ 部分 | `of`／`exclude`／`callSuper`／`onlyExplicitlyIncluded`（`@EqualsAndHashCode.Include`／`@EqualsAndHashCode.Exclude`）；`hashCode` 的常數與 `canEqual` 與 Lombok 不同（見 §2） |
 | `@NoArgsConstructor` | ⚠️ 部分 | `staticName` 會產生靜態工廠；`access` 只讀位置形式，而且類別沒有手寫建構子時產生的那一個會被隱含的無參數建構子擋掉，等於沒作用（見 §3） |
 | `@RequiredArgsConstructor` | ✅ 完整 | final（無初始值）與 `@NonNull` 欄位 |
@@ -159,8 +159,9 @@ class Person {
 - `@EqualsAndHashCode` 的 `hashCode` 用 31 與 0（Lombok 用 59 與 43），欄位順序照宣告
   順序（Lombok 會排序），而且不產生 `canEqual`——所以父類別與子類別只要欄位相同就相等，
   Lombok 會說不相等。
-- `@ToString(callSuper = true)` 產生的字串是 `Child(c=2; super=Base(b=1))`，
-  Lombok 是 `Child(super=Base(b=1), c=2)`：自己的欄位先寫，super 那一段在最後。
+- `@ToString(callSuper = true)` 產生的字串是 `Child(super=Base(b=1), c=2)`，
+  **與 Lombok 相同**（先前這裡寫的 `Child(c=2; super=Base(b=1))` 是一個 Teyru 自創的格式，
+  已在 PR [#173](https://github.com/teyru-lang/Teyru/pull/173) 收斂到 Lombok 的寫法）。
 - `@StandardException` 的 `E(Throwable)` 是
   `super(cause == null ? null : cause.getMessage(), cause)`，所以
   `new E(new RuntimeException("c")).getMessage()` 是 `c`（與 Lombok 相同）。全參數

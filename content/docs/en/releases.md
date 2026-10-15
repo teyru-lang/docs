@@ -111,9 +111,11 @@ boundary's test (`t196_string_bytes`) is in the test repository.
   "main" java.lang.IllegalStateException: boom`, as the JDK does (`t251_exception_names`,
   `t79_uncaught`); `System.arraycopy`'s type-mismatch message is the JDK's too
   (`arraycopy: type mismatch: can not copy long[] into byte[]`, `t65_arraycopy`). The three
-  messages that are not aligned -- a cast's module/loader parenthetical, the helpful
-  NullPointerException message, and `ArrayStoreException`'s element class -- are listed in the
-  test repository's `known-failures.txt`.
+  messages that were not aligned are aligned too (W6.4): a cast's module/loader
+  parenthetical, the helpful NullPointerException (JEP 358), and `ArrayStoreException`'s
+  element class -- together with `new Integer(int)` and `new Boolean(boolean)`, and with a
+  negative array length becoming a run-time exception rather than a compile error. Their
+  expectations all come from JDK 21 (`t281`-`t284`).
 
 ### Java source compatibility (W7 -- **in main**)
 

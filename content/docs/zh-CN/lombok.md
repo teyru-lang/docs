@@ -36,7 +36,7 @@ System.out.println(p)                  // Person(name=ada, age=36)
 |---|---|---|
 | `@Getter` | ⚠️ 部分 | 含 `AccessLevel`（只读位置形式）、`@Accessors` 影响命名；`lazy = true` 在第一次读取时计算一次并缓存（原生类型也支持），但没有 Lombok 的线程安全 |
 | `@Setter` | ✅ 完整 | 含 `AccessLevel`（只读位置形式）、`@Accessors(chain)`、`@NonNull` 字段的检查；名称已被占用时不生成（与 Lombok 相同） |
-| `@ToString` | ⚠️ 部分 | `of`／`exclude`／`callSuper`／`includeFieldNames`／`onlyExplicitlyIncluded`（配合字段上的 `@ToString.Include`／`@ToString.Exclude`）；`callSuper` 的格式与 Lombok 不同（见 §2） |
+| `@ToString` | ⚠️ 部分 | `of`／`exclude`／`callSuper`／`includeFieldNames`／`onlyExplicitlyIncluded`（配合字段上的 `@ToString.Include`／`@ToString.Exclude`）；`callSuper` 的格式已与 Lombok 相同（见 §2 的其余项目） |
 | `@EqualsAndHashCode` | ⚠️ 部分 | `of`／`exclude`／`callSuper`／`onlyExplicitlyIncluded`（`@EqualsAndHashCode.Include`／`@EqualsAndHashCode.Exclude`）；`hashCode` 的常量与 `canEqual` 与 Lombok 不同（见 §2） |
 | `@NoArgsConstructor` | ⚠️ 部分 | `staticName` 会生成静态工厂；`access` 只读位置形式，而且类没有手写构造函数时生成的那一个会被隐式的无参构造函数挡掉，等于没有作用（见 §3） |
 | `@RequiredArgsConstructor` | ✅ 完整 | final（无初始值）与 `@NonNull` 字段 |
@@ -159,8 +159,9 @@ class Person {
 - `@EqualsAndHashCode` 的 `hashCode` 用 31 与 0（Lombok 用 59 与 43），字段顺序按声明
   顺序（Lombok 会排序），而且不生成 `canEqual`——所以父类和子类只要字段相同就相等，
   Lombok 会说它们不相等。
-- `@ToString(callSuper = true)` 生成的字符串是 `Child(c=2; super=Base(b=1))`，
-  Lombok 是 `Child(super=Base(b=1), c=2)`：自己的字段先写，super 那一段在最后。
+- `@ToString(callSuper = true)` 生成的字符串是 `Child(super=Base(b=1), c=2)`，
+  **与 Lombok 相同**（这里先前写的是 `Child(c=2; super=Base(b=1))`，那是 Teyru 自创的格式，
+  已在 PR [#173](https://github.com/teyru-lang/Teyru/pull/173) 收敛到 Lombok 的写法）。
 - `@StandardException` 的 `E(Throwable)` 是
   `super(cause == null ? null : cause.getMessage(), cause)`，所以
   `new E(new RuntimeException("c")).getMessage()` 是 `c`（与 Lombok 相同）。全参

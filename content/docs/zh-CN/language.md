@@ -788,9 +788,14 @@ SHA-3 是因为 `getInstance` 宁可抛 `NoSuchAlgorithmException`，也不要�
     `java.lang.StackOverflowError`（`t251_exception_names`，期望值由 JDK 生成），
     `Throwable.toString()` 与消息里出现的类名也一样；`Class.forName` 两种写法都收
     （`java.lang.String` 与 `teyru.String` 是同一个类，因为查的是二进制名）。消息本身逐条
-    对齐 JDK，还没对齐的三条——cast 的 module／loader 括号、有帮助的
-    NullPointerException 消息、`ArrayStoreException` 的元素类——都列在测试仓库的
-    `known-failures.txt`。
+    对齐 JDK，包括那三条曾经没对齐的：`ClassCastException` 带 module／loader 括号
+    （同一模块并成 `A and B are in ...` 一个子句，不同则用分号）、有帮助的
+    NullPointerException（JEP 358，含 `<localN>`／`<parameterN>`／`the return value of
+    "X.y()"`）、`ArrayStoreException` 的消息是放不进去的那个值的类。
+    期望值由 JDK 21 跑 `t282`／`t283` 产生，两个后端的六格构建矩阵逐行相同。
+    另外 `new Integer(int)` 与 `new Boolean(boolean)` 已声明（`t284`），而负数组长度
+    从编译错误变成运行期的 `NegativeArraySizeException`（消息是被拒绝的长度，顺序照
+    JLS 15.10.2：`t281`）。
 
 ## 13. 尚未实现
 
