@@ -194,6 +194,7 @@ hello.teyru:4:11: error[TY-TYP-0051]: incompatible types: String cannot be conve
 | TY-TYP-0114 | `not a statement: %s has no effect` | 没有副作用的表达式语句（JLS 14.8）。这个语言在换行处结束表达式，所以 `long x = a` 换行 `+ b` 是两个语句，第二个是安静的一元加号——`x` 少一项而没有任何消息。现在会报出来。 |
 | TY-TYP-0113 | `resource type %s is not a subtype of AutoCloseable` | try-with-resources 的资源类型必须是 `AutoCloseable` 的子类型。隐含的 `close()` 是一次接口调用，所以“刚好有 `close()` 方法”的类会编译成对象没有条目的 itable 调用，运行期才爆。 |
 | TY-TYP-0115 | `cannot resolve import %s` | 导入路径指不到任何东西。名字在 Teyru 里是按**简单名称**找的，前面写什么包都一样，所以 `import java.utli.List` 这种拼错的包以前是被安静地忽略、然后照样拿到 `List`。现在导入必须指向：标准库响应的包（`teyru` 本身，以及兼容用的 `java.util`、`com.google.gson`、`lombok`…，见 docs/language.md §11）、本次构建中某个文件声明的包，或者是一个完整名称就是这条路径的类型。 |
+| TY-TYP-0116 | `incompatible types: %s cannot be converted to %s` | 复合赋值的隐式转换（JLS 15.26.2）在目标是**装箱类型**时，只能是把「已经是该原生类型」的值装箱：`Integer a; a += 1` 装的是 int，而 `Short s; s += 1` 得把 int 装进 `Short`——javac 就是把它当类型不符拒绝。这里以前接受它，然后在生成代码时没有对应的包装可用。 |
 | TY-TYP-0100 | （已移除） | 容器改读类之后，重名 bean 在 `refresh()` 时被拒绝。 |
 | TY-TYP-0101 | `%s is declared by the framework and cannot be redefined` | `__TeyruFramework` 是容器注册用的合成类，名字被保留。 |
 | TY-TYP-0102 | `@Bean method %s must not be static`／`@Bean method %s must return the bean's type`／`@Bean method %s does not return a class type` | `@Bean` 方法必须不是 static、且返回类型是一个类（基本类型会装箱）。 |

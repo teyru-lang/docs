@@ -95,7 +95,7 @@ invoke 200000000 calls):
 | Metric | Teyru | Java | Difference |
 |---|---|---|---|
 | Startup, 100 runs | **0.0763 s** | 2.1093 s | **about 27.6x faster** |
-| hello executable (`-O2`, `wc -c`) | **66,808 B** | -- | -- |
+| hello executable (`-O2`, `wc -c`) | **97,888 B** | -- | -- |
 | Peak RSS (hello) | **4,348 kB** | 51,420 kB | **about 11.8x less** |
 
 **The long scale is the only group that can support a throughput claim, and what it says is that
@@ -144,25 +144,33 @@ deliberate price of a stop-the-world collector -- see [docs/language.md](/docs/l
 
 **The size row is a strength again, and the reason for the number is specific.** It is the
 hello world from "Getting started" (`System.out.println("Hello, Teyru!")`) built with `-O2`
-and measured with `wc -c`: **67,240 bytes today** (about 65.7 KB; the 66,808 in the table above is the tree W10 measured, `130565a`). Most of the number comes
-from the compiler **pruning the vtable slots nothing dispatches** — the mechanism is written
-up in [docs/architecture.md](/en/docs/architecture), under "Why every binary carries the
-prelude": 48,840 bytes at `74fa648` (9/13), 501,072 before any pruning, 95,832 with the first
-version (which only asked whether a slot was dispatched at all), and 55,920 when the second
-version (which also asks whether the class could be the receiver of that dispatch) landed.
-The 501,072 build had 1,262 functions surviving in a hello world, 951 of them prelude
-methods, only 42 reachable by being called — the rest were alive by address through a vtable.
+and measured with `wc -c`: **97,888 bytes on 2026-10-16**. Most of the number comes from the
+compiler **pruning the vtable slots nothing dispatches** — the mechanism is written up in
+[docs/architecture.md](/en/docs/architecture), under "Why every binary carries the prelude":
+48,840 bytes at `74fa648` (9/13), 501,072 before any pruning, 95,832 with the first version
+(which only asked whether a slot was dispatched at all), and 55,920 when the second version
+(which also asks whether the class could be the receiver of that dispatch) landed. The 501,072
+build had 1,262 functions surviving in a hello world, 951 of them prelude methods, only 42
+reachable by being called — the rest were alive by address through a vtable. **Turning the
+pruning off the same day, on the same program, gives 1,427,496 bytes**, so the pruning is still
+what the number is made of.
 
-**It has grown back since 55,920, and both steps are measured** (one machine, `-O2`, the same
-hello): the **boxing caches** (`#109`, which is what makes `Integer.valueOf(127) ==
-Integer.valueOf(127)` agree with Java) added 6,016 bytes to 64,432, and the **stack-overflow
-prologue check** (`#104`, one `ty_stack_check()` at the top of every generated function) added
-2,256 more, to 66,688, and W9's TLS-link change (`#118`, the call graph decides instead of reflection) added 120 more, to 66,808, which the W5/W6/W8 batch added 432 to: **67,240 today**. The pruning bought the size of programs that do not reflect;
-those two bought semantics and a catchable error, and neither was free.
+**It has grown back since 55,920, and the growth is of two kinds.** One is a design price that
+was measured: the **boxing caches** (`#109`) added 6,016, the **stack-overflow prologue check**
+(`#104`) added 2,256, W9's TLS-link change (`#118`) added 120, and **W14's frame maps** add a
+registration block to every generated function — 51% more generated C, which is why t51 is
+661,664 and t101_gson is 10,558,344 bytes the same day. The other is a **defect**: the
+`chars()` and `codePoints()` defaults on `CharSequence` (`#182`) return an `IntStream`, so the
+vtable of **every class that implements it** — and `String` is one, in every program — makes
+the whole stream library reachable. Hello world went from 66,808 to **618,080** that way, with
+the pruning **running, reporting nothing, and no error**: it had simply been handed a seed that
+already contained the library. Removing those two defaults from the interface on 2026-10-16
+(the concrete implementations on `String` and the two builders stay) brings it back to 97,888.
+**This number is only right when it is measured**, and the two steps were a month apart.
 
 **The number only means anything with its optimisation level.** The same hello world is
-118,608 bytes at `-O0`, 90,352 at `-O1`, 67,240 at `-O2` and 70,672 at `-O3` today; this row and
-`scripts/bench.sh` both use `-O2`, which is the default.
+233,680 bytes at `-O0`, 209,472 at `-O1`, 97,888 at `-O2` and 106,032 at `-O3` on 2026-10-16;
+this row and `scripts/bench.sh` both use `-O2`, which is the default.
 
 Before and after, on one machine with `-O2`, measured with `wc -c`: a hello world goes
 501,072 before any pruning -> 95,832 with the first version -> 55,920 with the second ->
@@ -718,16 +726,16 @@ other's cell is claiming a measurement that was never taken:
 
 | Target | Build | Run |
 |---|---|---|
-| `linux/amd64` | ✅ | ✅ The full suite, natively on this machine: `go test ./...` and `TEYRU=<compiler> sh tests/run.sh` (250 cases) |
-| `windows/amd64` | ✅ Cross-compiled with `x86_64-w64-mingw32-gcc`; **except a program that can reach TLS** (see below) | ✅ Run under Wine: 179 of the 195 test programs of the time were byte-identical (14 of the 16 that were not also failed on Linux with gcc under the pre-change compiler, and 2 were Windows path and filename facts) |
+| `linux/amd64` | ✅ | ✅ The full suite, natively on this machine: `go test ./...` and `TEYRU=<compiler> sh tests/run.sh` (250 cases on 2026-09-17; the suite on 2026-10-16 is 302 programs + 3 packages + 27 diagnostics + 2 native) |
+| `windows/amd64` | ✅ Cross-compiled with `x86_64-w64-mingw32-gcc`; **except a program that can reach TLS** (see below) | ✅ Run under Wine; on 2026-10-17, of the **302** programs in `tests/programs`: **290 byte-identical in stdout, stderr and exit status**, **11 refused by name because they reach TLS**, **1 skipped (`t99_file_shell_meta`) because NTFS cannot hold that file name** — **0 mismatches**. Sixteen of them are built with `-O0`: mingw's `cc1` ran over two hours on the largest few at `-O1` (`-O0` takes seconds), which is the toolchain's build time and not a difference in behaviour. This replaces the earlier "179 of 195": this round re-ran the whole suite without matching its failures one by one against those 16, and instead found the cause of each difference it actually measured and fixed it (`System.getProperty` returned null on Windows for `os.name`/`user.dir` and the rest, `File.isAbsolutePath` did not know `C:\`; `-lws2_32` came before the objects; MinGW has neither `aligned_alloc` nor weak symbols; Wine's own messages landed in stderr) |
 | `linux/arm64` | ✅ Cross-compiled with `aarch64-linux-gnu-gcc`; that target's sysroot had to be installed first (see below) | ✅ The full suite under qemu-aarch64 (the pre-W9 pair: **all 250 cases passed**). Re-measured after W9 with `TEYRU_TARGET=linux/arm64`: **271 passed, 5 failed, 10 known out of 286** -- and **every one of the five fails identically when built natively on this machine** (checked case by case), so none of them is an arm64 failure (see below) |
-| `darwin/amd64`, `darwin/arm64` | ⚠️ **Compile and link only**: `teyru build --target darwin/arm64 --cc <zig wrapper>` (after W9, `resolveTarget` checks the compiler the build will actually run) builds and links **240 of the 257** programs in `tests/programs`, refuses **9 by name** for TLS and is refused by that compiler for **8** (APIs and checker work that landed after it). **The two architectures agree program for program**: `darwin/amd64` measured the same 240/9/8 with the same script, and the refused and rejected programs are the same seventeen, to the program. The product is a Mach-O executable and **not one line has been executed** (see below) | ❌ Nothing here can run macOS, so no one has run them |
+| `darwin/amd64`, `darwin/arm64` | ⚠️ **Compile and link only**: `teyru build --target darwin/arm64 --cc <zig wrapper>` (after W9, `resolveTarget` checks the compiler the build will actually run) builds and links **240 of the 257** programs `tests/programs` held then (measured 2026-09-17; this machine has no zig today, so the row is still that day's record and not a count of today's 302), refuses **9 by name** for TLS and is refused by that compiler for **8** (APIs and checker work that landed after it). **The two architectures agree program for program**: `darwin/amd64` measured the same 240/9/8 with the same script, and the refused and rejected programs are the same seventeen, to the program. The product is a Mach-O executable and **not one line has been executed** (see below) | ❌ Nothing here can run macOS, so no one has run them |
 
 The evidence is measured separately, because "it builds" and "it runs" are different
 questions, and the rows added here are `linux/arm64` and macOS. **Read the table's numbers with
 the tree they were measured on**: the suite figures for `linux/amd64`, `windows/amd64` and `linux/arm64`
 were all measured on 2026-09-17, when `tests/programs` held 222 programs and the whole suite was 250
-cases; that directory holds more now (257), so those two are records of that day rather than
+cases; that directory holds 302 programs on 2026-10-16, so those two are records of that day rather than
 today's count. The macOS rows have been re-measured with `--cc` (below), and the `linux/arm64` row
 now carries both numbers: the pre-W9 run with all 250 cases passing, and the post-W9 run under
 `TEYRU_TARGET` with 286 cases (271 passed, 5 failed -- each of the five fails natively too, see
@@ -793,7 +801,7 @@ rather than OpenSSL, …`), not the old `tyrt_tls.c: openssl/err.h not found`.
 
 **How it was counted, and why both halves need saying.** 2026-09-17, `zig 0.16.0`, a two-line
 wrapper around `zig cc -target aarch64-macos` passed as `--cc`, `-O1`, four programs at a time
-(`tests` at `e4268a6`, the compiler at `5ac017b`, where W9 landed). Of the 257 programs, **240
+(`tests` at `e4268a6`, the compiler at `5ac017b`, where W9 landed). Of the 257 programs there were then, **240
 build and link**; **9 are refused by the driver by name** (`t154_http_client`,
 `t162_http_roundtrip`, `t163_https_roundtrip`, `t191_tls_keepalive`,
 `t192_tls_handshake_timeout`, `t207_http_server_certificate`, `t210_http_gzip_edges`,

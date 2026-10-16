@@ -123,6 +123,15 @@ anything is emitted**, which works out the classes reflection can reach, so `t14
 output. A shape the scan cannot follow widens to every class: a table that is missing is an
 answer that is silently empty, and a table that is extra is only bigger.
 
+**The 2026-10-16 weights** (one machine, `-O2`, `wc -c`): hello world **97,888** bytes — with
+the pruning off it is 1,427,496, so the number is still the pruning's — `t84_sealed_switch`
+**137,472**, `t133_arrow_blocks` **112,600**, `t51_java25_tour` **661,664** and
+`t146_reflect` **1,851,888**. Those are larger than the numbers above, and the difference is
+**W14's frame maps** (a registration block in every generated function, 51% more generated C)
+plus a `CharSequence` step backwards in 2026-10 — two default methods that pulled the whole
+stream library into every program, since fixed; see the size section of
+[docs/index.md](/en/docs).
+
 **The floor.** The C the pruned hello world emits has 628 vtable arrays; every one still
 answers slots 0, 1 and 2, and exactly one has a filled slot at index 3 or above (`Class`'s
 own, for 7, 12, 13 and 16). Slots 0, 1 and 2 cannot be narrowed the same way: the runtime
