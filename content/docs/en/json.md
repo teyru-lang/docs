@@ -72,11 +72,29 @@ Supported field types: `String`, `boolean`/`byte`/`short`/`char`/`int`/`long`/`f
 `double` and their boxed classes, enum (written as the constant name, read back by comparing
 names, the same as Gson; when the name does not match Gson leaves `null`, while this throws
 `JsonParseException`), other bindable classes (recursive), `Object` (preserves the original
-tree: a `JsonObject` that was read in is written back as-is).
-Like Gson, `char` is written as a single-character string and read back from a string too.
-`@SerializedName` can rename it.
-**Not supported**: `List`/`Map`/array fields, `@Expose`/`@Since`/`@Until`/`@JsonAdapter`
-(declared but not implemented, so using them has no effect).
+tree: a `JsonObject` that was read in is written back as-is), and **containers**: the
+`List`/`Set`/`Map`/`Deque` interfaces and their implementations, and arrays, with the **object
+elements** inside them bound as well (the element type is written into the field descriptor by
+the compiler and `Field.getElementType()` reads it; reflection itself still has no generic
+types). Like Gson, `char` is written as a single-character string and read back from a string
+too.
+
+`GsonBuilder`'s knobs (`serializeNulls`, `setPrettyPrinting`, `setLenient`, the five
+`setFieldNamingPolicy` policies, `excludeFieldsWithModifiers`,
+`excludeFieldsWithoutExposeAnnotation`, `setVersion`), the filtering and renaming of
+`@Expose`/`@Since`/`@Until`/`@SerializedName`, the `JsonSerializer`/`JsonDeserializer`
+adapters (`registerTypeAdapter`/`registerTypeHierarchyAdapter`/`@JsonAdapter`) and the
+streaming `JsonReader`/`JsonWriter` are all there (`t166_gson_builder`,
+`t167_gson_annotations`, `t168_gson_adapters`; containers are `t157_json_collections` and
+`t165_json_container_elements`).
+
+**What is still not supported**: element types are recorded **one level** deep (the inner
+element of a `List<List<Person>>` is read from the document's shape, and an object or array
+inside it is refused by name; the same goes for an element declared `Object`), an array whose
+component is `? super` or an unbounded type variable has no class to build an array from (the
+member is refused by name), `@SerializedName`'s `alternate` (several names are written as
+**repeated annotations**: the first is the one written out, the rest are also accepted on
+input), and `@JsonAdapter` names the adapter class as a **string**.
 
 ### Runtime fallback table
 

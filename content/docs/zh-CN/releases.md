@@ -227,7 +227,7 @@ GraalVM 的 `native-image` 对照**未测**（这台机器上没有 GraalVM）�
 | 可执行文件大小（hello world，`-O2`） | **67,240 B**（`-O0` 118,608、`-O1` 90,352、`-O3` 70,672） | `wc -c`；比 0.2 时代的 55,920 大，三次成长是装箱缓存（+6,016）、栈检查（+2,256）与 W9 的 TLS 链接（+120），量在 [docs/index.md](/zh-CN/docs) |
 | LLVM 后端的边界 | `tests/programs`（`34584f2`）256 支里 159 支建得起来、153 支输出相同、93 支具名拒绝 | 2026-09-17，`teyru build --backend=llvm` 逐支跑并与 `.expected` 比（[docs/index.md](/zh-CN/docs) 有完整分类） |
 | `linux/arm64` 的整套 | **250 项全过、0 项不符**（qemu-aarch64，容器里的 sysroot 自建）；W9 之后用 `TEYRU_TARGET` 重测：**286 项里 271 过、5 失败、10 已知失败**，而 5 个失败**原生也一样失败** | `sh tests/run.sh` 与 `TEYRU_TARGET=linux/arm64 … sh run.sh`，见 [docs/index.md](/zh-CN/docs) 的平台表 |
-| Windows 目标 | 195 支里 179 支逐字节相同（Wine 下跑） | 同上 |
+| Windows 目标 | 302 支里 290 支逐字节相同、11 支 TLS 具名拒绝、1 支 NTFS 跳过、0 支不符（Wine 下跑，2026-10-17） | 同上 |
 | macOS 两列 | **只到「编译并链接」**：257 支里 240 支建得起来、9 支因 TLS 被具名拒绝、8 支那个版本的编译器还不接受；产物是 Mach-O，**没有任何一行被运行过** | `teyru build --cc <zig 包装>`（`zig cc -target aarch64-macos`），见平台表 |
 | 递归过深的代价 | `bench_fib` 长跑回退约 32% | `scripts/bench.sh` 长跑前后，owner 已裁决接受 |
 | W7 的语料 | **45 支全过、0 失败**（`tests/java-compat`；Teyru main `9be8159` → `tests` `4ac49a7`） | `sh tests/run.sh java-compat`，在 main 上的那个内容跑（我自己跑的；`make java-compat` 是同一件事） |

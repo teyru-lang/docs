@@ -194,6 +194,7 @@ hello.teyru:4:11: error[TY-TYP-0051]: incompatible types: String cannot be conve
 | TY-TYP-0114 | `not a statement: %s has no effect` | 沒有副作用的運算式陳述式（JLS 14.8）。這個語言在換行結束運算式，所以 `long x = a` 換行 `+ b` 是兩個陳述式，第二個是安靜的一元加號——`x` 少一項而沒有任何訊息。現在會報出來。 |
 | TY-TYP-0113 | `resource type %s is not a subtype of AutoCloseable` | try-with-resources 的資源型別必須是 `AutoCloseable` 的子型別。隱含的 `close()` 是一次介面呼叫，所以「剛好有 `close()` 方法」的類別會編成物件沒有項目的 itable 呼叫，執行期才爆。 |
 | TY-TYP-0115 | `cannot resolve import %s` | 匯入路徑指不到任何東西。名字在 Teyru 裡是照**簡單名稱**找的，前面寫什麼套件都一樣，所以 `import java.utli.List` 這種拼錯的套件以前是安靜地被忽略、然後照樣拿到 `List`。現在匯入必須指向：標準程式庫回答的套件（`teyru` 本身，以及相容用的 `java.util`、`com.google.gson`、`lombok`…，見 docs/language.md §11）、本次建置某個檔案宣告的套件、或是一個完整名稱就是這條路徑的型別。 |
+| TY-TYP-0116 | `incompatible types: %s cannot be converted to %s` | 複合賦值的隱含轉型（JLS 15.26.2）在目標是**裝箱型別**時，只能是把「已經是該原生型別」的值裝箱：`Integer a; a += 1` 裝的是 int，而 `Short s; s += 1` 得把 int 裝進 `Short`——javac 就是把它當型別不符拒絕。這裡以前接受它，然後在產生程式碼時沒有對應的包裝可用。 |
 | TY-TYP-0100 | （已移除） | 容器改讀類別之後，重名 bean 在 `refresh()` 時被拒絕。 |
 | TY-TYP-0101 | `%s is declared by the framework and cannot be redefined` | `__TeyruFramework` 是容器註冊用的合成類別，名字被保留。 |
 | TY-TYP-0102 | `@Bean method %s must not be static`／`@Bean method %s must return the bean's type`／`@Bean method %s does not return a class type` | `@Bean` 方法必須不是 static、且回傳型別是一個類別（基本型別會裝箱）。 |

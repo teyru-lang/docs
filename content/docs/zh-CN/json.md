@@ -66,12 +66,26 @@ String out = gson.toJson(p)
   生成的成员也在内）。
 
 支持的字段类型：`String`、`boolean`/`byte`/`short`/`char`/`int`/`long`/`float`/
-`double` 与其装箱类型、enum（写成常量名称，读回来比对名称，与 Gson 相同；名字对不上
-时 Gson 留 `null`，这里抛出 `JsonParseException`）、其他
-可绑定的类（递归）、`Object`（保留原始树：读进来的 `JsonObject` 原样写回去）。
-`char` 和 Gson 一样写成单字符字符串、也从字符串读回来。`@SerializedName` 可以改名。
-**不支持**：`List`／`Map`／数组字段、`@Expose`／`@Since`／`@Until`／`@JsonAdapter`
-（已声明但未实现，用了不会有作用）。
+`double` 与其装箱类型、enum（写成常量名，读回来比对名字，与 Gson 相同；名字对不上
+时 Gson 留 `null`，这里抛 `JsonParseException`）、其他可绑定的类（递归）、
+`Object`（保留原始树：读进来的 `JsonObject` 原样写回去），以及**容器**——`List`／`Set`／
+`Map`／`Deque` 等接口与其实、数组，容器里的**对象元素**也绑定（元素类型由编译器写进
+字段描述符，`Field.getElementType()` 读得到；反射本身仍然没有泛型类型）。`char` 和 Gson
+一样写成单字符字符串、也从字符串读回来。
+
+`GsonBuilder` 的旋钮（`serializeNulls`／`setPrettyPrinting`／`setLenient`／
+`setFieldNamingPolicy` 的五种策略／`excludeFieldsWithModifiers`／
+`excludeFieldsWithoutExposeAnnotation`／`setVersion`）、`@Expose`／`@Since`／`@Until`／
+`@SerializedName` 的过滤与改名、`JsonSerializer`／`JsonDeserializer` 适配器
+（`registerTypeAdapter`／`registerTypeHierarchyAdapter`／`@JsonAdapter`）与流式
+`JsonReader`／`JsonWriter` 都在（`t166_gson_builder`、`t167_gson_annotations`、
+`t168_gson_adapters`；容器是 `t157_json_collections`、`t165_json_container_elements`）。
+
+**仍然不支持的**：元素类型只记**一层**（`List<List<Person>>` 的内层元素按文档的形状判读，
+里面是对象或数组就明确拒绝；声明为 `Object` 的元素也一样）、数组的 component 是
+`? super` 或未定界类型变量时没有类可以建数组（该成员明确拒绝）、
+`@SerializedName` 的 `alternate`（多个名字要用**重复标注**写，第一个是写出用的名字，
+其余是读入也接受的替代名）、`@JsonAdapter` 用**字符串**命名适配器类。
 
 ### 运行时回退表
 

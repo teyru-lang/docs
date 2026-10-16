@@ -67,11 +67,25 @@ String out = gson.toJson(p)
 
 支援的欄位型別：`String`、`boolean`/`byte`/`short`/`char`/`int`/`long`/`float`/
 `double` 與其裝箱類別、enum（寫成常數名稱，讀回來比對名稱，與 Gson 相同；名字對不上
-時 Gson 留 `null`，這裡丟 `JsonParseException`）、其他
-可綁定的類別（遞迴）、`Object`（保留原始樹：讀進來的 `JsonObject` 原樣寫回去）。
-`char` 和 Gson 一樣寫成單字元字串、也從字串讀回來。`@SerializedName` 可以改名。
-**不支援**：`List`／`Map`／陣列欄位、`@Expose`／`@Since`／`@Until`／`@JsonAdapter`
-（已宣告但未實作，用了不會有作用）。
+時 Gson 留 `null`，這裡丟 `JsonParseException`）、其他可綁定的類別（遞迴）、
+`Object`（保留原始樹：讀進來的 `JsonObject` 原樣寫回去），以及**容器**——`List`／`Set`／
+`Map`／`Deque` 等介面與其實作、陣列，容器裡的**物件元素**也綁定（元素型別由編譯器寫進
+欄位描述子，`Field.getElementType()` 讀得到；反射本身仍然沒有泛型型別）。`char` 和 Gson
+一樣寫成單字元字串、也從字串讀回來。
+
+`GsonBuilder` 的旋鈕（`serializeNulls`／`setPrettyPrinting`／`setLenient`／
+`setFieldNamingPolicy` 的五種政策／`excludeFieldsWithModifiers`／
+`excludeFieldsWithoutExposeAnnotation`／`setVersion`）、`@Expose`／`@Since`／`@Until`／
+`@SerializedName` 的過濾與改名、`JsonSerializer`／`JsonDeserializer` 轉接器
+（`registerTypeAdapter`／`registerTypeHierarchyAdapter`／`@JsonAdapter`）與串流
+`JsonReader`／`JsonWriter` 都在（`t166_gson_builder`、`t167_gson_annotations`、
+`t168_gson_adapters`；容器是 `t157_json_collections`、`t165_json_container_elements`）。
+
+**仍然不支援的**：元素型別只記**一層**（`List<List<Person>>` 的內層元素按文件的形狀判讀，
+裡面是物件或陣列就明確拒絕；宣告為 `Object` 的元素也一樣）、陣列的 component 是
+`? super` 或未定界型別變數時沒有類別可以建立陣列（該成員明確拒絕）、
+`@SerializedName` 的 `alternate`（多個名稱要用**重複標註**寫，第一個是寫出用的名字，
+其餘是讀入也接受的替代名）、`@JsonAdapter` 用**字串**命名轉接器類別。
 
 ### 執行期回退表
 
