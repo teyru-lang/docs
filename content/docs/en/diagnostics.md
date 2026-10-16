@@ -142,7 +142,7 @@ emitted by the parser at the end of a statement and at a `throw` line break), an
 | TY-TYP-0064 | `operator '%s' cannot be applied to %s and %s` | The operand of an arithmetic operator is not numeric (a common case: an object that was not unboxed). |
 | TY-TYP-0065 | `left-hand side of an assignment must be a variable` | The left-hand side of an assignment cannot be an arbitrary expression. |
 | TY-TYP-0066 | `operator '%s' cannot be applied to boolean` | `boolean` cannot be added, subtracted, multiplied or divided. |
-| TY-TYP-0067 | `array dimension must be non-negative` | The array size is a negative constant. |
+| TY-TYP-0067 | (removed) | A negative array dimension used to be a compile error; javac compiles `new int[-1]`, so since W7 it is a run-time `NegativeArraySizeException` (see §12 of the language reference), and this code is no longer produced. The old message read `array dimension must be non-negative`. |
 
 ### Construction and instantiation (0068–0075)
 

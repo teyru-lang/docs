@@ -34,10 +34,10 @@ System.out.println(p)                  // Person(name=ada, age=36)
 
 | 註解 | 狀態 | 說明 |
 |---|---|---|
-| `@Getter` | ⚠️ 部分 | 含 `AccessLevel`（只讀位置形式）、`@Accessors` 影響命名；`lazy = true` 在第一次讀取時算一次並快取（原生型別也支援），但沒有 Lombok 的執行緒安全 |
+| `@Getter` | ⚠️ 部分 | 含 `AccessLevel`（只讀位置形式）、`@Accessors` 影響命名；`lazy = true` 在第一次讀取時算一次並快取（原生型別也支援），而產生的 getter 是雙重檢查的，有 Lombok 的執行緒安全（`t267`、`t268`，見 §2） |
 | `@Setter` | ✅ 完整 | 含 `AccessLevel`（只讀位置形式）、`@Accessors(chain)`、`@NonNull` 欄位的檢查；名稱已經被佔用時不產生（Lombok 同） |
-| `@ToString` | ⚠️ 部分 | `of`／`exclude`／`callSuper`／`includeFieldNames`／`onlyExplicitlyIncluded`（搭配欄位上的 `@ToString.Include`／`@ToString.Exclude`）；`callSuper` 的格式與 Lombok 不同（見 §2） |
-| `@EqualsAndHashCode` | ⚠️ 部分 | `of`／`exclude`／`callSuper`／`onlyExplicitlyIncluded`（`@EqualsAndHashCode.Include`／`@EqualsAndHashCode.Exclude`）；`hashCode` 的常數與 `canEqual` 與 Lombok 不同（見 §2） |
+| `@ToString` | ✅ | `of`／`exclude`／`callSuper`／`includeFieldNames`／`onlyExplicitlyIncluded`（搭配欄位上的 `@ToString.Include`／`@ToString.Exclude`）；`callSuper` 的格式是 Lombok 的（`t269`，見 §2） |
+| `@EqualsAndHashCode` | ✅ | `of`／`exclude`／`callSuper`／`onlyExplicitlyIncluded`（`@EqualsAndHashCode.Include`／`@EqualsAndHashCode.Exclude`）；常數、欄位順序與 `canEqual` 都是 Lombok 的（`t270`、`t271`，見 §2） |
 | `@NoArgsConstructor` | ⚠️ 部分 | `staticName` 會產生靜態工廠；`access` 只讀位置形式，而且類別沒有手寫建構子時產生的那一個會被隱含的無參數建構子擋掉，等於沒作用（見 §3） |
 | `@RequiredArgsConstructor` | ✅ 完整 | final（無初始值）與 `@NonNull` 欄位 |
 | `@AllArgsConstructor` | ✅ 完整 | 略過已有初始值的 final 欄位 |
@@ -154,13 +154,19 @@ class Person {
   要全參數建構子請同時加 `@AllArgsConstructor`。
 - `@Builder` **不會**產生 getter，與 Lombok 相同。
 - `@Getter(lazy = true)` 把欄位的初始值搬進 getter：建構子不再算它，第一次讀取算一次
-  之後快取（與 Lombok 相同）。持有值是 boxed 的，所以原生型別也可以。差別是產生的
-  getter 沒有加鎖（Lombok 的會同步），它只有一個持有欄位。
-- `@EqualsAndHashCode` 的 `hashCode` 用 31 與 0（Lombok 用 59 與 43），欄位順序照宣告
-  順序（Lombok 會排序），而且不產生 `canEqual`——所以父類別與子類別只要欄位相同就相等，
-  Lombok 會說不相等。
-- `@ToString(callSuper = true)` 產生的字串是 `Child(c=2; super=Base(b=1))`，
-  Lombok 是 `Child(super=Base(b=1), c=2)`：自己的欄位先寫，super 那一段在最後。
+  之後快取（與 Lombok 相同）。持有值是 boxed 的，所以原生型別也可以。**產生的 getter 是
+  雙重檢查的**（與 Lombok 一樣會同步），而且**算出來是 `null` 也會被快取**——八條執行緒
+  同時讀一個睡著的 initializer 只會算一次（`t267_lombok_lazy_threads`），回傳 `null` 的
+  initializer 也只算一次（`t268_lombok_lazy_null`）；這兩條以前是差異，PR
+  [#173](https://github.com/teyru-lang/Teyru/pull/173) 之後不是。
+- `@EqualsAndHashCode` 的 `hashCode` 用 **Lombok 自己的常數**（`59`、`43`、布林的
+  `79`／`97`、`long` 與 `double` 的位移─互斥）與 **Lombok 的欄位順序**，而且產生
+  `canEqual`（`t270_lombok_equals`，它的 `.java.ref` 是 Lombok 自己展開的程式碼、期望值
+  是 JDK 跑出來的）。`equals` 與 `hashCode` 一起產生或一起不產生：寫了其中一個，另一個
+  就不會被產生（`t271_lombok_equals_handwritten`）。這些以前都是差異，PR #173 之後不是。
+- `@ToString(callSuper = true)` 產生的字串是 `Child(super=Base(b=1), c=2)`，
+  **與 Lombok 相同**（`t269_lombok_tostring_callsuper` 驗了 super 那一段的四種形狀）；
+  以前這裡寫的是 Teyru 自創的 `Child(c=2; super=Base(b=1))`，PR #173 收斂掉了。
 - `@StandardException` 的 `E(Throwable)` 是
   `super(cause == null ? null : cause.getMessage(), cause)`，所以
   `new E(new RuntimeException("c")).getMessage()` 是 `c`（與 Lombok 相同）。全參數
