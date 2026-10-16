@@ -114,9 +114,14 @@ string and `/* */` can span lines), and a body ends when the depth returns to ze
 Measured on one machine with `-O2`: a hello world goes 501,072 -> 95,832 (the dispatch test
 alone) -> 55,920 (with the receiver test on top); `t84_sealed_switch` 521,456 -> 113,904 ->
 74,888, `t133_arrow_blocks` 509,536 -> 105,688 -> 61,064 and `t51_java25_tour` 523,696 ->
-438,560 -> 253,328, each byte-identical in output at every step. **A program that reflects is
-unchanged**: `t146_reflect` 4,859,976 and `t101_gson` 4,823,592, the same as before the
-pruning, because reflection attaches every member table from `main`.
+438,560 -> 253,328, each byte-identical in output at every step. **A program that reflects was
+unchanged too** (`t146_reflect` 4,859,976 and `t101_gson` 4,823,592, the same as before the
+pruning), because the member tables were attached from `main`; that path is pruned as well now.
+The member tables and the class table `Class.forName` searches are decided by one scan **before
+anything is emitted**, which works out the classes reflection can reach, so `t146_reflect` is
+**10,139,632 -> 1,715,176** at `-O2` (baseline: the tree before the pruning) with byte-identical
+output. A shape the scan cannot follow widens to every class: a table that is missing is an
+answer that is silently empty, and a table that is extra is only bigger.
 
 **The floor.** The C the pruned hello world emits has 628 vtable arrays; every one still
 answers slots 0, 1 and 2, and exactly one has a filled slot at index 3 or above (`Class`'s
@@ -257,9 +262,14 @@ for how to reproduce them.
 - **Threads**: the runtime keeps one registry entry per thread (`internal/runtime/src/tyrt_thread.c`),
   and a collection stops every thread first and then scans each stack, so the stop is world-wide.
   The protocol is **cooperative**: the stop points are the top of a loop body, the allocation slow
-  path, the wait for the heap lock, sleep/join/monitor waits, and the start of a thread; a thread
-  that neither loops nor allocates nor blocks (one stuck in a native `read()`) reaches no stop
-  point, and a collection waits for it to come back.
+  path, the wait for the heap lock, sleep/join/monitor waits, the start of a thread, and **every
+  platform call that waits** -- socket `recv`/`send`/accept/connect, the TLS handshake and
+  `SSL_read`/`SSL_write`, a line read from the console, and the file read and write loops. That last
+  group was added later: before it, a thread stuck in a socket read made a collection wait for its
+  timeout, and the worst pause measured was **3799 ms** against **0.300 ms** after (same program,
+  same amount of allocation). The calls that return without waiting -- `open`, `stat`, `opendir`,
+  `readdir`, `getaddrinfo`, stdio writes -- are deliberately **not** stop points: they do not wait
+  for a peer or a device to move data, so bracketing them would buy two world locks and nothing.
 - Sweep: unmarked blocks enter size-classed free lists (`TY_NCLASS` classes; oversized ones go to `bigfree`)
   and are reused first by the next allocation; the highest bit of the block size word (the first word of the
   header) is `TY_FREE_BIT`, meaning already freed, and the free list link sits in the second word. A chunk that

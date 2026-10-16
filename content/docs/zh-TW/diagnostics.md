@@ -140,7 +140,7 @@ hello.teyru:4:11: error[TY-TYP-0051]: incompatible types: String cannot be conve
 | TY-TYP-0064 | `operator '%s' cannot be applied to %s and %s` | 算術運算子的運算元不是數值（常見：物件忘了 unbox）。 |
 | TY-TYP-0065 | `left-hand side of an assignment must be a variable` | 指派的左邊不能是任意運算式。 |
 | TY-TYP-0066 | `operator '%s' cannot be applied to boolean` | `boolean` 不能做加減乘除。 |
-| TY-TYP-0067 | `array dimension must be non-negative` | 陣列大小是負的常數。 |
+| TY-TYP-0067 | （已移除） | 負的陣列維度曾經是編譯錯誤；javac 編得過 `new int[-1]`，所以 W7 之後它是執行期的 `NegativeArraySizeException`（見〈語言參考〉§12），這個碼不再由編譯器產生。舊訊息是 `array dimension must be non-negative`。 |
 
 ### 建構與實例化（0068–0075）
 
