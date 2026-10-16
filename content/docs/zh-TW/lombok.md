@@ -160,6 +160,19 @@ class Person {
   要全參數建構子請同時加 `@AllArgsConstructor`。
 - `@Builder` **不會**產生 getter，與 Lombok 相同。
 - `@Getter(lazy = true)` 把欄位的初始值搬進 getter：建構子不再算它，第一次讀取算一次
+  之後快取（與 Lombok 相同）。持有值是 boxed 的，所以原生型別也可以。**產生的 getter 是
+  雙重檢查的**（與 Lombok 一樣會同步），而且**算出來是 `null` 也會被快取**——八條執行緒
+  同時讀一個睡著的 initializer 只會算一次（`t267_lombok_lazy_threads`），回傳 `null` 的
+  initializer 也只算一次（`t268_lombok_lazy_null`）；這兩條以前是差異，PR
+  [#173](https://github.com/teyru-lang/Teyru/pull/173) 之後不是。
+- `@EqualsAndHashCode` 的 `hashCode` 用 **Lombok 自己的常數**（`59`、`43`、布林的
+  `79`／`97`、`long` 與 `double` 的位移─互斥）與 **Lombok 的欄位順序**，而且產生
+  `canEqual`（`t270_lombok_equals`，它的 `.java.ref` 是 Lombok 自己展開的程式碼、期望值
+  是 JDK 跑出來的）。`equals` 與 `hashCode` 一起產生或一起不產生：寫了其中一個，另一個
+  就不會被產生（`t271_lombok_equals_handwritten`）。這些以前都是差異，PR #173 之後不是。
+- `@ToString(callSuper = true)` 產生的字串是 `Child(super=Base(b=1), c=2)`，
+  **與 Lombok 相同**（`t269_lombok_tostring_callsuper` 驗了 super 那一段的四種形狀）；
+  以前這裡寫的是 Teyru 自創的 `Child(c=2; super=Base(b=1))`，PR #173 收斂掉了。
   之後快取（與 Lombok 相同）。持有值是 boxed 的，所以原生型別也可以。getter 是雙重
   檢查的，與 Lombok 相同；Lombok 的持有欄位是一個 `AtomicReference`，把「還沒算」與
   「算出來是 null」分開，並同步在那個 reference 上，這裡的持有欄位就是值本身（所以

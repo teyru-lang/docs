@@ -160,6 +160,19 @@ class Person {
   要全参构造函数请同时加上 `@AllArgsConstructor`。
 - `@Builder` **不会**生成 getter，与 Lombok 相同。
 - `@Getter(lazy = true)` 把字段的初始值搬进 getter：构造函数不再计算它，第一次读取时
+  计算一次之后缓存（与 Lombok 相同）。持有的值是 boxed 的，所以原生类型也可以。**生成的
+  getter 是双重检查的**（与 Lombok 一样会同步），而且**算出来是 `null` 也会被缓存**——
+  八条线程同时读一个睡着的 initializer 只会计算一次（`t267_lombok_lazy_threads`），返回
+  `null` 的 initializer 也只计算一次（`t268_lombok_lazy_null`）；这两条以前是差异，PR
+  [#173](https://github.com/teyru-lang/Teyru/pull/173) 之后不是。
+- `@EqualsAndHashCode` 的 `hashCode` 用 **Lombok 自己的常量**（`59`、`43`、布尔的
+  `79`／`97`、`long` 与 `double` 的位移─异或）与 **Lombok 的字段顺序**，而且生成
+  `canEqual`（`t270_lombok_equals`，它的 `.java.ref` 是 Lombok 自己展开的代码、期望值
+  是 JDK 跑出来的）。`equals` 与 `hashCode` 一起生成或一起不生成：写了其中一个，另一个
+  就不会被生成（`t271_lombok_equals_handwritten`）。这些以前都是差异，PR #173 之后不是。
+- `@ToString(callSuper = true)` 生成的字符串是 `Child(super=Base(b=1), c=2)`，
+  **与 Lombok 相同**（`t269_lombok_tostring_callsuper` 验了 super 那一段的四种形状）；
+  以前这里写的是 Teyru 自创的 `Child(c=2; super=Base(b=1))`，PR #173 收敛掉了。
   计算一次之后缓存（与 Lombok 相同）。持有的值是 boxed 的，所以原生类型也可以。getter
   是双重检查的，与 Lombok 相同；Lombok 的持有字段是一个 `AtomicReference`，把“还没算”
   与“算出来是 null”分开，并同步在那个 reference 上，这里的持有字段就是值本身（所以
