@@ -498,6 +498,7 @@ teyru build --native impl.c program.teyru            # 一起编译
 
 ## 编辑器与工具
 
+- **`teyru fmt`／`teyru lsp`／`teyru test`／`-g`**：格式化、语言服务器、测试运行器与源码级调试信息，见[工具链](/zh-CN/docs/tooling)。
 - **VS Code**：[`teyru-lang/editors`](https://github.com/teyru-lang/editors) 仓库的 `vscode/` 提供 `.teyru` 的 TextMate 语法高亮、语言配置与片段。
   用 `npx @vscode/vsce package` 打包，再用 `code --install-extension teyru-0.1.0.vsix` 安装。
 - **tree-sitter**：同一仓库的 `tree-sitter-teyru/` 是完整文法，附高亮 query、缩进 query
@@ -579,7 +580,7 @@ Teyru 不是 Java 的子集，而是“Java 开发者一看就懂”的独立语
 5. **原生 property**：字段后面接 accessor 块即成 property；`field` 代表底层存储。
    没有 accessor 块的字段就是普通 Java 字段。
 6. **`val`**：推断类型的不可重绑定局部变量（不是深度不可变）。
-7. **没有 checked exception 检查**；`throws` 会被解析但不强制。
+7. **checked exception 会被检查**：调用声明 `throws` 的方法时，checked 异常必须被捕获或在方法上声明（`TY-TYP-0122`）。标准库自己的函数体目前豁免，见[工具链](/zh-CN/docs/tooling)。
 8. **没有 annotation processor**；注解可以反射，但元素是**按名字读**
    （`ann.stringValue("value")`），不是 Java 的 `ann.value()`。
 9. **不是 bytecode 平台**：没有 `.class`、没有 `java.lang`、没有 JNI，
@@ -597,6 +598,9 @@ teyru run   [flags] <files...> [-- args...]    编译后直接运行
 teyru emit  [flags] <files...>                 打印生成的 C
 teyru emit-llvm [flags] <files...>             打印交给 LLVM 的 IR
 teyru emit-java [flags] <files...>             打印等效的 Java 源代码
+teyru test  [paths...]                         编译并运行包的测试
+teyru fmt [-w] [paths...]                      以固定风格格式化
+teyru lsp                                      在 stdin/stdout 上运行语言服务器
 teyru get <module>@<version>                   获取模块到缓存并加入依赖
 teyru mod init <module-path>                   为新模块写出 teyru.mod
 teyru mod tidy                                 让 teyru.mod 与 teyru.sum 与源码一致
@@ -610,6 +614,7 @@ teyru help                                     帮助
 | `-c <path>` | 保留生成的 C 文件到指定路径 |
 | `--cc <name>` | 使用的 C 编译器（默认依次查找 `clang`、`gcc`、`cc`） |
 | `-O0`…`-O3` | 优化等级（`build` 默认 `-O2`，`run` 默认 `-O0`；`-O0`／`-O1` 会使用标准库缓存，见下） |
+| `-g` | 生成源码级调试信息（DWARF，`#line` 指回 `.teyru`），见[工具链](/zh-CN/docs/tooling)；LLVM 后端以 `TY-INT-0103` 拒绝 |
 | `--llvm-ir <path>` | 额外输出 LLVM IR 模块 |
 | `--native <file.c>` | 加入 C 文件一起编译，实现 native 方法（可重复） |
 | `--native-header <path>` | 生成 native 方法的声明（见 [docs/native.md](/zh-CN/docs/native)） |

@@ -493,7 +493,7 @@ try {
   elements (including taking `length`) all throw `NullPointerException`.
 - `catch` uses `|` for multiple types; `finally` always runs (including when a catch block
   throws again).
-- **There is no checked exception checking**: `throws` is parsed but not enforced.
+- **Checked exceptions are checked**: calling a method or constructor that declares `throws`, or throwing a checked exception, requires it to be caught by an enclosing `try` or declared on the current method (`TY-TYP-0122`). The standard library's own bodies are exempt for now.
 - An uncaught exception prints a message and exits with status 1.
 
 ## 11. Standard library
@@ -575,10 +575,22 @@ where the method holds the monitor for its whole body, and the monitor is reentr
 `Object.wait(long)`/`notify`/`notifyAll`. An id is given to the `Thread` object when it is
 built and never changes, and the main thread is 1.
 
-**What is not there** (declared nowhere, so writing it is a missing symbol): `interrupt`,
-daemon threads, thread priorities, `ThreadGroup`, `ThreadLocal`, `join(long)` with a
-timeout, `Thread.State`, and an uncaught-exception handler — the runtime prints the line
-Java's default handler prints, then the thread ends and the process carries on.
+Interrupts, daemon threads and `ThreadLocal` are there too: `interrupt()` / `isInterrupted()` /
+`Thread.interrupted()` (`sleep`, `join` and `wait` throw `InterruptedException` on wake and
+clear the flag; blocking file and socket I/O is not interruptible, as in classic `java.io`),
+`setDaemon` / `isDaemon` (the process ends when the last non-daemon thread ends), and
+`ThreadLocal` (values live in the `Thread` object's own map, so the GC sees an ordinary
+reference).
+
+**Virtual threads**: `Thread.startVirtualThread(Runnable)`, `Thread.ofVirtual()` and
+`isVirtual()`. They are M:N on ucontext — each virtual thread has its own stack and yields its
+carrier at the runtime's own blocking points; the carrier count is `TEYRU_VTHREAD_CARRIERS`
+(CPU count by default). Windows refuses them by name.
+
+**What is still not there** (declared nowhere, so writing it is a missing symbol): thread
+priorities, `ThreadGroup`, `join(long)` with a timeout, `Thread.State`, and an
+uncaught-exception handler — the runtime prints the line Java's default handler prints, then
+the thread ends and the process carries on.
 
 The collector is a **cooperative** stop-the-world, and that is the limitation worth
 knowing: safepoints are the top of every loop body (which the generator emits), the
@@ -610,9 +622,9 @@ taking tasks from one queue contend on that one monitor. The waiting itself is
 monotonic clock, and a `notify`/`notifyAll` is not lost (every thread already waiting when
 it happened wakes for it, and a thread that arrives later waits for the next one).
 
-**`shutdownNow` is not Java's.** This language has no `interrupt`, so it cannot stop a task
-that is already running: it refuses new work, hands back the tasks that never started, and a
-task that is inside `run()` runs to its end. No method here takes Java's
+**`shutdownNow` is not Java's.** The language has `Thread.interrupt`, but this method does
+not interrupt a task that is already running: it refuses new work, hands back the tasks that
+never started, and a task that is inside `run()` runs to its end. No method here takes Java's
 `mayInterruptIfRunning`; a nominal flag that silently did nothing would be worse than no
 flag.
 
@@ -813,7 +825,9 @@ duplicate declaration `TY-TYP-0001`, because the two fully qualified names are t
 row of the package table above, or the section about it, names what its own package does not
 have — and each of those is a decision rather than unfinished work: `MessageDigest` has no
 SHA-3 because `getInstance` would rather throw `NoSuchAlgorithmException` than answer with a
-digest the caller did not name; `shutdownNow` cannot stop a running task because this
+digest the caller did not name; `shutdownNow` does not interrupt a running task (there is
+no `mayInterruptIfRunning`, even though `Thread.interrupt` exists); a leap-second file is
+refused because this
 language has no `interrupt`; a leap-second file is refused because an answer 27 seconds wrong
 is worse than none; and `java.util.TimeZone` is not implemented because this library has no
 `Date` or `Calendar` for it to serve.
@@ -837,8 +851,8 @@ When you need your own native library, a `native` method can be implemented in C
 6. **`val`**: a type-inferred local variable that cannot be rebound.
 7. A captured local variable is not required to be effectively final.
 8. No annotation processors, no JNI. Annotations are reflectable, with one difference: an annotation's elements are read by name (`ann.stringValue("value")`) rather than through the annotation interface's own methods, and an element whose value is an array is not carried.
-9. The rules for generics and checked exceptions are the same as Java, but there is no
-   checked-exception checking.
+9. The rules for generics and checked exceptions are the same as Java, and checked
+exceptions are checked (`TY-TYP-0122`); the standard library's own bodies are exempt for now.
 10. Type argument inference is one level weaker than javac, relying on the target type rather
     than full constraint solving (there is no JLS 18):
     - A lambda's type arguments are **inferred back from the body**: when the target is
@@ -891,15 +905,14 @@ When you need your own native library, a `native` method can be implemented in C
 
 ## 13. Not yet implemented
 
-- Compile-time checking of checked exceptions (`throws` is only parsed; nothing is tracked at all, and 8 of the 16 programs javac refuses in the JDK differential are refused for this reason, one line each in `tests/jdk-diff-allow.txt`. That is a divergence kept on purpose, not a to-do)
-- A `sealed` type's `permits` clause is not verified: a sealed type without `permits` is
-  treated as undecidable for switch exhaustiveness and requires a `default`; the
-  exhaustiveness of a switch **statement** is still lenient
-- Threads only in part (`Thread`, `Runnable`, `synchronized` and `wait`/`notify` are there,
-  see §11's "Threads and synchronization"): `interrupt`, daemon threads, priorities,
-  `ThreadGroup`, `ThreadLocal`, `join(long)` and `Thread.State` are not, and the collector is
-  a cooperative stop-the-world, so a thread that never loops, allocates or blocks makes a
-  collection wait for it
+- Checked-exception checking covers **the program's own code**; the standard library's bodies
+  are exempt for now (140 violations, counted and categorised, see AGENTS.md section 10)
+- A `sealed` type's `permits` clause is verified (direct subtypes only, every direct subtype
+  listed, each permitted subtype final, sealed or non-sealed); the exhaustiveness of a
+  switch **statement** is still lenient
+- Threads are missing priorities, `ThreadGroup`, `join(long)`, `Thread.State` and an
+  uncaught-exception handler; the collector is a cooperative stop-the-world, so a thread
+  that never loops, allocates or blocks makes a collection wait for it
 - What reflection is missing: reflection of generic type parameters, an array class per
   element type (all arrays share one class), and Java's widening in the primitive getters
   (`getInt` on a `byte` field compiles in Java and is an `IllegalArgumentException` here)

@@ -195,6 +195,12 @@ hello.teyru:4:11: error[TY-TYP-0051]: incompatible types: String cannot be conve
 | TY-TYP-0113 | `resource type %s is not a subtype of AutoCloseable` | try-with-resources 的资源类型必须是 `AutoCloseable` 的子类型。隐含的 `close()` 是一次接口调用，所以“刚好有 `close()` 方法”的类会编译成对象没有条目的 itable 调用，运行期才爆。 |
 | TY-TYP-0115 | `cannot resolve import %s` | 导入路径指不到任何东西。名字在 Teyru 里是按**简单名称**找的，前面写什么包都一样，所以 `import java.utli.List` 这种拼错的包以前是被安静地忽略、然后照样拿到 `List`。现在导入必须指向：标准库响应的包（`teyru` 本身，以及兼容用的 `java.util`、`com.google.gson`、`lombok`…，见 docs/language.md §11）、本次构建中某个文件声明的包，或者是一个完整名称就是这条路径的类型。 |
 | TY-TYP-0116 | `incompatible types: %s cannot be converted to %s` | 复合赋值的隐式转换（JLS 15.26.2）在目标是**装箱类型**时，只能是把「已经是该原生类型」的值装箱：`Integer a; a += 1` 装的是 int，而 `Short s; s += 1` 得把 int 装进 `Short`——javac 就是把它当类型不符拒绝。这里以前接受它，然后在生成代码时没有对应的包装可用。 |
+| TY-TYP-0117 | `test method %s.%s …`（例：`test method T.m is static; @Test methods are instance methods`） | `teyru test` 找到的测试方法形状不对：`@Test`／`@BeforeEach`／`@AfterEach` 是 static、有参数、是 private、没有主体，或同一个方法标了多个测试标注。 |
+| TY-TYP-0118 | `test class %s …`（例：`test class T is nested; tests must be top-level classes`） | 带有测试方法的类不能被测试运行器构造：嵌套、抽象、没有无参构造函数，或构造函数是 private。 |
+| TY-TYP-0119 | `invalid permits clause: %s is not a direct subtype of %s` | `permits` 子句指名了一个不是该 sealed 类型**直接**子类型的类型（间接子类型也不行，JLS 8.1.6）。 |
+| TY-TYP-0120 | `subtype %s of sealed type %s must be listed in its permits clause` | 一个直接子类型没有出现在 `permits` 里。没有 `permits` 子句时，只有同一个编译单元里的直接子类型被隐式允许。 |
+| TY-TYP-0121 | `permitted subtype %s of sealed type %s must be final, sealed, or non-sealed` | `permits` 指名的子类型必须是 `final`、`sealed` 或 `non-sealed` 之一，否则它自己可以再被任意继承。 |
+| TY-TYP-0122 | `unreported exception %s; must be caught or declared to be thrown` | 调用声明 `throws` 的方法、构造函数，或 `throw` 一个 checked 异常时，它必须被外层的 `try` 捕获，或在当前方法上声明。标准库自己的函数体目前豁免。 |
 | TY-TYP-0100 | （已移除） | 容器改读类之后，重名 bean 在 `refresh()` 时被拒绝。 |
 | TY-TYP-0101 | `%s is declared by the framework and cannot be redefined` | `__TeyruFramework` 是容器注册用的合成类，名字被保留。 |
 | TY-TYP-0102 | `@Bean method %s must not be static`／`@Bean method %s must return the bean's type`／`@Bean method %s does not return a class type` | `@Bean` 方法必须不是 static、且返回类型是一个类（基本类型会装箱）。 |
@@ -229,6 +235,7 @@ hello.teyru:4:11: error[TY-TYP-0051]: incompatible types: String cannot be conve
 | TY-INT-0100 | `<构造>: <原因>, in <位置>`（例：`an inner class (Main$Local$2): the llvm back end does not lower the enclosing-instance chain, in Main.instanceLocal`） | `--backend=llvm` 对它降不下去的构造具名拒绝，消息说出碰到的是什么、为什么、在哪里，而不是安静地退回 C 后端。要用 C 后端就不要加 `--backend=llvm` |
 | TY-INT-0101 | `the llvm back end compiles for linux/amd64 only (%s was asked for); use the c back end for other platforms` | LLVM 后端只编 linux/amd64；其他目标请用 C 后端 |
 | TY-INT-0102 | `cannot emit Java for <特性>: <原因>`（例：`cannot emit Java for the native property years: Java has no property syntax: …`） | `teyru emit-java` 遇到写不成 Java 的 Teyru 特性时拒绝，消息指名那个特性与原因。要打印出来的 Java 能编译，就改写那个特性 |
+| TY-INT-0103 | `the llvm back end does not emit debug information yet: -g is supported by the c back end only` | `--backend llvm -g`：LLVM 后端还不生成 DWARF，与其安静地忽略 `-g`，不如指名拒绝。 |
 | TY-IO-0001 | `cannot read %s: %v` | 源文件读不到，检查路径与权限。 |
 
 ## 运行期错误

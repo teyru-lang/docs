@@ -540,6 +540,7 @@ See [`docs/native.md`](/en/docs/native).
 
 ## Editors and tooling
 
+- **`teyru fmt` / `teyru lsp` / `teyru test` / `-g`**: formatter, language server, test runner and source-level debug information; see [Tooling](/en/docs/tooling).
 - **VS Code**: the `vscode/` directory of the
   [`teyru-lang/editors`](https://github.com/teyru-lang/editors) repository adds TextMate
   syntax highlighting, language configuration and snippets for `.teyru` files. Package it with
@@ -638,7 +639,7 @@ familiar to Java developers. The main differences:
    `field` refers to the backing storage. A field with no accessor block is an ordinary
    Java field.
 6. **`val`** declares an inferred, non-reassignable local (not deep immutability).
-7. **No checked exception checking**; `throws` is parsed but not enforced.
+7. **Checked exceptions are checked**: calling a method that declares `throws` requires the checked exception to be caught or declared (`TY-TYP-0122`). The standard library's own bodies are exempt for now; see [Tooling](/en/docs/tooling).
 8. **No annotation processors**; annotations are reflectable, but their elements
    are read **by name** (`ann.stringValue("value")`) rather than through Java's
    `ann.value()`.
@@ -657,6 +658,9 @@ teyru run   [flags] <files...> [-- args...]    compile and run
 teyru emit  [flags] <files...>                 print the generated C
 teyru emit-llvm [flags] <files...>             print the LLVM IR
 teyru emit-java [flags] <files...>             print the equivalent Java source
+teyru test  [paths...]                         compile and run the package's tests
+teyru fmt [-w] [paths...]                      format in the canonical style
+teyru lsp                                      run the language server on stdin/stdout
 teyru get <module>@<version>                   fetch a module into the cache and require it
 teyru mod init <module-path>                   write teyru.mod for a new module
 teyru mod tidy                                 make teyru.mod and teyru.sum match the sources
@@ -670,6 +674,7 @@ teyru help                                     print usage
 | `-c <path>` | Keep the generated C at this path |
 | `--cc <name>` | C compiler to use (defaults to `clang`, then `gcc`, then `cc`) |
 | `-O0`…`-O3` | Optimisation level (`-O2` by default for `build`, `-O0` for `run`; `-O0`/`-O1` use the standard library cache, below) |
+| `-g` | Source-level debug information (DWARF with `#line` back to `.teyru`), see [Tooling](/en/docs/tooling); the LLVM back end refuses it with `TY-INT-0103` |
 | `--llvm-ir <path>` | Also write the LLVM IR module here |
 | `--native <file.c>` | Compile a C file into the program, implementing native methods (repeatable) |
 | `--native-header <path>` | Write the declarations of the native methods (see [docs/native.md](/en/docs/native)) |

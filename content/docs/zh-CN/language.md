@@ -466,7 +466,7 @@ try {
 - 对 `null` 读**写**字段、调用方法、读写数组元素（含取 `length`）都会抛
   `NullPointerException`。
 - `catch` 多类型用 `|`；`finally` 一定会执行（包括 catch 内再次抛出的情况）。
-- **没有 checked exception 检查**：`throws` 会被解析但不强制。
+- **checked exception 会被检查**：调用声明 `throws` 的方法或构造函数、或 `throw` 一个 checked 异常时，它必须被外层的 `try` 捕获，或在当前方法上声明（`TY-TYP-0122`）。标准库自己的函数体目前豁免。
 - 未捕获的异常会打印消息并以状态 1 结束。
 
 ## 11. 标准库
@@ -541,9 +541,20 @@ for (String n : names) {
 监视器可重入）与 `Object.wait(long)`／`notify`／`notifyAll`。id 在 `Thread` 对象
 创建时给定、之后不变，main 线程是 1。
 
-**没有的东西**（没有声明，写了就是找不到符号）：`interrupt`、daemon 线程、线程
-优先级、`ThreadGroup`、`ThreadLocal`、超时版的 `join(long)`、`Thread.State`，以及
-未处理异常的 handler——运行期打印 Java 默认处理程序那一行，然后结束那条线程，进程继续。
+中断、daemon 与 `ThreadLocal` 也有了：`interrupt()`／`isInterrupted()`／
+`Thread.interrupted()`（`sleep`、`join`、`wait` 醒来时抛出 `InterruptedException` 并清除
+标志；阻塞的文件与 socket I/O 不可中断，与 classic `java.io` 相同）、
+`setDaemon`／`isDaemon`（进程在最后一条非 daemon 线程结束时结束），以及
+`ThreadLocal`（值放在 `Thread` 对象自己的 map 里，GC 当作普通引用）。
+
+**虚拟线程**：`Thread.startVirtualThread(Runnable)`、`Thread.ofVirtual()` 与
+`isVirtual()`。它们是 ucontext 上的 M:N——每个虚拟线程有自己的栈，停在运行时自己的
+阻塞点时让出 carrier；carrier 数量由 `TEYRU_VTHREAD_CARRIERS` 指定（默认 CPU 数）。
+Windows 上以具名异常拒绝。
+
+**仍然没有的东西**（没有声明，写了就是找不到符号）：线程优先级、`ThreadGroup`、
+超时版的 `join(long)`、`Thread.State`，以及未处理异常的 handler——运行期打印 Java
+默认处理程序那一行，然后结束那条线程，进程继续。
 
 GC 是**合作式**停止世界，这才是真正要知道的限制：安全点在每个循环回边（生成器会放）、
 分配慢路径、等 heap 锁，以及每个会阻塞的调用。所以一条既不循环、不分配也不阻塞的
@@ -569,9 +580,9 @@ GC 是**合作式**停止世界，这才是真正要知道的限制：安全点�
 `notify`／`notifyAll` 的通知不会丢（通知发生的当下已经在等的线程都会醒过来，
 晚到的线程等的是下一次通知）。
 
-**`shutdownNow` 不是 Java 的那一个。** 这门语言没有 `interrupt`，所以它不会——也不能
-——打断正在跑的任务：它拒收新工作、把还没开始的任务交回来，已经进到 `run()` 的任务
-跑完为止。没有任何方法接收 Java 的 `mayInterruptIfRunning`；一个默默不做事的名义旗标
+**`shutdownNow` 不是 Java 的那一个。** 语言有 `Thread.interrupt`，但这个方法不中断
+正在跑的任务：它拒收新工作、把还没开始的任务交回来，已经进到 `run()` 的任务跑完
+为止。没有任何方法接收 Java 的 `mayInterruptIfRunning`；一个默默不做事的名义旗标
 比没有那个旗标更糟。
 
 **没有的东西**（没有声明，写了就是找不到符号）：`TimeUnit`（这里每个时长都是毫秒，
@@ -739,7 +750,7 @@ Teyru 是按**简单名称**找的，前面写什么包都一样，所以 `impor
 **这份清单现在是空的。** 标准库的缺口都写在它们所属的地方——上面每个包那一行或
 那一节自己写出它少了什么——而且每个「没有」都是决定，不是还没做：`MessageDigest` 没有
 SHA-3 是因为 `getInstance` 宁可抛 `NoSuchAlgorithmException`，也不要给出一个不是调用者
-指名的那种哈希；`shutdownNow` 不能打断任务是因为这门语言没有 `interrupt`；闰秒被拒绝
+指名的那种哈希；`shutdownNow` 不中断运行中的任务（没有 `mayInterruptIfRunning`，即使语言有 `Thread.interrupt`）；闰秒被拒绝
 是因为差 27 秒的答案比没有答案糟；`java.util.TimeZone` 没做是因为这个标准库没有
 `Date` 与 `Calendar` 给它服务。
 
@@ -758,7 +769,7 @@ SHA-3 是因为 `getInstance` 宁可抛 `NoSuchAlgorithmException`，也不要�
 8. 没有 annotation processor、没有 JNI。注解可以反射，但有一个差别：元素是
    **按名字读**（`ann.stringValue("value")`），不是 Java 的 `ann.value()`；值为
    数组的元素不携带。
-9. 泛型与 checked exception 的规则同 Java，但没有 checked 检查。
+9. 泛型与 checked exception 的规则同 Java；checked 异常会被检查（`TY-TYP-0122`），标准库自己的函数体暂时豁免。
 10. 类型实参推断比 javac 弱一层，靠目标类型而不是完整的约束求解（没有 JLS 18）：
     - lambda 的类型实参会**从主体反推**：目标是 `Fn<String, ? extends R>` 而主体是
       `s -> s.length()` 时 `R` 定为 `Integer`。反过来不行——主体本身是一个需要目标
@@ -805,14 +816,10 @@ SHA-3 是因为 `getInstance` 宁可抛 `NoSuchAlgorithmException`，也不要�
 
 ## 13. 尚未实现
 
-- checked exception 的编译期检查（`throws` 只被解析；完全没有跟踪，JDK 差分里 javac 拒绝的 16 个案例有 8 个是这个原因，逐条写在 `tests/jdk-diff-allow.txt`。这是刻意保留的差异，不是待办）
-- `sealed` 的 `permits` 子句没有被验证：没有 `permits` 的 sealed 类型在
-  switch 穷尽性上被视为不可判定而要求 `default`；switch **语句**的穷尽性
-  仍从宽
-- 线程只有一部分（`Thread`、`Runnable`、`synchronized` 与 `wait`／`notify` 已有，
-  见 §11 的〈线程与同步〉）：`interrupt`、daemon、优先级、`ThreadGroup`、
-  `ThreadLocal`、`join(long)`、`Thread.State` 没有；GC 是合作式停止世界，一条既不
-  循环、不分配也不阻塞的线程会让收集等它
+- checked exception 只检查**程序自己的代码**；标准库的函数体目前豁免（140 处违反，已分类，见 AGENTS.md §10）
+- `sealed` 的 `permits` 已验证（直接子类型、必须列出、必须是 final／sealed／non-sealed）；switch **语句**的穷尽性仍从宽
+- 线程缺的是优先级、`ThreadGroup`、`join(long)`、`Thread.State` 与未处理异常的
+  handler；GC 是合作式停止世界，一条既不循环、不分配也不阻塞的线程会让收集等它
 - 反射缺的部分：泛型类型参数的反射、每个元素类型的数组类
   （所有数组共用一个类）、原生类型取值器的 Java 拓宽（对 `byte` 字段调用
   `getInt` 在 Java 会过，这里是 `IllegalArgumentException`）
