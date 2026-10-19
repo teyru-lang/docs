@@ -60,13 +60,14 @@ and leaving -- so that output is the method of record and is not restated here.
 
 | Program | Teyru | Java | Teyru/Java |
 |---|---|---|---|
-| `bench_alloc` | 0.0371 s | 0.0312 s | 1.19x the time |
-| `bench_fib` | 0.0079 s | 0.0277 s | 0.29x |
-| `bench_invoke` | 0.4094 s | 0.2517 s | 1.63x |
-| `bench_loop` | 0.0249 s | 0.0467 s | 0.53x |
-| `bench_oop` | 0.0062 s | 0.0265 s | 0.23x |
-| `bench_string` | 0.0144 s | 0.0549 s | 0.26x |
-| `bench_string_cjk` | 0.0165 s | 0.0781 s | sides disagree; a time, not a comparison |
+| `bench_alloc` | 0.1920 s | 0.0327 s | 0.17x the time |
+| `bench_escape` | 0.4571 s | 0.1070 s | 0.23x |
+| `bench_fib` | 0.0080 s | 0.0288 s | **3.60x faster** |
+| `bench_invoke` | 1.7531 s | 0.2592 s | 0.15x |
+| `bench_loop` | 0.0431 s | 0.0474 s | 1.10x faster |
+| `bench_oop` | 0.0146 s | 0.0288 s | 1.97x faster |
+| `bench_string` | 0.0120 s | 0.0569 s | **4.74x faster** |
+| `bench_string_cjk` | 0.0146 s | 0.0806 s | **5.52x faster** |
 
 **A note on the method: run the control.** Two rows in this section once read "what the other
 side's compiler did" as our own result or as their cost (one measured a miscompiling build, the
@@ -76,33 +77,44 @@ same program takes 1.92 s rather than 0.03 s. So every "N times faster/slower" h
 change the optimisation level, change the C compiler, or turn the JIT off, and see whether the
 conclusion survives.
 
-**Long scale** (at least a second of work per row; scales are fib 44, loop 1000000 rounds,
+**Long scale** (at least a few hundred milliseconds per row; scales are fib 44, loop 1000000 rounds,
 oop 500000 rounds, string 16000000 joins, string_cjk 4000000, alloc 800000000 allocations,
-invoke 200000000 calls):
+invoke 200000000 calls, plus `bench_escape`):
 
 | Program | Teyru | Java | Teyru/Java | Peak RSS (Teyru) |
 |---|---|---|---|---|
-| `bench_alloc` | 1.3982 s | 0.2042 s | **6.85x the time** (this row measures two things, see below) | 4,408 kB |
-| `bench_fib` | 1.8773 s | 1.7998 s | 1.04x (a tie) | 4,408 kB |
-| `bench_invoke` | 4.0655 s | 1.8586 s | **2.19x** | 9,400 kB |
-| `bench_loop` | 1.1335 s | 1.0068 s | 1.13x | 4,364 kB |
-| `bench_oop` | 1.0016 s | 0.3572 s | **2.80x** (see below) | 4,408 kB |
-| `bench_string` | 0.7496 s | 0.2848 s | **2.63x** | 8,732 kB |
-| `bench_string_cjk` | 0.2338 s | 0.1602 s | sides disagree | 8,844 kB |
+| `bench_alloc` | 7.6013 s | 0.2054 s | **37x the time** (below) | 4,240 kB |
+| `bench_escape` | 0.9186 s | 0.1539 s | **6.0x** | 8,604 kB |
+| `bench_fib` | 1.8511 s | 1.8044 s | 1.03x (a tie) | 4,292 kB |
+| `bench_invoke` | 17.6147 s | 1.8807 s | **9.4x** | 8,664 kB |
+| `bench_loop` | 2.0201 s | 1.0075 s | **2.0x** | 4,292 kB |
+| `bench_oop` | 3.0662 s | 0.3657 s | **8.4x** (below) | 4,364 kB |
+| `bench_string` | 0.5242 s | 0.3826 s | **1.4x** | 8,600 kB |
+| `bench_string_cjk` | 0.1783 s | 0.1610 s | 1.1x | 8,856 kB |
 
-**Three numbers that are not programs:**
+**The three numbers that are not programs:**
 
-| Metric | Teyru | Java | Difference |
+| Metric | Teyru | Java | Gap |
 |---|---|---|---|
-| Startup, 100 runs | **0.0763 s** | 2.1093 s | **about 27.6x faster** |
-| hello executable (`-O2`, `wc -c`) | **97,888 B** | -- | -- |
-| Peak RSS (hello) | **4,348 kB** | 51,420 kB | **about 11.8x less** |
+| Startup, 100 runs | **0.0744 s** | 2.0684 s | **about 27.8x faster** |
+| hello executable (`-O2`, `wc -c`) | **105,416 B** | — | — |
+| Peak RSS (hello) | **4,400 kB** | 51,436 kB | **about 11.7x less** |
 
-**The long scale is the only group that can support a throughput claim, and what it says is that
-Teyru wins nothing.** `fib(44)` is a tie (Java 4% faster) and every other row is Java's:
-`loop` 1.13x faster, `string` 2.6x, `oop` 2.8x, `alloc` 6.8x, `invoke` 2.2x. The short group
-looks the other way round because a large part of a whole-program time is JVM startup (about
-20 ms against 0.77 ms on this machine) -- that is a difference in startup, not in throughput.
+**The long scale is the only group that can support a throughput conclusion, and it says Teyru wins
+no column.** `fib(44)` is a tie (Java 2.6% faster) and every other row goes to Java: `loop` 2.0x,
+`string` 1.4x, `oop` 8.4x, `alloc` 37x, `invoke` 9.4x. The short scale looks the opposite because
+most of that number is JVM startup (about 20 ms against 0.75 ms on this machine), which is a
+difference in startup, not in throughput.
+
+**This version's long-run numbers are much worse than the 2026-09-17 set, and the reason is a
+correctness trade made on purpose.** Precise GC roots make every function that can allocate register
+its frame (a frame map), and **a function with a frame cannot be inlined**: the frame's address is
+part of the map, so an inlined copy would describe somebody else's frame. `bench_alloc`'s inner loop
+calls `new Cell(i)` and `Cell.value()` every round; those two small methods used to be inlined and
+are now real calls. `TEYRU_NO_FRAME_MAPS=1` (a measurement switch, not a shippable setting)
+measures 1.39 s on the same tree. Registering pointers to C primitives and to objects laid out in
+the frame has been fixed, which took `bench_loop` from 2.91 s back to 2.02 s; `bench_string`
+improved from 0.750 s to 0.524 s on the one-allocation concat chain.
 
 **The `bench_alloc` row measures two different things, so it carries a note rather than a
 number.** Same program (`examples/bench_alloc.teyru` and `.java` are the same shape line for line),
