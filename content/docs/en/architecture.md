@@ -251,9 +251,10 @@ objects it points to.
 
 Known performance limits: escape analysis only covers objects that stay within their method; objects
 that really do go on the heap still go through conservative mark-and-sweep (with no generational
-assumption), so on loads where objects live a long time and are collected over and over, HotSpot may
-still come out ahead. All five current benchmarks are faster than the JVM; see `sh scripts/bench.sh`
-for how to reproduce them.
+assumption; marking itself is parallel), so on loads where objects live a long time and are collected
+over and over, HotSpot comes out ahead. **On long runs Teyru wins no column** (`fib` is a tie, the
+rest are 1.1 to 6.8 times slower); what it wins is startup (27.6 times) and memory (11.8 times). See
+`sh scripts/bench.sh` for how to reproduce them.
 
 ## Garbage Collection
 
