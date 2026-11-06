@@ -124,5 +124,6 @@ java.lang.AssertionError: expected 3, but was 4
 
 倉庫的 `.github/workflows/ci.yml` 在每次 push 到 `main` 與每個 pull request 上跑
 `go build ./...`、`go vet ./...` 與整套 `go test ./...`，第二個 job 用 `tests/run.sh`
-再跑一次資料驅動的測試。`nightly.yml` 每天以 `CC=gcc` 跑同一套，盯住第二個 C 編譯器
-那條腿。
+再跑一次資料驅動的測試。`CC=gcc` 那條腿（連同 JDK 差分）在 `make ci` 裡，`release.yml` 在
+發佈時呼叫它；每天的排程在 2026-11-06 移除，因為它一直撞在 90 分鐘的 step 上限上，
+18 次裡有 4 次是超時而不是測試失敗。

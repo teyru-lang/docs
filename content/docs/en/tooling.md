@@ -131,5 +131,7 @@ class that cannot be a test (nested, no no-arg constructor, abstract) is `TY-TYP
 
 `.github/workflows/ci.yml` runs `go build ./...`, `go vet ./...` and the whole
 `go test ./...` on every push to `main` and every pull request, and a second job runs the
-data-driven suite through `tests/run.sh`. `nightly.yml` runs the same set with `CC=gcc` once a
-day, to watch the second C compiler leg.
+data-driven suite through `tests/run.sh`. The `CC=gcc` leg (with the JDK differential) lives in
+`make ci`, which `release.yml` calls at release time; the daily schedule was removed on
+2026-11-06 because it kept hitting the 90-minute step limit — 4 of 18 runs timed out rather
+than failed a test.
