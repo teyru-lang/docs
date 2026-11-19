@@ -43,8 +43,17 @@ Teyru 編譯器本身在 [teyru-lang/Teyru](https://github.com/teyru-lang/Teyru)
 | 授權 | `/docs/legal` | `/zh-CN/docs/legal` | `/en/docs/legal` | `THIRD-PARTY-NOTICES.md` |
 
 搬遷時只動了這幾件事：補上 `title`／`description` frontmatter、把指向倉庫檔案的相對連結改成站內路徑、
-把 `teyru` 程式碼區塊對到 Java 語法（Shiki 沒有 Teyru 的語法，見 `source.config.ts`），
 以及把另外兩個 locale 的頁面翻出來。側邊欄的順序與名稱寫在 `content/docs/<locale>/meta.json`。
+
+### 程式碼著色
+
+`lib/grammars/teyru.tmLanguage.json` 是 `teyru-lang/editors` 的 TextMate 文法
+（`jetbrains/src/main/resources/textmate/teyru.tmLanguage.json`）的逐字副本，只多一個
+`aliases: ["teyru"]`（Markdown 圍籬寫的就是這個名字）。`source.config.ts` 把它交給 Shiki
+當成 `teyru` 語言，所以 `val`／`var`／`native`／`property` 這些 Teyru 才有的字有顏色。
+先前是把 `teyru` 別名成 `java`：語法形狀接近，所以「看起來有顏色」，但 Teyru 自己的關鍵字
+是無色的，`class` 後面的型別名還被畫成關鍵字。要更新文法就整份覆蓋，不要只改一邊——
+編輯器與網站用同一份，這正是把副本放進來而不是另寫一份的理由。
 
 ### 翻譯
 
