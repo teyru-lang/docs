@@ -79,7 +79,7 @@ require (
 
 两种写法都可以，指的是同一个包：
 
-```
+```teyru
 import example.com/greeting/text   // 模块的写法
 import example.com.greeting.text   // 点的写法
 ```
@@ -132,7 +132,7 @@ $TEYRUPATH/pkg/mod/example.com/greeting@v0.1.0/
 
 `TEYRUPATH` 默认 `~/.teyru`。获取是对模块路径做一次浅克隆：
 
-```
+```sh
 git clone --depth 1 --branch <版本> https://<模块路径> <临时目录>
 ```
 

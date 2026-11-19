@@ -79,7 +79,7 @@ require (
 
 兩種拼法都可以，指的是同一個套件：
 
-```
+```teyru
 import example.com/greeting/text   // 模組的拼法
 import example.com.greeting.text   // 點的拼法
 ```
@@ -131,7 +131,7 @@ $TEYRUPATH/pkg/mod/example.com/greeting@v0.1.0/
 
 `TEYRUPATH` 預設 `~/.teyru`。抓取是對模組路徑做一次淺層 clone：
 
-```
+```sh
 git clone --depth 1 --branch <版本> https://<模組路徑> <暫存目錄>
 ```
 

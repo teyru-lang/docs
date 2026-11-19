@@ -87,7 +87,7 @@ directive itself (the `require` line and the line above it): those are dropped.
 
 Both spellings work, and they refer to the same package:
 
-```
+```teyru
 import example.com/greeting/text   // the module spelling
 import example.com.greeting.text   // the dot spelling
 ```
@@ -152,7 +152,7 @@ $TEYRUPATH/pkg/mod/example.com/greeting@v0.1.0/
 `TEYRUPATH` defaults to `~/.teyru`. Fetching is a shallow clone of the module
 path:
 
-```
+```sh
 git clone --depth 1 --branch <version> https://<module path> <temp dir>
 ```
 
