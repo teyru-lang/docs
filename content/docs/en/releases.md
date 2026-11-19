@@ -29,16 +29,21 @@ translation unit.
   (`bench_string` long run 0.750 → 0.524 s), and the JDK's three exception messages
   and two boxed constructors are in.
 
-**0.5.0 and 0.5.1 are broken releases with no binaries attached**; the reasons are
-on their own release pages. 0.5.0's run failed at `apt-get update` (mirror network,
-before any test ran). 0.5.1's `make ci` failed on a **test that depended on the
-host's layout** (`t188` asked the host for `Europe/Kiev`, and Ubuntu 24.04 splits
-the backward-compatibility links into `tzdata-legacy`), on nine printed-Java
-rejections that had no allow-list entry, and on `t317` timing out on a 4-core
-runner. All three are fixed in the test data, and 0.5.2 is the first release cut with
-them. **Whether its gate is green is not something this page claims**: a release
-with no binaries attached is a gate that did not pass, and that is only known once
-the workflow finishes — until then, published is not verified.
+**0.5.0 through 0.5.2 are broken releases with no binaries attached**; the reasons
+are on their own release pages. 0.5.0's run failed at `apt-get update` (mirror
+network, before any test ran). 0.5.1's `make ci` failed on a **test that depended on
+the host's layout** (`t188` asked the host for `Europe/Kiev`, and Ubuntu 24.04
+splits the backward-compatibility links into `tzdata-legacy`), on nine
+printed-Java rejections that had no allow-list entry, and on `t317` timing out on a
+4-core runner. 0.5.2's gcc leg timed out because **the generator released the whole
+frame's temporaries at every statement** — O(statements × temporaries): `t115_math`'s
+`main` has 464 statements and 1,299 temporaries, so it emitted 504,771 dead stores
+and 512,615 lines of C. All are fixed: that unit is now 7,783 lines, and the gcc leg
+finishes in 908 s instead of timing out after 25 minutes.
+
+**Whether 0.5.3's gate is green is not something this page claims**: a release with
+no binaries attached is a gate that did not pass, and that is only known once the
+workflow finishes — until then, published is not verified.
 
 ---
 
