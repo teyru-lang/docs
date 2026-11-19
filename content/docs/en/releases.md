@@ -1,7 +1,45 @@
 ---
 title: "Releases"
-description: "Teyru's releases: 0.4.0 is the correctness release — what changed, what was measured, what is not implemented, and what this release deliberately does not claim."
+description: "Teyru's releases: 0.5.x is the toolchain (fmt/lsp/test, cached and parallel builds, virtual threads); 0.4.0 is the correctness release."
 ---
+
+## 0.5.x: the toolchain
+
+0.4.x was about agreeing with Java; 0.5.x is about **what you can do with the
+compiler once it agrees**: format it, ask it where a symbol is defined, run a test
+suite written in the language, debug it against the `.teyru` line, and thread it.
+It also removes the two things that made a build feel slow — the standard library
+being recompiled per program, and one C compiler process compiling the whole
+translation unit.
+
+- **`teyru fmt`** (idempotent, comments preserved), **`teyru lsp`** (`TY-*`
+  diagnostics and go-to-definition), **`teyru test`** (`@Test`, `@BeforeEach` and
+  `Assert` in `teyru.test`), and DWARF from `-g` that names the `.teyru` lines.
+- **Builds**: the standard library is cached per (target, opt level, back end, C
+  compiler), with the compiler executable's own hash in the key; translation units
+  compile in parallel; reflection metadata is emitted only for the classes
+  reflection can reach (a program that uses it went from about 9.7 MB to about
+  1.6 MB at `-O2`; one that does not is unchanged).
+- **Threads**: virtual threads (M:N on `ucontext`; 10,000 threads sleeping 50 ms
+  each take 0.11–0.12 s and about 94 MB, against 0.24–0.25 s and about 156 MB for
+  platform threads), `interrupt`, daemons, `ThreadLocal`.
+- **Language and library**: `sealed` `permits` are validated, checked exceptions
+  are checked for the program's own code, reflection gained per-element-class
+  arrays and one level of generic signatures, a concatenation chain allocates once
+  (`bench_string` long run 0.750 → 0.524 s), and the JDK's three exception messages
+  and two boxed constructors are in.
+
+**0.5.0 and 0.5.1 are broken releases with no binaries attached**; the reasons are
+on their own release pages. 0.5.0's run failed at `apt-get update` (mirror network,
+before any test ran). 0.5.1's `make ci` failed on a **test that depended on the
+host's layout** (`t188` asked the host for `Europe/Kiev`, and Ubuntu 24.04 splits
+the backward-compatibility links into `tzdata-legacy`), on nine printed-Java
+rejections that had no allow-list entry, and on `t317` timing out on a 4-core
+runner. All three are fixed; 0.5.2 is the first of the three to run the whole gate.
+
+---
+
+## 0.4.0: correctness
 
 This page describes **0.4.0**, the first release whose subject is correctness. It is the answer to
 the set of problems an external review and a round of measurement found (the plan's W1–W12), and it
