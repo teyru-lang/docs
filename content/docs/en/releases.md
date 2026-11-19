@@ -35,7 +35,10 @@ before any test ran). 0.5.1's `make ci` failed on a **test that depended on the
 host's layout** (`t188` asked the host for `Europe/Kiev`, and Ubuntu 24.04 splits
 the backward-compatibility links into `tzdata-legacy`), on nine printed-Java
 rejections that had no allow-list entry, and on `t317` timing out on a 4-core
-runner. All three are fixed; 0.5.2 is the first of the three to run the whole gate.
+runner. All three are fixed in the test data, and 0.5.2 is the first release cut with
+them. **Whether its gate is green is not something this page claims**: a release
+with no binaries attached is a gate that did not pass, and that is only known once
+the workflow finishes — until then, published is not verified.
 
 ---
 
