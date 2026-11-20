@@ -41,9 +41,31 @@ frame's temporaries at every statement** — O(statements × temporaries): `t115
 and 512,615 lines of C. All are fixed: that unit is now 7,783 lines, and the gcc leg
 finishes in 908 s instead of timing out after 25 minutes.
 
-**Whether 0.5.3's gate is green is not something this page claims**: a release with
-no binaries attached is a gate that did not pass, and that is only known once the
-workflow finishes — until then, published is not verified.
+**0.5.3 and 0.5.4 attached no binaries either**, and not because of the product:
+`release.yml` put every check in **one job**. 0.5.3 finished `make ci` (both C
+compilers), `java-compat` and the JDK differential, then was SIGTERMed 69 minutes
+into the back-end matrix — that job had already used 2h19m, and the last check had
+whatever clock was left. It is now five jobs: `gate`, `java-compat`, `matrix`
+(**one job per cell, six running at once**), `matrix-report` (merges the six records
+and answers for the matrix as a whole) and `publish` (binaries only when all pass).
+A failing check still means no binaries; that property did not change.
+
+The matrix therefore completed for the first time, and completing found **four LLVM
+back-end defects** — none of them "the back end is worse", all of them wrong: the
+member-table layouts in `llvm_meta.go` and `llvm.go` were **8–16 bytes narrower** than
+the structs `tyrt.h` declares (`tyfield` 72 vs 80, `tymethod` 96 vs 112, `tyclass`
+192 vs 208), and the runtime strides those arrays by **C's `sizeof`**, so entry 1
+onward was read out of the middle of its neighbour. `t147`/`t305` got
+`NoSuchFieldException` for a field that was there, `t301` read a neighbour's `name`
+as a `tysig*` and segfaulted, and `t222`'s long-standing "LLVM crashes, exit 139" was
+the same bug. Separately, `t300` panicked the **compiler** (the reflection scan ran on
+an emitter with no output unit), and the generic-signature readers answered a `Class`
+where the C back end answers a `ParameterizedType` — they are now refused by name.
+The full matrix on the merged record: **318 programs × 6 cells, 317 agreeing, 1
+accounted divergence** (`t245`).
+
+**Whether 0.5.5's gate is green is not something this page claims** — that too waits
+on the workflow. Until then, published is not verified; attached binaries are.
 
 ---
 

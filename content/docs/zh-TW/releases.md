@@ -29,8 +29,25 @@ backward 相容連結拆到 `tzdata-legacy`）、九支 Java 印出後被 javac 
 框架的暫存變數**（O(敘述 × 暫存)：`t115_math` 的 `main` 有 464 個敘述、1,299 個暫存，
 於是 504,771 次死儲存、512,615 行 C）。三者都修了；`t115_math` 的 C 從 512,615 行降到
 7,783 行，gcc 腿從「25 分鐘後逾時」變成 908 秒跑完。
-**0.5.3 的關卡有沒有全綠，這一頁不宣稱**——沒有附執行檔的 release 就是關卡沒過，
-而那要等 workflow 跑完才知道；在那之前，「已發佈」不等於「已驗證」。
+**0.5.3 與 0.5.4 也沒有附執行檔**，而且原因不在產品：`release.yml` 把每一道關卡塞進
+**同一個 job**，0.5.3 跑完 `make ci`（兩個 C 編譯器）、`java-compat` 與 JDK 差分之後，
+在 back-end matrix 的第 69 分鐘被 SIGTERM——那個 job 的時鐘已經用了 2 小時 19 分，最後
+一道檢查只剩剩下的時間。現在拆成五個 job：`gate`、`java-compat`、`matrix`（**六個 cell
+各一個 job，平行跑**）、`matrix-report`（合併六份記錄後回答整張矩陣）、`publish`（全部
+通過才附執行檔）。**任一關卡失敗仍然沒有 binaries**，這條性質沒變。
+
+矩陣因此第一次真的跑完，而它一跑完就抓到**四個 LLVM 後端的缺陷**，全都不是「後端比較差」
+而是錯：`llvm_meta.go` 與 `llvm.go` 手寫的成員表版面比 `tyrt.h` 宣告的結構**窄 8～16
+位元組**（`tyfield` 72 對 80、`tymethod` 96 對 112、`tyclass` 192 對 208），而執行期是用
+**C 的 `sizeof`** 跨步陣列，所以第 1 筆之後都讀到鄰居的中間——`t147`／`t305` 得到
+`NoSuchFieldException`（欄位明明在）、`t301` 把鄰居的 `name` 當成 `tysig*` 而 SIGSEGV、
+`t222` 長年那條「LLVM crash，exit 139」是同一個 bug；另外 `t300` 讓**編譯器**panic（反射
+掃描用一個輸出 unit 為 nil 的 emitter，註冊 array class 時寫了進去），而泛型簽章讀取
+（`Field.getGenericType` 等）原本回 `Class` 而非 `ParameterizedType`，現在改成具名拒絕。
+本地合併後的完整矩陣：**318 支 × 6 格，317 一致、1 支既有帳目**（`t245`）。
+
+**0.5.5 的關卡有沒有全綠，這一頁不宣稱**——那一樣要等 workflow 跑完；在那之前，
+「已發佈」不等於「已驗證」，而是會附上執行檔的才算。
 
 ---
 
