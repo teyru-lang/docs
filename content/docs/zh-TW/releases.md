@@ -46,8 +46,14 @@ backward 相容連結拆到 `tzdata-legacy`）、九支 Java 印出後被 javac 
 （`Field.getGenericType` 等）原本回 `Class` 而非 `ParameterizedType`，現在改成具名拒絕。
 本地合併後的完整矩陣：**318 支 × 6 格，317 一致、1 支既有帳目**（`t245`）。
 
-**0.5.5 的關卡有沒有全綠，這一頁不宣稱**——那一樣要等 workflow 跑完；在那之前，
-「已發佈」不等於「已驗證」，而是會附上執行檔的才算。
+**0.5.6 是第一個關卡全綠、附上執行檔的 release。** 九個 job 全過：`gate`（`make ci` 在
+clang 與 gcc 兩個編譯器下、`make cache`、`make notices`）、`java-compat`、六個 matrix cell、
+`matrix-report`，最後 `publish` 才建出 linux/amd64、linux/arm64、darwin/amd64、darwin/arm64、
+windows/amd64、windows/arm64 六個執行檔。**「已發佈」仍然不等於「已驗證」**——這一段之所以
+可以這樣寫，是因為有一份 `completed/success` 的 run 與六個附件，不是因為 tag 存在。
+（`0.5.5` 差一支程式：`t209_websocket_frames` 在 `O2-gcc` 印出 `closed=1` 而其他五格是
+`closed=2`。那是測試的競態——它拿「新連線的 HTTP 應答」當前一條 WebSocket 連線 `onClose`
+的屏障，而 `onClose` 由服務執行緒交付、應答來自另一個，兩者沒有順序。改成等那個計數。）
 
 ---
 

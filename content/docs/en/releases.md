@@ -64,8 +64,17 @@ where the C back end answers a `ParameterizedType` — they are now refused by n
 The full matrix on the merged record: **318 programs × 6 cells, 317 agreeing, 1
 accounted divergence** (`t245`).
 
-**Whether 0.5.5's gate is green is not something this page claims** — that too waits
-on the workflow. Until then, published is not verified; attached binaries are.
+**0.5.6 is the first release whose gate is green and which attached binaries.** All
+nine jobs passed: `gate` (`make ci` under both clang and gcc, `make cache`, `make
+notices`), `java-compat`, the six matrix cells, `matrix-report`, and then `publish`,
+which built linux/amd64, linux/arm64, darwin/amd64, darwin/arm64, windows/amd64 and
+windows/arm64. **Published still is not the same as verified** — this paragraph can
+say that because there is a `completed/success` run and six attachments, not because
+a tag exists. (`0.5.5` came down to one program: `t209_websocket_frames` printed
+`closed=1` in the O2-gcc cell where the other five printed `closed=2`. That was the
+test's own race — it used a new connection's HTTP answer as a barrier for the previous
+WebSocket connection's `onClose`, which the serving thread delivers on another thread
+with no ordering. It waits for the count now.)
 
 ---
 
