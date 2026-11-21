@@ -106,7 +106,7 @@ count is the scheduler; a quieter or busier machine gives a different number.
 | Metric | Teyru | Java | Gap |
 |---|---|---|---|
 | Startup, 100 runs | **0.0744 s** | 2.0684 s | **about 27.8x faster** |
-| hello executable (`-O2`, `wc -c`) | **105,416 B** | — | — |
+| hello executable (`-O2`, `wc -c`) | **105,744 B** | — | — |
 | Peak RSS (hello) | **4,400 kB** | 51,436 kB | **about 11.7x less** |
 
 **The long scale is the only group that can support a throughput conclusion, and it says Teyru wins
