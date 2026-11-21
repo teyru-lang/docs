@@ -100,6 +100,17 @@ on every report line. Most of the rules below follow from those two facts.
 25. A test that hangs is caught by `-timeout`: 60 seconds per test by default, `-timeout 0`
     turns it off, and `-deadline` bounds one directory. The FAIL line names the hung test.
 
+## What is not there (named, not forgotten)
+
+- **Parameterized tests** (`@ParameterizedTest`/`@ValueSource`): one `@Test` is still
+  one behaviour and one set of inputs. Several inputs are a loop, and the message overload
+  names the row (`Assert.assertEquals(expected, actual, "case " + i)`) -- which is what the
+  message overload is for.
+- **`@Nested`**: a nested test class needs an enclosing instance to construct, and the
+  runner refuses it with `TY-TYP-0118`.
+- **A fixture shared across test classes** (a once-per-suite object beyond `@BeforeAll`):
+  each test class is constructed on its own and shares nothing with another.
+
 ## Layers
 
 26. `tests/test-framework/` holds only the runner contract (lifecycle, assertions, output,

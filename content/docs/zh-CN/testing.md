@@ -87,6 +87,15 @@ description: "怎么写 Teyru 测试：命名、结构、断言、确定性，�
 25. 有测试卡死时用 `-timeout`：默认每个测试 60 秒，`-timeout 0` 关掉；`-deadline` 是整
     个目录的上限。超时的 FAIL 行会指名卡住的那个测试。
 
+## 没有的东西（具名，不是忘了）
+
+- **参数化测试**（`@ParameterizedTest`／`@ValueSource`）：一个 `@Test` 仍然只能有一个
+  行为、一组输入。多组输入写成循环，并用 message 重载指名是哪一列
+  （`Assert.assertEquals(expected, actual, "case " + i)`）——这正是 message 重载存在的理由。
+- **`@Nested`**：嵌套测试类需要外围实例才能构造，runner 对它以 `TY-TYP-0118` 拒绝。
+- **测试之间共享 static 状态的 fixture**（`@BeforeAll` 之外的 once-per-suite 对象）：
+  每个测试类各自构造，不跨类共享。
+
 ## 分层
 
 26. `tests/test-framework/` 只放 runner 契约（生命周期、断言、输出、exit code）；

@@ -87,6 +87,15 @@ description: "怎麼寫 Teyru 測試：命名、結構、斷言、決定性，�
 25. 有測試卡死時用 `-timeout`：預設每個測試 60 秒，`-timeout 0` 關掉；`-deadline` 是整
     個目錄的上限。逾時的 FAIL 行會指名卡住的那個測試。
 
+## 沒有的東西（具名，不是忘了）
+
+- **參數化測試**（`@ParameterizedTest`／`@ValueSource`）：一個 `@Test` 仍然只能有一個
+  行為、一組輸入。多組輸入寫成迴圈，並用 message 多載指名是哪一列
+  （`Assert.assertEquals(expected, actual, "case " + i)`）——這正是 message 多載存在的理由。
+- **`@Nested`**：巢狀測試類別需要外圍實例才能建構，runner 對它以 `TY-TYP-0118` 拒絕。
+- **測試之間共用 static 狀態的 fixture**（`@BeforeAll` 之外的 once-per-suite 物件）：
+  每個測試類別各自建構，不跨類別共用。
+
 ## 分層
 
 26. `tests/test-framework/` 只放 runner 契約（生命週期、斷言、輸出、exit code）；
