@@ -564,8 +564,9 @@ GC 是**合作式**停止世界，這是真正要知道的限制：安全點在�
 `java.util.concurrent` 的兩塊：執行器（`Callable`、`Future`、`FutureTask`、`Executor`、
 `ExecutorService`、`ThreadPool`，以及 `Executors` 的 `newFixedThreadPool`／
 `newSingleThreadExecutor`／`newCachedThreadPool`）與同步器（`CountDownLatch`、
-`AtomicInteger`、`AtomicLong`、`ConcurrentHashMap`），再加上 `ExecutionException`、
-`CancellationException`、`RejectedExecutionException`。任務在池裡的一條執行緒上跑，
+`AtomicInteger`、`AtomicLong`、`ConcurrentHashMap`、`Semaphore`、`CyclicBarrier`、
+`ReentrantLock`），再加上 `ExecutionException`、`CancellationException`、
+`RejectedExecutionException`、`BrokenBarrierException`。任務在池裡的一條執行緒上跑，
 所以它的堆疊、配置與監視器都屬於那條執行緒；`submit` 回傳的 `Future.get()` 等它做完，
 失敗的任務以 `ExecutionException` 回報，cause 就是任務拋出的那個 throwable。
 
@@ -587,7 +588,11 @@ GC 是**合作式**停止世界，這是真正要知道的限制：安全點在�
 和 `Thread.sleep` 一樣）、`invokeAll`／`invokeAny`、`submit(Runnable)`、排程執行器、
 fork/join、`CompletionService`、`ThreadFactory`、`CyclicBarrier`／`Semaphore`／
 `Phaser`／`Exchanger`、原子欄位更新器，以及可中斷的等待（沒有
-`InterruptedException`）。`ConcurrentHashMap` 不是 `Map`：沒有 `clear`／`putAll`／
+`InterruptedException`）。`Semaphore` 與 `ReentrantLock` 接受 Java 的 `fair` 引數並
+忽略它（沒有佇列可以排序，類別註解寫明了這件事）；`CyclicBarrier` 的 action 在最後
+抵達的那條執行緒上、監視器內執行，失敗時把 barrier 標成 broken 並讓其他人以
+`BrokenBarrierException` 醒來。測試是 `tests/programs/t321_synchronizers.teyru`（期望值
+由 JDK 21 跑同一支程式產生）。`ConcurrentHashMap` 不是 `Map`：沒有 `clear`／`putAll`／
 `keySet`／`values`／`entrySet`，`keys()` 回的是一份快照 `Enumeration`。
 
 ### 時區（`lib/46`）
@@ -704,6 +709,7 @@ TLS」是由產生出來的 C 決定的：碰得到才編譯那個檔案、才�
 | `java.text` | `lib/24` | `NumberFormat`／`DecimalFormat`／`DecimalFormatSymbols`（完整 pattern 語言）、`DateFormat`／`SimpleDateFormat`（四種 style 與 parse）、`DateTimeFormatter`、`MessageFormat`、`ChoiceFormat`、`ParseException`／`ParsePosition`。**沒有 `Locale`**（只做 ROOT／en-US），**沒有 `java.util.Date`**（`format`／`parse` 走 `Instant`），`format` 沒有 `FieldPosition` 多載 |
 | `java.util` 其餘 | `lib/25` | `Properties`、`Random`（逐位元組照 java.util.Random）、`UUID`、`BitSet`、`StringTokenizer`、`Enumeration`、`ArrayOps`（陣列的範圍形式） |
 | `java.security`／`java.util.zip` | `lib/40` | `MessageDigest`（`getInstance`、`update`、`digest`、`reset`、`getAlgorithm`、`getDigestLength`、`isEqual`）、`Checksum` 介面與 `CRC32`（Java 把它們放在 `java.util.zip`），以及 `GeneralSecurityException`／`NoSuchAlgorithmException`／`DigestException`。MD5、SHA-1、SHA-224、SHA-256、SHA-384、SHA-512 都在 Teyru 裡實作（`tests/programs/t173_digest.teyru`、`t174_crc32.teyru`）；`getInstance` 的名字比對不分大小寫，`getAlgorithm` 回報呼叫者寫的那個拼法（JDK 也是這樣）。JDK 21 還回答 SHA3-256 那一家族與 SHA-512/256、SHA-512/224，這裡的 `getInstance` 對它們丟 `NoSuchAlgorithmException`，而不是安靜地給另一種雜湊。`update` 收的是 `byte`（`java.security.MessageDigest` 沒有 `update(int)`，那是 `Checksum` 的，`CRC32` 有）；沒有 Provider、沒有 `getInstance(String, String)`、沒有 `clone()`、沒有 `update(ByteBuffer)`、沒有 `toString()` 覆寫 |
+| `java.security` 其餘 | `lib/49` | `SecureRandom`（`nextBytes`／`next`，位元組來自系統 CSPRNG：POSIX 是 `getrandom` 或 `/dev/urandom`，Windows 是 `BCryptGenRandom`；沒有來源時拋 `IllegalStateException` 而不是回零）與 `javax.crypto.Mac`（`getInstance`、`init`、`doFinal`、`getMacLength`、`getAlgorithm`，HmacMD5／HmacSHA1／HmacSHA224／HmacSHA256／HmacSHA384／HmacSHA512 以 `lib/40` 的雜湊實作，RFC 2104）。**沒有** `Cipher`／`Signature`／`KeyStore`／X.509：AES 與 RSA 不在這個執行期，憑證解析也沒有——那些路徑不會默默回錯答案，而是不存在（`tests/programs/t318_hmac.teyru`、`t319_securerandom.teyru`） |
 | `java.util.HexFormat` | `lib/41` | `of`／`ofDelimiter`、`withDelimiter`／`withPrefix`／`withSuffix`／`withUpperCase`／`withLowerCase`（每個都回傳新的實例，原物件不變）、`isUpperCase`／`delimiter`／`prefix`／`suffix`、`formatHex`、`parseHex`、`isHexDigit`／`fromHexDigit` 與兩個位數取出方法，以及六個 `toHexDigits`。沒有 `ByteBuffer`／`Appendable` 的多載（這個標準程式庫沒有那兩個型別），也沒有覆寫 `toString`／`equals`／`hashCode`（`tests/programs/t175_hexformat.teyru`） |
 | `java.io` 資料流 | `lib/42` | `OutputStream`／`Reader`／`Writer` 介面、`ByteArrayInputStream`／`ByteArrayOutputStream`、`DataInputStream`／`DataOutputStream`、`BufferedReader`、`PrintWriter`、`UTFDataFormatException`。`writeUTF`／`readUTF` 用 Java 的 **modified UTF-8**（NUL 是 `C0 80`，BMP 之外的字是代理對的六個位元組），長度欄放不下時（65536 位元組以上）以 JDK 的訊息丟 `UTFDataFormatException`，而且是在寫出任何位元組**之前**檢查，所以失敗的呼叫不會留下半個 frame。`BufferedReader` 的行語法是 Java 的（LF、CRLF、單獨的 CR），但它沒有自己的緩衝區——它包裝的來源本來就整塊讀。沒有序列化、沒有檔案資料流（磁碟歸 `lib/16`）、沒有 `char[]` 的 `Writer` 方法、`DataInputStream` 沒有 `read(byte[], int, int)`（阻塞讀滿是 `readFully` 的契約，不是 Java 那個允許短讀的契約）、`SocketOutputStream` 不是 `OutputStream` |
 | `java.util.Scanner` | `lib/43` | 只從一個 `String` 讀：`hasNext`／`next`、`hasNextInt`／`hasNextLong`／`hasNextDouble` 與對應的 `next*`、`hasNextLine`／`nextLine`，以及 `InputMismatchException`。分隔字元是 Java 的 `\p{javaWhitespace}+`，所以 `nextInt()` 之後的 `nextLine()` 拿到的是那一行剩下的部分；數值測試就是解析本身，不是正規表達式。沒有 `useDelimiter`、沒有進位基底的多載、沒有 `nextShort`／`nextFloat`、沒有 `hasNext(Pattern)`／`findInLine` 那一家族、沒有地區化數字格式，也沒有從資料流建構的建構子 |

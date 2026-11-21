@@ -107,10 +107,41 @@ The lifecycle follows JUnit's shape: a fresh instance per test, `@BeforeEach` â†
 `@AfterEach` (which also runs after a failure); `@BeforeAll` / `@AfterAll` may be static or
 instance methods.
 
-The assertions live in `teyru.test.Assert`: `assertEquals` (`Object`, `int`, `long`, `char`,
-`boolean`, `double`), `assertTrue`, `assertFalse`, `assertNull`, `assertNotNull`,
-`assertThrows(Class, Runnable)`, `fail(String)`. A failure names both the expected and the
-actual value.
+The assertions live in `teyru.test.Assert`:
+
+| Assertion | Forms |
+|---|---|
+| `assertEquals` | `Object`, `int`, `long`, `char`, `boolean`, `double`, `float`, plus the tolerance form `assertEquals(double, double, delta)` |
+| `assertNotEquals` | the same type set |
+| `assertTrue` / `assertFalse` / `assertNull` / `assertNotNull` | conditions |
+| `assertSame` / `assertNotSame` | reference identity |
+| `assertArrayEquals` | one per element type; the message prints both arrays (`Arrays.toString`) |
+| `assertThrows(Class, Runnable)` | returns the caught `Throwable` so the test can assert `getMessage()` |
+| `assertDoesNotThrow(Runnable)` | the positive twin of `assertThrows` |
+| `assertAll(Runnable...)` | runs them all, then reports every failure |
+| `fail(String)` / `fail()` | fail directly |
+
+**Every one has a message overload** (`assertEquals(expected, actual, "row 7")`): that is
+how a table-driven test names the row. The message names both values, and both types when
+the two sides differ.
+
+`@Disabled("reason")` keeps a test out of the run and leaves a `SKIP Class.method: reason`
+line; `@Tag("slow")` is a selection label (one annotation may carry `@Tag("slow,db")`).
+
+The command's flags:
+
+| Flag | Effect |
+|---|---|
+| `-run REGEXP` | run only tests whose `Class.method` (or method name, or class name) matches |
+| `-tag NAME[,NAME...]` | run only tests carrying that `@Tag` |
+| `-timeout DURATION` | per-test budget, `60s` by default; `0` turns it off. On expiry the process is killed and the FAIL line names the hung test |
+| `-deadline DURATION` | budget for one package directory, `10m` by default |
+| `-v` | print the captured stdout of passing tests too |
+| `-no-tests-ok` | accept a run that found no tests (default is exit 2) |
+
+Each test's stdout is **captured** by the runner and printed, prefixed `output: `, only
+when the test fails (or under `-v`), so a test that prints cannot corrupt the `PASS` /
+`FAIL` lines.
 
 Output is one line per test, then a summary:
 

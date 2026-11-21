@@ -332,22 +332,42 @@ Lombok 用「builder 繼承 builder，並以自我指涉的型別參數 `B exten
 
 ## 5. 日誌註解
 
-Teyru 沒有 SLF4J、Log4j 這些外部套件，標準程式庫提供一個簡單的 `Logger`：
+Teyru 沒有 SLF4J、Log4j 這些外部套件，標準程式庫的 `Logger` 是可設定的日誌器
+（`lib/05_logging.teyru`），不是一行 `println`：
 
 ```teyru
 class Logger {
-  public Logger(String name)
-  public void trace(String msg)
-  public void debug(String msg)
-  public void info(String msg)
-  public void warn(String msg)
-  public void error(String msg)
+  public Logger(String name)          // @Log 產生的建構子
+  public static Logger getLogger(String name)
+  public static Logger getRootLogger()
+  public static void setGlobalLevel(int level)
+  public void setLevel(int level)      // 沒設的 logger 繼承點號父層，最後是全域
+  public void setHandler(LogHandler h)
+  public void log(int level, String message, Throwable thrown)
+  public void trace/debug/info/warn/error(String msg)   // Lombok 的對應
+  public void severe/warning/info/config/fine/finer/finest(String msg)
 }
 ```
 
-`@Slf4j` 等註解產生的欄位是 `private static final Logger log = new Logger("類別名")`，
-輸出格式為 `LEVEL 類別名 - 訊息`，寫到標準輸出。要接真正的日誌系統，請自行把
-`log` 欄位換成對應的實作。
+層級是 `java.util.logging` 的七級（`SEVERE`／`WARNING`／`INFO`／`CONFIG`／`FINE`／
+`FINER`／`FINEST`、以及 `ALL`／`OFF`），`LogLevel.name(level)` 回報它們的名字。
+處理器有 `ConsoleHandler`（stderr）與 `StreamHandler(PrintStream)`（任意串流），
+格式器有 `SimpleFormatter`（`LEVEL logger message`）、`JsonFormatter`（一行 JSON）與
+`PlainFormatter`（`LEVEL logger - message`）。
+
+`@Slf4j` 等註解產生的欄位仍是 `private static final Logger log = new Logger("類別名")`；
+**沒人設定時**它照舊寫到標準輸出、格式是 `LEVEL 類別名 - 訊息`，所以既有的程式不需要
+改。差別在於現在可以把它關掉或改道：
+
+```teyru
+Logger log = Logger.getLogger("com.example.db")
+log.setLevel(LogLevel.WARNING)          // 只留警告以上
+log.setHandler(new ConsoleHandler())    // stderr，SimpleFormatter
+Logger.setGlobalLevel(LogLevel.WARNING) // 所有沒自設層級的 logger
+```
+
+`StreamHandler(PrintStream)` 是測試捕捉日誌的方式，也是把日誌送去別的地方的方式。
+`
 
 ---
 

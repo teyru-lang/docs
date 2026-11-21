@@ -606,7 +606,8 @@ The two halves of `java.util.concurrent` this library carries: the executor half
 (`Callable`, `Future`, `FutureTask`, `Executor`, `ExecutorService`, `ThreadPool`, and
 `Executors` with `newFixedThreadPool`/`newSingleThreadExecutor`/`newCachedThreadPool`) and
 the synchronizer half (`CountDownLatch`, `AtomicInteger`, `AtomicLong`,
-`ConcurrentHashMap`), plus `ExecutionException`, `CancellationException` and
+`ConcurrentHashMap`, `Semaphore`, `CyclicBarrier`, `ReentrantLock`), plus
+`ExecutionException`, `CancellationException`, `BrokenBarrierException` and
 `RejectedExecutionException`. A task runs on one of the pool's threads, so its stack, its
 allocation and its monitors belong to that thread; the `Future` `submit` answers waits in
 `get()` until the task is done, and a task that threw is reported as an
@@ -631,10 +632,14 @@ flag.
 **What is not there** (declared nowhere, so writing it is a missing symbol): `TimeUnit`
 (every duration here is milliseconds, as in `Thread.sleep`), `invokeAll`/`invokeAny`,
 `submit(Runnable)`, the scheduled executor, fork/join, `CompletionService`, `ThreadFactory`,
-`CyclicBarrier`/`Semaphore`/`Phaser`/`Exchanger`, the atomic field updaters, and
-interruptible waits (there is no `InterruptedException`). `ConcurrentHashMap` is not a
-`Map`: no `clear`/`putAll`/`keySet`/`values`/`entrySet`, and `keys()` answers a snapshot
-`Enumeration`.
+`Phaser`/`Exchanger`, the atomic field updaters, and interruptible waits (there is no
+`InterruptedException`). `Semaphore` and `ReentrantLock` accept Java's `fair` argument and
+ignore it (there is no queue to order, and the class comments say so); `CyclicBarrier`'s
+action runs on the last arriving thread inside the monitor, and its failure marks the barrier
+broken and wakes the others with `BrokenBarrierException`. The test is
+`tests/programs/t321_synchronizers.teyru`, whose expectation is the JDK 21 run of the same
+program. `ConcurrentHashMap` is not a `Map`: no `clear`/`putAll`/`keySet`/`values`/`entrySet`,
+and `keys()` answers a snapshot `Enumeration`.
 
 ### Time zones (`lib/46`)
 
@@ -774,6 +779,7 @@ nothing; the timeout must be a `SocketTimeoutException` and not be read as end o
 | `java.text` | `lib/24` | `NumberFormat`/`DecimalFormat`/`DecimalFormatSymbols` (the full pattern language), `DateFormat`/`SimpleDateFormat` (four styles and parsing), `DateTimeFormatter`, `MessageFormat`, `ChoiceFormat`, `ParseException`/`ParsePosition`. **There is no `Locale`** (only ROOT/en-US), **there is no `java.util.Date`** (`format`/`parse` go through `Instant`), and `format` has no `FieldPosition` overload |
 | Rest of `java.util` | `lib/25` | `Properties`, `Random` (byte-for-byte like java.util.Random), `UUID`, `BitSet`, `StringTokenizer`, `Enumeration`, `ArrayOps` (the range form of arrays) |
 | `java.security`/`java.util.zip` | `lib/40` | `MessageDigest` (`getInstance`, `update`, `digest`, `reset`, `getAlgorithm`, `getDigestLength`, `isEqual`), the `Checksum` interface and `CRC32` (Java keeps those two in `java.util.zip`), plus `GeneralSecurityException`/`NoSuchAlgorithmException`/`DigestException`. MD5, SHA-1, SHA-224, SHA-256, SHA-384 and SHA-512 are implemented in Teyru (`tests/programs/t173_digest.teyru`, `t174_crc32.teyru`); `getInstance` matches the name case-insensitively and `getAlgorithm` answers the caller's own spelling, as the JDK does. The JDK at 21 also answers for SHA3-256 and its siblings and for SHA-512/256 and SHA-512/224; `getInstance` throws `NoSuchAlgorithmException` for those rather than quietly answering with a different digest. `update` takes a `byte` (`java.security.MessageDigest` has no `update(int)`; that one is on `Checksum`, where `CRC32` has it). No Provider, no `getInstance(String, String)`, no `clone()`, no `update(ByteBuffer)`, no `toString()` override |
+| `java.security` (rest) | `lib/49` | `SecureRandom` (`nextBytes`/`next`, bytes from the system CSPRNG: `getrandom` or `/dev/urandom` on POSIX, `BCryptGenRandom` on Windows; `IllegalStateException` when there is no source, never zero bytes) and `javax.crypto.Mac` (`getInstance`, `init`, `doFinal`, `getMacLength`, `getAlgorithm`; HmacMD5/HmacSHA1/HmacSHA224/HmacSHA256/HmacSHA384/HmacSHA512 over `lib/40`'s hashes, RFC 2104). **No** `Cipher`/`Signature`/`KeyStore`/X.509: AES and RSA are not in this runtime and nothing parses a certificate — those paths do not answer wrongly, they do not exist (`tests/programs/t318_hmac.teyru`, `t319_securerandom.teyru`) |
 | `java.util.HexFormat` | `lib/41` | `of`/`ofDelimiter`, `withDelimiter`/`withPrefix`/`withSuffix`/`withUpperCase`/`withLowerCase` (each answers a new instance and leaves the original alone), `isUpperCase`/`delimiter`/`prefix`/`suffix`, `formatHex`, `parseHex`, `isHexDigit`/`fromHexDigit`, the two digit extractors, and six `toHexDigits` overloads. No `ByteBuffer`/`Appendable` overloads (this library has neither type), and `toString`/`equals`/`hashCode` are not overridden (`tests/programs/t175_hexformat.teyru`) |
 | `java.io` streams | `lib/42` | The `OutputStream`/`Reader`/`Writer` interfaces, `ByteArrayInputStream`/`ByteArrayOutputStream`, `DataInputStream`/`DataOutputStream`, `BufferedReader`, `PrintWriter`, `UTFDataFormatException`. `writeUTF`/`readUTF` use Java's **modified UTF-8** (NUL is `C0 80`, a character above the BMP is the six bytes of its surrogate pair), and a string whose encoded length does not fit the unsigned short is a `UTFDataFormatException` with the JDK's message — checked **before** anything is written, so a refused string leaves the stream as it was. `BufferedReader` has Java's line grammar (LF, CRLF, a lone CR) but no buffer of its own, because the sources it wraps already read in blocks. No serialization, no streams over a file (the disk belongs to `lib/16`), no char[] `Writer` methods, no `DataInputStream.read(byte[], int, int)` (a blocking full read is `readFully`'s contract, not Java's short-read one), and a `SocketOutputStream` is not an `OutputStream` |
 | `java.util.Scanner` | `lib/43` | Reads one `String`: `hasNext`/`next`, `hasNextInt`/`hasNextLong`/`hasNextDouble` with their `next*` forms, `hasNextLine`/`nextLine`, and `InputMismatchException`. The delimiter is Java's `\p{javaWhitespace}+`, so a `nextLine()` after `nextInt()` answers the rest of the line; the numeric tests are the parse itself, not a regular expression. No `useDelimiter`, no radix overloads, no `nextShort`/`nextFloat`, no `hasNext(Pattern)`/`findInLine` family, no locale-sensitive number formats, and no constructor from a stream |

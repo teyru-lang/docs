@@ -92,6 +92,15 @@ invoke 200000000 calls, plus `bench_escape`):
 | `bench_string` | 0.5242 s | 0.3826 s | **1.4x** | 8,600 kB |
 | `bench_string_cjk` | 0.1783 s | 0.1610 s | 1.1x | 8,856 kB |
 
+**HTTP throughput (2026-11-22, written down only after it was measured)**:
+`examples/webapp` built with `-O2` (10,365,056 bytes, 31.8 s) served
+**20,521 req/s** on this machine under `ab -n 20000 -c 8
+http://127.0.0.1:8080/todos` (0.390 ms mean per request, 0 failed), with the
+one-minute load at 2.19–2.41 before and after. The method is
+`scripts/http-throughput.sh`: it prints the build time, the executable's size and
+the load on both sides of the measurement, because half of a loopback request
+count is the scheduler; a quieter or busier machine gives a different number.
+
 **The three numbers that are not programs:**
 
 | Metric | Teyru | Java | Gap |
@@ -501,7 +510,7 @@ content:
 | `java.io` streams | `Reader`/`Writer`/`OutputStream`, `ByteArrayInputStream`/`ByteArrayOutputStream`, `DataInputStream`/`DataOutputStream` (`writeUTF`/`readUTF` are Java's modified UTF-8), `BufferedReader`, `PrintWriter` |
 | `java.util.HexFormat` | `of`/`ofDelimiter`, the `with*` mutators, `formatHex`/`parseHex`, `toHexDigits` and the digit classifications |
 | `java.util.Scanner` | Reads one `String`: `hasNext`/`next` with the int, long and double forms, plus `nextLine` |
-| `java.security` | `MessageDigest` (MD5, SHA-1/224/256/384/512, implemented in Teyru), plus `java.util.zip`'s `Checksum` and `CRC32` |
+| `java.security` | `MessageDigest` (MD5, SHA-1/224/256/384/512, implemented in Teyru), `SecureRandom` (the system CSPRNG), `javax.crypto.Mac` (HmacMD5/SHA1/SHA224/SHA256/SHA384/SHA512, implemented in Teyru), plus `java.util.zip`'s `Checksum` and `CRC32` |
 | `java.util.zip` | `Deflater`/`Inflater` (levels 0-9, zlib-wrapped or raw), `Adler32`, `GZIPOutputStream`/`GZIPInputStream`; RFC 1951 deflate is written in Teyru, and the web layer compresses responses with it |
 | `java.util.zip` archive | `ZipEntry`/`ZipOutputStream`/`ZipInputStream`/`ZipFile`; an archive written here is read by the JDK and by Info-ZIP's `unzip` |
 | `java.util.concurrent` | The executors (`Executors`/`Future`/`ThreadPool`) and the synchronizers (`CountDownLatch`, `AtomicInteger`/`AtomicLong`, `ConcurrentHashMap`); all monitors, nothing lock-free |

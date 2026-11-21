@@ -101,9 +101,39 @@ class CalculatorTest {
 生命周期照 JUnit 的形状：每个测试一个新实例，`@BeforeEach` → 测试 → `@AfterEach`
 （失败也运行）；`@BeforeAll` / `@AfterAll` 可以是静态或实例方法。
 
-可用的断言在 `teyru.test.Assert`：`assertEquals`（`Object`、`int`、`long`、`char`、
-`boolean`、`double`）、`assertTrue`、`assertFalse`、`assertNull`、`assertNotNull`、
-`assertThrows(Class, Runnable)`、`fail(String)`。失败消息同时写出期望值与实际值。
+可用的断言在 `teyru.test.Assert`：
+
+| 断言 | 形式 |
+|---|---|
+| `assertEquals` | `Object`、`int`、`long`、`char`、`boolean`、`double`、`float`，另有 `assertEquals(double, double, delta)` 的容差形式 |
+| `assertNotEquals` | 与 `assertEquals` 相同的类型集合 |
+| `assertTrue`／`assertFalse`／`assertNull`／`assertNotNull` | 条件式 |
+| `assertSame`／`assertNotSame` | 引用同一性 |
+| `assertArrayEquals` | 八种元素类型，消息印出两边的数组（`Arrays.toString`） |
+| `assertThrows(Class, Runnable)` | 返回捕捉到的 `Throwable`，测试再对 `getMessage()` 断言 |
+| `assertDoesNotThrow(Runnable)` | `assertThrows` 的正面版本 |
+| `assertAll(Runnable...)` | 全部跑完再一起回報每一笔失败 |
+| `fail(String)`／`fail()` | 直接失败 |
+
+**每一个都有 message 重载**（`assertEquals(expected, actual, "row 7")`）：table-driven
+的测试靠它指名是哪一列。失败消息同时写出期望值与实际值；两边类型不同时一并标出类型。
+
+`@Disabled("reason")` 让测试不跑并留下 `SKIP Class.method: reason`；`@Tag("slow")` 标记
+选取用的标签（一个标注可以写 `@Tag("slow,db")`）。
+
+指令本身的旗标：
+
+| 旗标 | 作用 |
+|---|---|
+| `-run REGEXP` | 只跑 `Class.method`（或方法名、或类名）符合的测试 |
+| `-tag NAME[,NAME...]` | 只跑带该 `@Tag` 的测试 |
+| `-timeout DURATION` | 每个测试的上限，默认 `60s`；`0` 关掉。超时会杀掉进程并指名卡住的测试 |
+| `-deadline DURATION` | 整个套件目录的上限，默认 `10m` |
+| `-v` | 连通过的测试也印出它捕捉到的 stdout |
+| `-no-tests-ok` | 找不到测试时接受（默认是 exit 2） |
+
+每个测试的 stdout 由 runner **捕捉**，只在失败（或 `-v`）时以 `output: ` 前缀印出，
+所以测试里印东西不会弄坏 `PASS`／`FAIL` 的格式。
 
 输出是一行一个测试，最后一行是总结：
 

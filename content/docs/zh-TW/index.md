@@ -86,6 +86,12 @@ OpenJDK 21.0.11 Temurin 預設參數；`RUNS=5 JAVA=1 sh scripts/bench.sh`，每
 | `bench_string` | 0.5242 s | 0.3826 s | **1.4 倍** | 8,600 kB |
 | `bench_string_cjk` | 0.1783 s | 0.1610 s | 1.1 倍 | 8,856 kB |
 
+**HTTP 吞吐（2026-11-22，量到才寫下來）**：`examples/webapp` 以 `-O2` 建置（10,365,056
+位元組、31.8 s），在本機以 `ab -n 20000 -c 8 http://127.0.0.1:8080/todos` 量到
+**20,521 req/s**（平均 0.390 ms、失敗 0），量測前後 1 分鐘負載 2.19–2.41。方法寫在
+`scripts/http-throughput.sh`：它印出建置時間、執行檔大小與量測前後的負載，因為 loopback
+上量的東西有一半是排程器；換一台更閒或更忙的機器會得到不同的數字。
+
 **不是程式的三個數字：**
 
 | 指標 | Teyru | Java | 差距 |
@@ -460,7 +466,7 @@ Teyru main `0e8e592` 的 submodule 指標指到它）：`sh tests/run.sh java-co
 | `java.io` 資料流 | `Reader`／`Writer`／`OutputStream`、`ByteArrayInputStream`／`ByteArrayOutputStream`、`DataInputStream`／`DataOutputStream`（`writeUTF`／`readUTF` 是 Java 的 modified UTF-8）、`BufferedReader`、`PrintWriter` |
 | `java.util.HexFormat` | `of`／`ofDelimiter`、`with*`、`formatHex`／`parseHex`、`toHexDigits` 與位數分類 |
 | `java.util.Scanner` | 讀一個 `String`：`hasNext`／`next` 與整數、長整數、浮點的形式，加上 `nextLine` |
-| `java.security` | `MessageDigest`（MD5、SHA-1／224／256／384／512，以 Teyru 實作），加上 `java.util.zip` 形狀的 `Checksum` 與 `CRC32` |
+| `java.security` | `MessageDigest`（MD5、SHA-1／224／256／384／512，以 Teyru 實作）、`SecureRandom`（系統 CSPRNG）、`javax.crypto.Mac`（HmacMD5／SHA1／SHA224／SHA256／SHA384／SHA512，以 Teyru 實作），加上 `java.util.zip` 形狀的 `Checksum` 與 `CRC32` |
 | `java.util.zip` | `Deflater`／`Inflater`（level 0–9、zlib 包裝或 raw）、`Adler32`、`GZIPOutputStream`／`GZIPInputStream`；RFC 1951 的 deflate 以 Teyru 撰寫，web 層用它壓縮回應 |
 | `java.util.zip` 封存 | `ZipEntry`／`ZipOutputStream`／`ZipInputStream`／`ZipFile`；這裡寫出來的封存，JDK 與 Info-ZIP 的 `unzip` 都讀得開 |
 | `java.util.concurrent` | 執行器（`Executors`／`Future`／`ThreadPool`）與同步器（`CountDownLatch`、`AtomicInteger`／`AtomicLong`、`ConcurrentHashMap`）；全部是監視器，不是 lock-free |
