@@ -459,14 +459,15 @@ Teyru main `0e8e592` 的 submodule 指標指到它）：`sh tests/run.sh java-co
 | `java.time` | `LocalDate`／`LocalTime`／`LocalDateTime`／`Instant`／`Duration`／`Period`；時區是 `ZoneId`／`ZoneOffset`／`ZoneRules`／`ZonedDateTime`，讀主機自己的 tzdata |
 | `java.io` | `File`、`Path`／`Paths`、`Files` |
 | `java.util.regex` | `Pattern`／`Matcher` |
-| `java.net` | `ServerSocket`、`Socket` 與其輸入輸出串流；TLS 是同一條路上的一層（`TlsSocket`／`Tls`／`TlsServer`／`TlsException`，用 OpenSSL，POSIX 才有） |
+| `java.net`／`java.nio` | `ServerSocket`、`Socket` 與其輸入輸出串流；`java.nio` 的 `ByteBuffer`、非阻塞 `SocketChannel`／`ServerSocketChannel`／`DatagramChannel` 與 `Selector`；TLS 是同一條路上的一層（`TlsSocket`／`Tls`／`TlsServer`／`TlsException`，用 OpenSSL，POSIX 才有） |
+| 子行程 | `ProcessBuilder`／`Process`：三個串流、目錄、環境、結束碼、`destroy`；POSIX 用 `posix_spawnp`，Windows 用 `CreateProcess` |
 | `java.util.stream` | `Stream`／`IntStream`／`LongStream`／`DoubleStream`、`Collectors`、`Collector`、`Spliterator`；延遲求值，`Collection.stream()` 是入口 |
 | `java.math` | `BigInteger`、`BigDecimal`、`MathContext`、`RoundingMode` |
 | `java.text` | `NumberFormat`／`DecimalFormat`（完整 pattern 語言）、`DateFormat`／`SimpleDateFormat`、`DateTimeFormatter`、`MessageFormat`；只做 ROOT／en-US，`format` 走 `Instant` |
 | `java.io` 資料流 | `Reader`／`Writer`／`OutputStream`、`ByteArrayInputStream`／`ByteArrayOutputStream`、`DataInputStream`／`DataOutputStream`（`writeUTF`／`readUTF` 是 Java 的 modified UTF-8）、`BufferedReader`、`PrintWriter` |
 | `java.util.HexFormat` | `of`／`ofDelimiter`、`with*`、`formatHex`／`parseHex`、`toHexDigits` 與位數分類 |
 | `java.util.Scanner` | 讀一個 `String`：`hasNext`／`next` 與整數、長整數、浮點的形式，加上 `nextLine` |
-| `java.security` | `MessageDigest`（MD5、SHA-1／224／256／384／512，以 Teyru 實作）、`SecureRandom`（系統 CSPRNG）、`javax.crypto.Mac`（HmacMD5／SHA1／SHA224／SHA256／SHA384／SHA512，以 Teyru 實作），加上 `java.util.zip` 形狀的 `Checksum` 與 `CRC32` |
+| `java.security`／`javax.crypto` | `MessageDigest`、`SecureRandom`、`Mac`、`Cipher`（AES 於 ECB／CBC／CTR／GCM 與 RSA PKCS#1）、`Signature` 驗證、`KeyFactory`（X.509／PKCS#8），全部以 Teyru 實作；加上 `java.util.zip` 形狀的 `Checksum` 與 `CRC32` |
 | `java.util.zip` | `Deflater`／`Inflater`（level 0–9、zlib 包裝或 raw）、`Adler32`、`GZIPOutputStream`／`GZIPInputStream`；RFC 1951 的 deflate 以 Teyru 撰寫，web 層用它壓縮回應 |
 | `java.util.zip` 封存 | `ZipEntry`／`ZipOutputStream`／`ZipInputStream`／`ZipFile`；這裡寫出來的封存，JDK 與 Info-ZIP 的 `unzip` 都讀得開 |
 | `java.util.concurrent` | 執行器（`Executors`／`Future`／`ThreadPool`）與同步器（`CountDownLatch`、`AtomicInteger`／`AtomicLong`、`ConcurrentHashMap`）；全部是監視器，不是 lock-free |

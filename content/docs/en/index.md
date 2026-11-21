@@ -503,14 +503,15 @@ content:
 | `java.time` | `LocalDate`/`LocalTime`/`LocalDateTime`/`Instant`/`Duration`/`Period`; time zones are `ZoneId`/`ZoneOffset`/`ZoneRules`/`ZonedDateTime`, reading the host's own tzdata |
 | `java.io` | `File`, `Path`/`Paths`, `Files` |
 | `java.util.regex` | `Pattern`/`Matcher` |
-| `java.net` | `ServerSocket`, `Socket` and their streams; TLS is a layer on that same path (`TlsSocket`/`Tls`/`TlsServer`/`TlsException`, using OpenSSL, POSIX only) |
+| `java.net`/`java.nio` | `ServerSocket`, `Socket` and their streams; `java.nio`'s `ByteBuffer`, the non-blocking `SocketChannel`/`ServerSocketChannel`/`DatagramChannel` and `Selector`; TLS is a layer on that same path (`TlsSocket`/`Tls`/`TlsServer`/`TlsException`, using OpenSSL, POSIX only) |
+| Processes | `ProcessBuilder`/`Process`: three streams, directory, environment, exit status, `destroy`; `posix_spawnp` on POSIX and `CreateProcess` on Windows |
 | `java.util.stream` | `Stream`/`IntStream`/`LongStream`/`DoubleStream`, `Collectors`, `Collector`, `Spliterator`; lazy, entered through `Collection.stream()` |
 | `java.math` | `BigInteger`, `BigDecimal`, `MathContext`, `RoundingMode` |
 | `java.text` | `NumberFormat`/`DecimalFormat` (the full pattern language), `DateFormat`/`SimpleDateFormat`, `DateTimeFormatter`, `MessageFormat`; ROOT/en-US only, `format` takes an `Instant` |
 | `java.io` streams | `Reader`/`Writer`/`OutputStream`, `ByteArrayInputStream`/`ByteArrayOutputStream`, `DataInputStream`/`DataOutputStream` (`writeUTF`/`readUTF` are Java's modified UTF-8), `BufferedReader`, `PrintWriter` |
 | `java.util.HexFormat` | `of`/`ofDelimiter`, the `with*` mutators, `formatHex`/`parseHex`, `toHexDigits` and the digit classifications |
 | `java.util.Scanner` | Reads one `String`: `hasNext`/`next` with the int, long and double forms, plus `nextLine` |
-| `java.security` | `MessageDigest` (MD5, SHA-1/224/256/384/512, implemented in Teyru), `SecureRandom` (the system CSPRNG), `javax.crypto.Mac` (HmacMD5/SHA1/SHA224/SHA256/SHA384/SHA512, implemented in Teyru), plus `java.util.zip`'s `Checksum` and `CRC32` |
+| `java.security`/`javax.crypto` | `MessageDigest`, `SecureRandom`, `Mac`, `Cipher` (AES in ECB/CBC/CTR/GCM and RSA PKCS#1), RSA `Signature` verification, `KeyFactory` (X.509/PKCS#8), all implemented in Teyru; plus `java.util.zip`'s `Checksum` and `CRC32` |
 | `java.util.zip` | `Deflater`/`Inflater` (levels 0-9, zlib-wrapped or raw), `Adler32`, `GZIPOutputStream`/`GZIPInputStream`; RFC 1951 deflate is written in Teyru, and the web layer compresses responses with it |
 | `java.util.zip` archive | `ZipEntry`/`ZipOutputStream`/`ZipInputStream`/`ZipFile`; an archive written here is read by the JDK and by Info-ZIP's `unzip` |
 | `java.util.concurrent` | The executors (`Executors`/`Future`/`ThreadPool`) and the synchronizers (`CountDownLatch`, `AtomicInteger`/`AtomicLong`, `ConcurrentHashMap`); all monitors, nothing lock-free |
