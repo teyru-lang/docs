@@ -47,7 +47,7 @@ description: "标准库之外、一个真实程序会撞到的整层能力：哪
 |---|---|
 | 正则表达式 | **有**：环视、反向引用、具名组、占有量词、原子组、旗标、`\p{...}`；`\G`／`\R`／`\X`／POSIX 类别是具名拒绝 |
 | JSON | **有**：树状 API、Gson 形状的绑定、串流的 `JsonReader`／`JsonWriter` |
-| 地区化 | **有**：`Locale` 带着每个 locale 的数字、货币、日期 pattern 与名称（读自 OpenJDK 21）；**没有** `Collator`、`BreakIterator`、`ResourceBundle`——那三个是各自的数据集 |
+| 地区化 | **有**：`Locale` 带着 47 个 locale 的数字、百分比、货币、日期 pattern、名称、纪元与数字系统（全部读自 OpenJDK 21，`t335_locale_table` 逐行对照）；**唯一的刻意差异**是不输出 bidi 控制字符（U+061C／U+200E／U+200F）。**没有** `Collator`、`BreakIterator`、`ResourceBundle`——那三个是各自的数据集 |
 | Base64 | **有**：基本、URL-safe、MIME 三种编码与解码 |
 | 日期时间 | **有**：`Instant`、`LocalDate` 家族、`ZoneId`（读主机 tzdata）；**没有** `java.util.Date`／`Calendar`，也没有闰秒 |
 

@@ -49,7 +49,7 @@ without a measurement are not written here.
 |---|---|
 | Regular expressions | **Present**: lookaround, backreferences, named groups, possessive quantifiers, atomic groups, flags, `\p{...}`; `\G`/`\R`/`\X`/POSIX classes are refused by name |
 | JSON | **Present**: tree API, Gson-shaped binding, `JsonReader`/`JsonWriter` streaming |
-| Localization | **Present**: `Locale` carries each locale's number, currency and date patterns and names (read out of OpenJDK 21); **absent**: `Collator`, `BreakIterator`, `ResourceBundle` -- three data sets of their own |
+| Localization | **Present**: `Locale` carries 47 locales' number, percent, currency, date and time patterns, names, eras and digit systems (all read out of OpenJDK 21; `t335_locale_table` compares all 47 line by line); the one deliberate difference is that bidi control characters (U+061C/U+200E/U+200F) are not emitted. **Absent**: `Collator`, `BreakIterator`, `ResourceBundle` -- three data sets of their own |
 | Base64 | **Present**: basic, URL-safe and MIME, both directions |
 | Date and time | **Present**: `Instant`, the `LocalDate` family, `ZoneId` over the host's tzdata; **absent**: `java.util.Date`/`Calendar` and leap seconds |
 
