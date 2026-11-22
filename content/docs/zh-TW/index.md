@@ -447,9 +447,9 @@ class Main {
 檔可以直接當輸入、JLS §14.22 的可達性與明確指派、常見的泛型推論（`xs.sort(naturalOrder())`、
 `Comparator.comparing(f).thenComparing(g)` 都不再需要型別見證）。**但那不等於「Java 原始碼
 不改就能編」這句沒有範圍的話**：適用範圍就是下面兩節——〈語言參考〉§12 與 §13——而它們
-現在不是空的（locale 相關的大小寫映射、`HashMap` 的桶內樹化，見 §13）。宣稱跟著語料走，
-不跟著「Java」三個字走，而語料就是 45 支未修改的 Java 程式（`tests/java-compat`，在 `teyru-lang/tests` main `af41a7d` 上，
-Teyru main `0e8e592` 的 submodule 指標指到它）：`sh tests/run.sh java-compat` 在那個內容上是
+現在不是空的（`HashMap` 的桶內樹化、識別字裡的 Unicode 逸出、`switch` 陳述式的窮盡性從寬，見 §13；locale 的大小寫映射在 `tr`／`az`／`lt` 上已經完成，其餘語言本來就是預設行為）。宣稱跟著語料走，
+不跟著「Java」三個字走，而語料就是 45 支未修改的 Java 程式（`tests/java-compat`，在 `teyru-lang/tests` 的 `79901cc` 上，
+Teyru main 的 submodule 指標指到它）：`sh tests/run.sh java-compat` 在那個內容上是
 **45 過、0 失敗**。
 
 | 套件 | 內容 |
