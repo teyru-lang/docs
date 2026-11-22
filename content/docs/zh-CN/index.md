@@ -462,7 +462,8 @@ Teyru main `0e8e592` 的 submodule 指标指到它）：`sh tests/run.sh java-co
 | 子进程 | `ProcessBuilder`／`Process`：三个流、目录、环境、退出码、`destroy`；POSIX 用 `posix_spawnp`，Windows 用 `CreateProcess` |
 | `java.util.stream` | `Stream`／`IntStream`／`LongStream`／`DoubleStream`、`Collectors`、`Collector`、`Spliterator`；惰性求值，入口是 `Collection.stream()` |
 | `java.math` | `BigInteger`、`BigDecimal`、`MathContext`、`RoundingMode` |
-| `java.text` | `NumberFormat`／`DecimalFormat`（完整 pattern 语言）、`DateFormat`／`SimpleDateFormat`、`DateTimeFormatter`、`MessageFormat`；只做 ROOT／en-US，`format` 用 `Instant` |
+| `java.text`／`java.util.Locale` | `NumberFormat`／`DecimalFormat`（完整 pattern 语言）、`DateFormat`／`SimpleDateFormat`、`DateTimeFormatter`、`MessageFormat`、`Locale`、`DateFormatSymbols`；每个带到的 locale 有自己的数字、货币、日期 pattern 与名称（读自 OpenJDK 21），`format` 用 `Instant` |
+| 数据格式 | CSV（`CsvReader`／`CsvWriter`，RFC 4180）、TOML 1.0（`TomlDocument`）、XML 1.0（`XmlDocument`，`DOCTYPE` 具名拒绝）、YAML 1.2（`YamlDocument`，锚点与标签具名拒绝） |
 | `java.io` 数据流 | `Reader`／`Writer`／`OutputStream`、`ByteArrayInputStream`／`ByteArrayOutputStream`、`DataInputStream`／`DataOutputStream`（`writeUTF`／`readUTF` 是 Java 的 modified UTF-8）、`BufferedReader`、`PrintWriter` |
 | `java.util.HexFormat` | `of`／`ofDelimiter`、`with*`、`formatHex`／`parseHex`、`toHexDigits` 与位分类 |
 | `java.util.Scanner` | 读一个 `String`：`hasNext`／`next` 与整数、长整数、浮点的形式，加上 `nextLine` |

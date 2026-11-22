@@ -507,7 +507,8 @@ content:
 | Processes | `ProcessBuilder`/`Process`: three streams, directory, environment, exit status, `destroy`; `posix_spawnp` on POSIX and `CreateProcess` on Windows |
 | `java.util.stream` | `Stream`/`IntStream`/`LongStream`/`DoubleStream`, `Collectors`, `Collector`, `Spliterator`; lazy, entered through `Collection.stream()` |
 | `java.math` | `BigInteger`, `BigDecimal`, `MathContext`, `RoundingMode` |
-| `java.text` | `NumberFormat`/`DecimalFormat` (the full pattern language), `DateFormat`/`SimpleDateFormat`, `DateTimeFormatter`, `MessageFormat`; ROOT/en-US only, `format` takes an `Instant` |
+| `java.text`/`java.util.Locale` | `NumberFormat`/`DecimalFormat` (the full pattern language), `DateFormat`/`SimpleDateFormat`, `DateTimeFormatter`, `MessageFormat`, `Locale`, `DateFormatSymbols`; each locale this library carries has its own number, currency and date patterns and names (read out of OpenJDK 21), and `format` takes an `Instant` |
+| data formats | CSV (`CsvReader`/`CsvWriter`, RFC 4180), TOML 1.0 (`TomlDocument`), XML 1.0 (`XmlDocument`, `DOCTYPE` refused by name), YAML 1.2 (`YamlDocument`, anchors and tags refused by name) |
 | `java.io` streams | `Reader`/`Writer`/`OutputStream`, `ByteArrayInputStream`/`ByteArrayOutputStream`, `DataInputStream`/`DataOutputStream` (`writeUTF`/`readUTF` are Java's modified UTF-8), `BufferedReader`, `PrintWriter` |
 | `java.util.HexFormat` | `of`/`ofDelimiter`, the `with*` mutators, `formatHex`/`parseHex`, `toHexDigits` and the digit classifications |
 | `java.util.Scanner` | Reads one `String`: `hasNext`/`next` with the int, long and double forms, plus `nextLine` |
