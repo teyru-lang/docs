@@ -610,9 +610,10 @@ the synchronizer half (`CountDownLatch`, `AtomicInteger`, `AtomicLong`,
 `CompletableFuture` (with `orTimeout`/`completeOnTimeout`), `ReentrantReadWriteLock`
 (`readLock()`/`writeLock()`, reentrant in each mode, with the holder counts), `Exchanger`,
 `Phaser` (a barrier whose party count can change), `invokeAll`/`invokeAny`,
-`CompletionService` (completion order, not submission order), `TimeUnit` (the seven units
-and their conversions; the library APIs still take milliseconds), `ThreadFactory`, and the
-`Lock` interface, and the exceptions
+`CompletionService` (completion order, not submission order), `TimeUnit` (the seven units and their conversions; the library APIs still take
+milliseconds), `ThreadFactory`, `AtomicIntegerFieldUpdater`/`AtomicLongFieldUpdater`/
+`AtomicReferenceFieldUpdater` (a monitor on the declaring class's `Class` object, not a CAS),
+and the `Lock` interface, and the exceptions
 `ExecutionException`, `CancellationException`, `BrokenBarrierException`,
 `RejectedExecutionException`, `CompletionException` and `TimeoutException`. The async
 `CompletableFuture` factories run their supplier on a **daemon** thread of their own (Java's
@@ -639,8 +640,7 @@ never started, and a task that is inside `run()` runs to its end. No method here
 flag.
 
 **What is not there** (declared nowhere, so writing it is a missing symbol):
-`submit(Runnable)`, the scheduled executor, fork/join,
-the atomic field updaters, and interruptible waits (there is no
+`submit(Runnable)`, the scheduled executor, fork/join, and interruptible waits (there is no
 `InterruptedException`). `Thread.join(long)` and `CompletableFuture`'s
 `orTimeout`/`completeOnTimeout` are present; a `join(long)` that times out does not throw
 (neither does Java's), so `isAlive()` is how the caller asks. `Semaphore` and `ReentrantLock` accept Java's `fair` argument and
