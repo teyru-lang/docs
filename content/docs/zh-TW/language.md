@@ -592,7 +592,9 @@ GC 是**合作式**停止世界，這是真正要知道的限制：安全點在�
 **沒有的東西**（沒有宣告，寫了就是找不到符號）：`TimeUnit`（這裡每個時長都是毫秒，
 和 `Thread.sleep` 一樣）、`invokeAll`／`invokeAny`、`submit(Runnable)`、排程執行器、
 fork/join、`CompletionService`、`ThreadFactory`、`Phaser`、原子欄位更新器，以及
-可中斷的等待（沒有 `InterruptedException`）。`Semaphore` 與 `ReentrantLock` 接受 Java 的 `fair` 引數並
+可中斷的等待（沒有 `InterruptedException`）。`Thread.join(long)` 與
+`CompletableFuture` 的 `orTimeout`／`completeOnTimeout` 都有；`join(long)` 的逾時**不**丟例外（Java 也是），
+要問結果就用 `isAlive()`。`Semaphore` 與 `ReentrantLock` 接受 Java 的 `fair` 引數並
 忽略它（沒有佇列可以排序，類別註解寫明了這件事）；`CyclicBarrier` 的 action 在最後
 抵達的那條執行緒上、監視器內執行，失敗時把 barrier 標成 broken 並讓其他人以
 `BrokenBarrierException` 醒來。測試是 `tests/programs/t321_synchronizers.teyru`（期望值
