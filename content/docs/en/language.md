@@ -588,9 +588,11 @@ carrier at the runtime's own blocking points; the carrier count is `TEYRU_VTHREA
 (CPU count by default). Windows refuses them by name.
 
 **What is still not there** (declared nowhere, so writing it is a missing symbol): thread
-priorities, `ThreadGroup`, `join(long)` with a timeout, `Thread.State`, and an
-uncaught-exception handler — the runtime prints the line Java's default handler prints, then
-the thread ends and the process carries on.
+priorities, `ThreadGroup`, and an uncaught-exception handler — the runtime prints the line
+Java's default handler prints, then the thread ends and the process carries on.
+`join(long)` waits with a millisecond budget and answers `isAlive()` afterwards; `Thread.State`
+and `getState()` report NEW/RUNNABLE/BLOCKED/WAITING/TIMED_WAITING/TERMINATED, recorded by the
+runtime at each wait point; and `Object.wait()` (no argument) is present beside `wait(long)`.
 
 The collector is a **cooperative** stop-the-world, and that is the limitation worth
 knowing: safepoints are the top of every loop body (which the generator emits), the
@@ -932,8 +934,7 @@ exceptions are checked (`TY-TYP-0122`); the standard library's own bodies are ex
 - A `sealed` type's `permits` clause is verified (direct subtypes only, every direct subtype
   listed, each permitted subtype final, sealed or non-sealed); the exhaustiveness of a
   switch **statement** is still lenient
-- Threads are missing priorities, `ThreadGroup`, `join(long)`, `Thread.State` and an
-  uncaught-exception handler; the collector is a cooperative stop-the-world, so a thread
+- Threads are missing priorities, `ThreadGroup` and an uncaught-exception handler; the collector is a cooperative stop-the-world, so a thread
   that never loops, allocates or blocks makes a collection wait for it
 - What reflection is missing: reflection of generic type parameters, an array class per
   element type (all arrays share one class), and Java's widening in the primitive getters

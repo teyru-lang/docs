@@ -550,10 +550,12 @@ for (String n : names) {
 的阻塞點時讓出 carrier；carrier 數量由 `TEYRU_VTHREAD_CARRIERS` 指定（預設 CPU 數）。
 Windows 上以具名例外拒絕。
 
-**仍然沒有的東西**（沒有宣告，寫了就是找不到符號）：執行緒優先權、`ThreadGroup`、
-`Thread.State`，以及未處理例外的 handler——執行期印出 Java
+**仍然沒有的東西**（沒有宣告，寫了就是找不到符號）：執行緒優先權、`ThreadGroup`，
+以及未處理例外的 handler——執行期印出 Java
 預設處理常式那一行，然後結束那條執行緒，行程繼續。**`join(long)` 有**：等待以毫秒為上限，
-逾時不丟例外（Java 也是），要問結果用 `isAlive()`。
+逾時不丟例外（Java 也是），要問結果用 `isAlive()`。**`Thread.State` 與 `getState()` 有**：
+`NEW`／`RUNNABLE`／`BLOCKED`（排隊等監視器）／`WAITING`／`TIMED_WAITING`／`TERMINATED`，
+狀態由執行期在每個等待點記錄；`Object.wait()` 無參數的形式也在。
 
 GC 是**合作式**停止世界，這是真正要知道的限制：安全點在每個迴圈回邊（產生器會放）、
 配置慢路徑、等 heap 鎖，以及每個會阻塞的呼叫。所以一條既不迴圈、不配置也不阻塞的
@@ -834,8 +836,7 @@ SHA-3 是因為 `getInstance` 寧可丟 `NoSuchAlgorithmException`，也不要�
 
 - checked exception 只檢查**程式自己的程式碼**；標準庫的函式體目前豁免（140 處違反，已分類，見 AGENTS.md §10）
 - `sealed` 的 `permits` 已驗證（直接子型別、必須列出、必須是 final／sealed／non-sealed）；switch **陳述式**的窮盡性仍從寬
-- 執行緒缺的是優先權、`ThreadGroup`、`join(long)`、`Thread.State` 與未處理例外的
-  handler；GC 是合作式停止世界，一條既不迴圈、不配置也不阻塞的執行緒會讓收集等它
+- 執行緒缺的是優先權、`ThreadGroup` 與未處理例外的 handler；GC 是合作式停止世界，一條既不迴圈、不配置也不阻塞的執行緒會讓收集等它
 - 反射缺的部分：泛型型別參數的反射、每個元素型別的陣列類別
   （所有陣列共用一個類別）、原生型別取值器的 Java 拓寬（對 `byte` 欄位呼叫
   `getInt` 在 Java 會過，這裡是 `IllegalArgumentException`）

@@ -552,9 +552,11 @@ for (String n : names) {
 阻塞点时让出 carrier；carrier 数量由 `TEYRU_VTHREAD_CARRIERS` 指定（默认 CPU 数）。
 Windows 上以具名异常拒绝。
 
-**仍然没有的东西**（没有声明，写了就是找不到符号）：线程优先级、`ThreadGroup`、
-超时版的 `join(long)`、`Thread.State`，以及未处理异常的 handler——运行期打印 Java
-默认处理程序那一行，然后结束那条线程，进程继续。
+**仍然没有的东西**（没有声明，写了就是找不到符号）：线程优先级、`ThreadGroup`，
+以及未处理异常的 handler——运行期打印 Java
+默认处理程序那一行，然后结束那条线程，进程继续。**`join(long)` 与 `Thread.State`/`getState()`
+都有**：状态是 `NEW`／`RUNNABLE`／`BLOCKED`（排队等监视器）／`WAITING`／`TIMED_WAITING`／
+`TERMINATED`，由运行期在每个等待点记录；`Object.wait()` 无参数形式也在。
 
 GC 是**合作式**停止世界，这才是真正要知道的限制：安全点在每个循环回边（生成器会放）、
 分配慢路径、等 heap 锁，以及每个会阻塞的调用。所以一条既不循环、不分配也不阻塞的
@@ -837,8 +839,7 @@ SHA-3 是因为 `getInstance` 宁可抛 `NoSuchAlgorithmException`，也不要�
 
 - checked exception 只检查**程序自己的代码**；标准库的函数体目前豁免（140 处违反，已分类，见 AGENTS.md §10）
 - `sealed` 的 `permits` 已验证（直接子类型、必须列出、必须是 final／sealed／non-sealed）；switch **语句**的穷尽性仍从宽
-- 线程缺的是优先级、`ThreadGroup`、`join(long)`、`Thread.State` 与未处理异常的
-  handler；GC 是合作式停止世界，一条既不循环、不分配也不阻塞的线程会让收集等它
+- 线程缺的是优先级、`ThreadGroup` 与未处理异常的 handler；GC 是合作式停止世界，一条既不循环、不分配也不阻塞的线程会让收集等它
 - 反射缺的部分：泛型类型参数的反射、每个元素类型的数组类
   （所有数组共用一个类）、原生类型取值器的 Java 拓宽（对 `byte` 字段调用
   `getInt` 在 Java 会过，这里是 `IllegalArgumentException`）
