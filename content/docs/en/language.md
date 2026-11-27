@@ -607,8 +607,10 @@ The two halves of `java.util.concurrent` this library carries: the executor half
 `Executors` with `newFixedThreadPool`/`newSingleThreadExecutor`/`newCachedThreadPool`) and
 the synchronizer half (`CountDownLatch`, `AtomicInteger`, `AtomicLong`,
 `ConcurrentHashMap`, `Semaphore`, `CyclicBarrier`, `ReentrantLock`), plus `lib/61`'s
-`CompletableFuture`, `ReentrantReadWriteLock` (`readLock()`/`writeLock()`, reentrant in
-each mode, with the holder counts), `Exchanger` and the `Lock` interface, and the exceptions
+`CompletableFuture` (with `orTimeout`/`completeOnTimeout`), `ReentrantReadWriteLock`
+(`readLock()`/`writeLock()`, reentrant in each mode, with the holder counts), `Exchanger`,
+`Phaser` (a barrier whose party count can change), `invokeAll`/`invokeAny`, and the `Lock`
+interface, and the exceptions
 `ExecutionException`, `CancellationException`, `BrokenBarrierException`,
 `RejectedExecutionException`, `CompletionException` and `TimeoutException`. The async
 `CompletableFuture` factories run their supplier on a **daemon** thread of their own (Java's
@@ -635,9 +637,8 @@ never started, and a task that is inside `run()` runs to its end. No method here
 flag.
 
 **What is not there** (declared nowhere, so writing it is a missing symbol): `TimeUnit`
-(every duration here is milliseconds, as in `Thread.sleep`), `invokeAll`/`invokeAny`,
-`submit(Runnable)`, the scheduled executor, fork/join, `CompletionService`, `ThreadFactory`,
-`Phaser`, the atomic field updaters, and interruptible waits (there is no
+(every duration here is milliseconds, as in `Thread.sleep`), `submit(Runnable)`, the scheduled executor, fork/join, `CompletionService`, `ThreadFactory`,
+the atomic field updaters, and interruptible waits (there is no
 `InterruptedException`). `Thread.join(long)` and `CompletableFuture`'s
 `orTimeout`/`completeOnTimeout` are present; a `join(long)` that times out does not throw
 (neither does Java's), so `isAlive()` is how the caller asks. `Semaphore` and `ReentrantLock` accept Java's `fair` argument and
