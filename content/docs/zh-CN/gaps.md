@@ -39,7 +39,7 @@ description: "标准库之外、一个真实程序会撞到的整层能力：哪
 | 非阻塞 I/O 与 `Selector` | **有**（`java.nio` 的 heap `ByteBuffer`、三个 channel、`poll`／`WSAPoll` 的 selector） |
 | HTTP/2、HTTP/3、SSE | **没有**。HTTP/1.1 的 keep-alive、chunked 与 gzip 有，这三个协议没有 |
 | 非同步 channel、`FileChannel`、`Charset` | **没有**（字符串的编码在执行期只有 UTF-8 一条路） |
-| 线程池与同步器 | **有**：`Executors`、`CountDownLatch`、`Semaphore`、`CyclicBarrier`、`ReentrantLock`、`ReentrantReadWriteLock`、`Exchanger`、`CompletableFuture`（链、`allOf`／`anyOf`、`exceptionally`／`handle`）、`Atomic*`、`ConcurrentHashMap`；**没有** `ForkJoinPool`、`Phaser`、原子字段更新器；`parallelStream()` 回的是循序 stream |
+| 线程池与同步器 | **有**：`Executors`、`CountDownLatch`、`Semaphore`、`CyclicBarrier`、`ReentrantLock`、`ReentrantReadWriteLock`、`Exchanger`、`CompletableFuture`（链、`allOf`／`anyOf`、`exceptionally`／`handle`、`orTimeout`／`completeOnTimeout`）、`Atomic*`、`ConcurrentHashMap`；**没有** `ForkJoinPool`、`Phaser`、原子字段更新器；`parallelStream()` 回的是循序 stream |
 
 ## 文字、数据与地区
 
