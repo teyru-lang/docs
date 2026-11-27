@@ -606,9 +606,14 @@ The two halves of `java.util.concurrent` this library carries: the executor half
 (`Callable`, `Future`, `FutureTask`, `Executor`, `ExecutorService`, `ThreadPool`, and
 `Executors` with `newFixedThreadPool`/`newSingleThreadExecutor`/`newCachedThreadPool`) and
 the synchronizer half (`CountDownLatch`, `AtomicInteger`, `AtomicLong`,
-`ConcurrentHashMap`, `Semaphore`, `CyclicBarrier`, `ReentrantLock`), plus
-`ExecutionException`, `CancellationException`, `BrokenBarrierException` and
-`RejectedExecutionException`. A task runs on one of the pool's threads, so its stack, its
+`ConcurrentHashMap`, `Semaphore`, `CyclicBarrier`, `ReentrantLock`), plus `lib/61`'s
+`CompletableFuture`, `ReentrantReadWriteLock` (`readLock()`/`writeLock()`, reentrant in
+each mode, with the holder counts), `Exchanger` and the `Lock` interface, and the exceptions
+`ExecutionException`, `CancellationException`, `BrokenBarrierException`,
+`RejectedExecutionException`, `CompletionException` and `TimeoutException`. The async
+`CompletableFuture` factories run their supplier on a **daemon** thread of their own (Java's
+run on the daemon common pool, which this runtime does not have); passing an `Executor` uses
+that executor instead, and its lifetime is the caller's. A task runs on one of the pool's threads, so its stack, its
 allocation and its monitors belong to that thread; the `Future` `submit` answers waits in
 `get()` until the task is done, and a task that threw is reported as an
 `ExecutionException` whose cause is the throwable the task raised.
@@ -632,7 +637,7 @@ flag.
 **What is not there** (declared nowhere, so writing it is a missing symbol): `TimeUnit`
 (every duration here is milliseconds, as in `Thread.sleep`), `invokeAll`/`invokeAny`,
 `submit(Runnable)`, the scheduled executor, fork/join, `CompletionService`, `ThreadFactory`,
-`Phaser`/`Exchanger`, the atomic field updaters, and interruptible waits (there is no
+`Phaser`, the atomic field updaters, and interruptible waits (there is no
 `InterruptedException`). `Semaphore` and `ReentrantLock` accept Java's `fair` argument and
 ignore it (there is no queue to order, and the class comments say so); `CyclicBarrier`'s
 action runs on the last arriving thread inside the monitor, and its failure marks the barrier

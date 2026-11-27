@@ -41,7 +41,7 @@ without a measurement are not written here.
 | Non-blocking I/O and `Selector` | **Present** (heap `ByteBuffer`, three channels, a `poll`/`WSAPoll` selector) |
 | HTTP/2, HTTP/3, SSE | **Absent.** HTTP/1.1 keep-alive, chunked and gzip are there; these three protocols are not |
 | Asynchronous channels, `FileChannel`, `Charset` | **Absent** (the runtime has one encoding path, UTF-8) |
-| Executors and synchronizers | **Present**: `Executors`, `CountDownLatch`, `Semaphore`, `CyclicBarrier`, `ReentrantLock`, `Atomic*`, `ConcurrentHashMap`; **absent**: `CompletableFuture`, `ForkJoinPool`, `ReadWriteLock`, `Exchanger`; `parallelStream()` answers a sequential stream |
+| Executors and synchronizers | **Present**: `Executors`, `CountDownLatch`, `Semaphore`, `CyclicBarrier`, `ReentrantLock`, `ReentrantReadWriteLock`, `Exchanger`, `CompletableFuture` (chains, `allOf`/`anyOf`, `exceptionally`/`handle`), `Atomic*`, `ConcurrentHashMap`; **absent**: `ForkJoinPool`, `Phaser`, the atomic field updaters; `parallelStream()` answers a sequential stream |
 
 ## Text, data and locales
 

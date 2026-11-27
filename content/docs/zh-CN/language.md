@@ -567,8 +567,13 @@ GC 是**合作式**停止世界，这才是真正要知道的限制：安全点�
 `ExecutorService`、`ThreadPool`，以及 `Executors` 的 `newFixedThreadPool`／
 `newSingleThreadExecutor`／`newCachedThreadPool`）与同步器（`CountDownLatch`、
 `AtomicInteger`、`AtomicLong`、`ConcurrentHashMap`、`Semaphore`、`CyclicBarrier`、
-`ReentrantLock`），再加上 `ExecutionException`、`CancellationException`、
-`RejectedExecutionException`、`BrokenBarrierException`。任务在池里的一条线程上跑，
+`ReentrantLock`），加上 `lib/61` 的 `CompletableFuture`、`ReentrantReadWriteLock`
+（`readLock()`／`writeLock()`，两种模式都可重入，持有计数可查）、`Exchanger` 与
+`Lock` 接口，再加上 `ExecutionException`、`CancellationException`、
+`RejectedExecutionException`、`BrokenBarrierException`、`CompletionException`、
+`TimeoutException`。`CompletableFuture` 的异步工厂跑在自己的 **daemon** 线程上
+（Java 的跑在 daemon 的 common pool，这里没有共用池）；传 `Executor` 的话就用调用者的，
+它的存活期由调用者负责。任务在池里的一条线程上跑，
 所以它的栈、分配与监视器都属于那条线程；`submit` 返回的 `Future.get()` 等它做完，
 失败的任务以 `ExecutionException` 报告，cause 就是任务抛出的那个 throwable。
 
@@ -589,7 +594,7 @@ GC 是**合作式**停止世界，这才是真正要知道的限制：安全点�
 **没有的东西**（没有声明，写了就是找不到符号）：`TimeUnit`（这里每个时长都是毫秒，
 和 `Thread.sleep` 一样）、`invokeAll`／`invokeAny`、`submit(Runnable)`、调度执行器、
 fork/join、`CompletionService`、`ThreadFactory`、`CyclicBarrier`／`Semaphore`／
-`Phaser`／`Exchanger`、原子字段更新器，以及可中断的等待（没有
+`Phaser`、原子字段更新器，以及可中断的等待（没有
 `InterruptedException`）。`Semaphore` 与 `ReentrantLock` 接受 Java 的 `fair` 参数并
 忽略它（没有队列可以排序，类注释写明了这件事）；`CyclicBarrier` 的 action 在最后
 抵达的线程上、监视器内执行，失败时把 barrier 标成 broken 并让其他人以
