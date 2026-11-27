@@ -568,7 +568,8 @@ GC 是**合作式**停止世界，这才是真正要知道的限制：安全点�
 `newSingleThreadExecutor`／`newCachedThreadPool`）与同步器（`CountDownLatch`、
 `AtomicInteger`、`AtomicLong`、`ConcurrentHashMap`、`Semaphore`、`CyclicBarrier`、
 `ReentrantLock`），加上 `lib/61` 的 `CompletableFuture`、`ReentrantReadWriteLock`
-（`readLock()`／`writeLock()`，两种模式都可重入，持有计数可查）、`Exchanger`、`Phaser`（可增减成员的屏障）、`invokeAll`／`invokeAny`、`CompletionService`（完成顺序而非提交顺序）与
+（`readLock()`／`writeLock()`，两种模式都可重入，持有计数可查）、`Exchanger`、`Phaser`（可增减成员的屏障）、`invokeAll`／`invokeAny`、`CompletionService`（完成顺序而非提交顺序）、
+`TimeUnit`（七个单位与换算；API 本身仍收毫秒）、`ThreadFactory` 与
 `Lock` 接口，再加上 `ExecutionException`、`CancellationException`、
 `RejectedExecutionException`、`BrokenBarrierException`、`CompletionException`、
 `TimeoutException`。`CompletableFuture` 的异步工厂跑在自己的 **daemon** 线程上
@@ -591,9 +592,8 @@ GC 是**合作式**停止世界，这才是真正要知道的限制：安全点�
 为止。没有任何方法接收 Java 的 `mayInterruptIfRunning`；一个默默不做事的名义旗标
 比没有那个旗标更糟。
 
-**没有的东西**（没有声明，写了就是找不到符号）：`TimeUnit`（这里每个时长都是毫秒，
-和 `Thread.sleep` 一样）、`submit(Runnable)`、调度执行器、
-fork/join、`ThreadFactory`、原子字段更新器，以及可中断的等待（没有
+**没有的东西**（没有声明，写了就是找不到符号）：`submit(Runnable)`、调度执行器、
+fork/join、原子字段更新器，以及可中断的等待（没有
 `InterruptedException`）。`Thread.join(long)` 与 `CompletableFuture` 的
 `orTimeout`／`completeOnTimeout` 都有；`join(long)` 的超时**不**抛异常（Java 也是），
 要问结果就用 `isAlive()`。`Semaphore` 与 `ReentrantLock` 接受 Java 的 `fair` 参数并

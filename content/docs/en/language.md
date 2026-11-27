@@ -610,7 +610,9 @@ the synchronizer half (`CountDownLatch`, `AtomicInteger`, `AtomicLong`,
 `CompletableFuture` (with `orTimeout`/`completeOnTimeout`), `ReentrantReadWriteLock`
 (`readLock()`/`writeLock()`, reentrant in each mode, with the holder counts), `Exchanger`,
 `Phaser` (a barrier whose party count can change), `invokeAll`/`invokeAny`,
-`CompletionService` (completion order, not submission order), and the `Lock` interface, and the exceptions
+`CompletionService` (completion order, not submission order), `TimeUnit` (the seven units
+and their conversions; the library APIs still take milliseconds), `ThreadFactory`, and the
+`Lock` interface, and the exceptions
 `ExecutionException`, `CancellationException`, `BrokenBarrierException`,
 `RejectedExecutionException`, `CompletionException` and `TimeoutException`. The async
 `CompletableFuture` factories run their supplier on a **daemon** thread of their own (Java's
@@ -636,8 +638,8 @@ never started, and a task that is inside `run()` runs to its end. No method here
 `mayInterruptIfRunning`; a nominal flag that silently did nothing would be worse than no
 flag.
 
-**What is not there** (declared nowhere, so writing it is a missing symbol): `TimeUnit`
-(every duration here is milliseconds, as in `Thread.sleep`), `submit(Runnable)`, the scheduled executor, fork/join, `ThreadFactory`,
+**What is not there** (declared nowhere, so writing it is a missing symbol):
+`submit(Runnable)`, the scheduled executor, fork/join,
 the atomic field updaters, and interruptible waits (there is no
 `InterruptedException`). `Thread.join(long)` and `CompletableFuture`'s
 `orTimeout`/`completeOnTimeout` are present; a `join(long)` that times out does not throw
