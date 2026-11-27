@@ -550,9 +550,12 @@ for (String n : names) {
 的阻塞點時讓出 carrier；carrier 數量由 `TEYRU_VTHREAD_CARRIERS` 指定（預設 CPU 數）。
 Windows 上以具名例外拒絕。
 
-**仍然沒有的東西**（沒有宣告，寫了就是找不到符號）：執行緒優先權、`ThreadGroup`，
-以及未處理例外的 handler——執行期印出 Java
-預設處理常式那一行，然後結束那條執行緒，行程繼續。**`join(long)` 有**：等待以毫秒為上限，
+**仍然沒有的東西**（沒有宣告，寫了就是找不到符號）：`ThreadGroup`（因此
+`getUncaughtExceptionHandler` 在執行緒沒有自己的 handler 時回答 static default，Java 回答
+group）。執行緒有優先權（`setPriority`／`getPriority`，只是儲存值與繼承，沒有排程效果——Java
+也不保證）、`Thread.State`／`getState()`、`Thread.UncaughtExceptionHandler`（自己的與 static
+default，`Thread.start()` 包一層把未攔截的例外交給它；沒有 handler 時執行期照舊印出 Java
+預設處理常式那一行，然後結束那條執行緒、行程繼續）與 `Object.wait()`。**`join(long)` 有**：等待以毫秒為上限，
 逾時不丟例外（Java 也是），要問結果用 `isAlive()`。**`Thread.State` 與 `getState()` 有**：
 `NEW`／`RUNNABLE`／`BLOCKED`（排隊等監視器）／`WAITING`／`TIMED_WAITING`／`TERMINATED`，
 狀態由執行期在每個等待點記錄；`Object.wait()` 無參數的形式也在。

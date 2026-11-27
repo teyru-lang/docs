@@ -587,9 +587,14 @@ reference).
 carrier at the runtime's own blocking points; the carrier count is `TEYRU_VTHREAD_CARRIERS`
 (CPU count by default). Windows refuses them by name.
 
-**What is still not there** (declared nowhere, so writing it is a missing symbol): thread
-priorities, `ThreadGroup`, and an uncaught-exception handler — the runtime prints the line
-Java's default handler prints, then the thread ends and the process carries on.
+**What is still not there** (declared nowhere, so writing it is a missing symbol):
+`ThreadGroup` — which is why `getUncaughtExceptionHandler` answers the static default where
+Java answers the group. Threads do have priorities (`setPriority`/`getPriority`, a stored and
+inherited value with no scheduling effect, which Java does not promise either),
+`Thread.State`/`getState()`, `Thread.UncaughtExceptionHandler` (the thread's own and the
+static default; `Thread.start()` wraps the body so an uncaught throw reaches it, and with no
+handler the runtime prints the line Java's default handler prints, then the thread ends and
+the process carries on), and `Object.wait()`.
 `join(long)` waits with a millisecond budget and answers `isAlive()` afterwards; `Thread.State`
 and `getState()` report NEW/RUNNABLE/BLOCKED/WAITING/TIMED_WAITING/TERMINATED, recorded by the
 runtime at each wait point; and `Object.wait()` (no argument) is present beside `wait(long)`.

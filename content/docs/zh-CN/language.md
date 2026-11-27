@@ -552,9 +552,12 @@ for (String n : names) {
 阻塞点时让出 carrier；carrier 数量由 `TEYRU_VTHREAD_CARRIERS` 指定（默认 CPU 数）。
 Windows 上以具名异常拒绝。
 
-**仍然没有的东西**（没有声明，写了就是找不到符号）：线程优先级、`ThreadGroup`，
-以及未处理异常的 handler——运行期打印 Java
-默认处理程序那一行，然后结束那条线程，进程继续。**`join(long)` 与 `Thread.State`/`getState()`
+**仍然没有的东西**（没有声明，写了就是找不到符号）：`ThreadGroup`（因此
+`getUncaughtExceptionHandler` 在线程没有自己的 handler 时回答 static default，Java 回答
+group）。线程有优先级（`setPriority`／`getPriority`，只存储值与继承，没有调度效果——Java
+也不保证）、`Thread.State`／`getState()`、`Thread.UncaughtExceptionHandler`（自己的与 static
+default，`Thread.start()` 包一层把未捕获的异常交给它；没有 handler 时运行期照旧打印 Java
+默认处理程序那一行，然后结束那条线程、进程继续）与 `Object.wait()`。**`join(long)` 与 `Thread.State`/`getState()`
 都有**：状态是 `NEW`／`RUNNABLE`／`BLOCKED`（排队等监视器）／`WAITING`／`TIMED_WAITING`／
 `TERMINATED`，由运行期在每个等待点记录；`Object.wait()` 无参数形式也在。
 
