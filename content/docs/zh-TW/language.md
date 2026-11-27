@@ -567,7 +567,7 @@ GC 是**合作式**停止世界，這是真正要知道的限制：安全點在�
 `newSingleThreadExecutor`／`newCachedThreadPool`）與同步器（`CountDownLatch`、
 `AtomicInteger`、`AtomicLong`、`ConcurrentHashMap`、`Semaphore`、`CyclicBarrier`、
 `ReentrantLock`），加上 `lib/61` 的 `CompletableFuture`、`ReentrantReadWriteLock`
-（`readLock()`／`writeLock()`，兩種模式都可重入，持有計數可查）、`Exchanger`、`Phaser`（可增減成員的屏障）、`invokeAll`／`invokeAny` 與
+（`readLock()`／`writeLock()`，兩種模式都可重入，持有計數可查）、`Exchanger`、`Phaser`（可增減成員的屏障）、`invokeAll`／`invokeAny`、`CompletionService`（完成順序而非提交順序）與
 `Lock` 介面，再加上 `ExecutionException`、`CancellationException`、
 `RejectedExecutionException`、`BrokenBarrierException`、`CompletionException`、
 `TimeoutException`。`CompletableFuture` 的非同步工廠跑在自己的 **daemon** 執行緒上
@@ -592,7 +592,7 @@ GC 是**合作式**停止世界，這是真正要知道的限制：安全點在�
 
 **沒有的東西**（沒有宣告，寫了就是找不到符號）：`TimeUnit`（這裡每個時長都是毫秒，
 和 `Thread.sleep` 一樣）、`submit(Runnable)`、排程執行器、
-fork/join、`CompletionService`、`ThreadFactory`、原子欄位更新器，以及
+fork/join、`ThreadFactory`、原子欄位更新器，以及
 可中斷的等待（沒有 `InterruptedException`）。`Thread.join(long)` 與
 `CompletableFuture` 的 `orTimeout`／`completeOnTimeout` 都有；`join(long)` 的逾時**不**丟例外（Java 也是），
 要問結果就用 `isAlive()`。`Semaphore` 與 `ReentrantLock` 接受 Java 的 `fair` 引數並
