@@ -638,7 +638,9 @@ flag.
 (every duration here is milliseconds, as in `Thread.sleep`), `invokeAll`/`invokeAny`,
 `submit(Runnable)`, the scheduled executor, fork/join, `CompletionService`, `ThreadFactory`,
 `Phaser`, the atomic field updaters, and interruptible waits (there is no
-`InterruptedException`). `Semaphore` and `ReentrantLock` accept Java's `fair` argument and
+`InterruptedException`). `Thread.join(long)` and `CompletableFuture`'s
+`orTimeout`/`completeOnTimeout` are present; a `join(long)` that times out does not throw
+(neither does Java's), so `isAlive()` is how the caller asks. `Semaphore` and `ReentrantLock` accept Java's `fair` argument and
 ignore it (there is no queue to order, and the class comments say so); `CyclicBarrier`'s
 action runs on the last arriving thread inside the monitor, and its failure marks the barrier
 broken and wakes the others with `BrokenBarrierException`. The test is
