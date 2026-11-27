@@ -559,7 +559,7 @@ GC 是**合作式**停止世界，這是真正要知道的限制：安全點在�
 執行緒（例如卡在原生 `read()` 裡）會讓收集等它，直到它回來。單執行緒程式的配置速度
 不變（每條執行緒有自己的配置區）。端到端測試是 `tests/programs/t159_threads.teyru`。
 
-### 並行工具（`lib/37`、`lib/38`）
+### 並行工具（`lib/37`、`lib/38`、`lib/61`）
 
 `java.util.concurrent` 的兩塊：執行器（`Callable`、`Future`、`FutureTask`、`Executor`、
 `ExecutorService`、`ThreadPool`，以及 `Executors` 的 `newFixedThreadPool`／

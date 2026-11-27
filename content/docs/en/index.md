@@ -516,7 +516,7 @@ content:
 | `java.security`/`javax.crypto` | `MessageDigest`, `SecureRandom`, `Mac`, `Cipher` (AES in ECB/CBC/CTR/GCM and RSA PKCS#1), RSA `Signature` verification, `KeyFactory` (X.509/PKCS#8), all implemented in Teyru; plus `java.util.zip`'s `Checksum` and `CRC32` |
 | `java.util.zip` | `Deflater`/`Inflater` (levels 0-9, zlib-wrapped or raw), `Adler32`, `GZIPOutputStream`/`GZIPInputStream`; RFC 1951 deflate is written in Teyru, and the web layer compresses responses with it |
 | `java.util.zip` archive | `ZipEntry`/`ZipOutputStream`/`ZipInputStream`/`ZipFile`; an archive written here is read by the JDK and by Info-ZIP's `unzip` |
-| `java.util.concurrent` | The executors (`Executors`/`Future`/`ThreadPool`) and the synchronizers (`CountDownLatch`, `AtomicInteger`/`AtomicLong`, `ConcurrentHashMap`); all monitors, nothing lock-free |
+| `java.util.concurrent` | The executors (`Executors`/`Future`/`ThreadPool`/`CompletableFuture`) and the synchronizers (`CountDownLatch`, `Semaphore`, `CyclicBarrier`, `ReentrantLock`, `ReentrantReadWriteLock`, `Exchanger`, `AtomicInteger`/`AtomicLong`, `ConcurrentHashMap`); all monitors, nothing lock-free |
 | `com.google.gson` | Gson's tree API plus an object binding that reads the class's fields at run time ([docs/json.md](/en/docs/json)) |
 | threads | `Thread`/`Runnable`, real `synchronized` (including the method modifier) and `Object.wait`/`notify`/`notifyAll` ([docs/language.md](/en/docs/language) §11) |
 | framework | A Spring-shaped container and web layer: settings and profiles, `@ControllerAdvice`, interceptors, static files, CORS, `ResponseEntity`, `MockServer`, WebSocket, sessions, multipart uploads, validation annotations, and an accept loop that runs on a thread ([docs/framework.md](/en/docs/framework)) |

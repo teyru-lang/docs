@@ -600,7 +600,7 @@ collection wait for it to come back. Allocation in a single-threaded program is
 unchanged (every thread has its own allocation area). The end-to-end test is
 `tests/programs/t159_threads.teyru`.
 
-### Concurrency tools (`lib/37`, `lib/38`)
+### Concurrency tools (`lib/37`, `lib/38`, `lib/61`)
 
 The two halves of `java.util.concurrent` this library carries: the executor half
 (`Callable`, `Future`, `FutureTask`, `Executor`, `ExecutorService`, `ThreadPool`, and

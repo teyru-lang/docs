@@ -471,7 +471,7 @@ Teyru main 的 submodule 指標指到它）：`sh tests/run.sh java-compat` 在�
 | `java.security`／`javax.crypto` | `MessageDigest`、`SecureRandom`、`Mac`、`Cipher`（AES 於 ECB／CBC／CTR／GCM 與 RSA PKCS#1）、`Signature` 驗證、`KeyFactory`（X.509／PKCS#8），全部以 Teyru 實作；加上 `java.util.zip` 形狀的 `Checksum` 與 `CRC32` |
 | `java.util.zip` | `Deflater`／`Inflater`（level 0–9、zlib 包裝或 raw）、`Adler32`、`GZIPOutputStream`／`GZIPInputStream`；RFC 1951 的 deflate 以 Teyru 撰寫，web 層用它壓縮回應 |
 | `java.util.zip` 封存 | `ZipEntry`／`ZipOutputStream`／`ZipInputStream`／`ZipFile`；這裡寫出來的封存，JDK 與 Info-ZIP 的 `unzip` 都讀得開 |
-| `java.util.concurrent` | 執行器（`Executors`／`Future`／`ThreadPool`）與同步器（`CountDownLatch`、`AtomicInteger`／`AtomicLong`、`ConcurrentHashMap`）；全部是監視器，不是 lock-free |
+| `java.util.concurrent` | 執行器（`Executors`／`Future`／`ThreadPool`／`CompletableFuture`）與同步器（`CountDownLatch`、`Semaphore`、`CyclicBarrier`、`ReentrantLock`、`ReentrantReadWriteLock`、`Exchanger`、`AtomicInteger`／`AtomicLong`、`ConcurrentHashMap`）；全部是監視器，不是 lock-free |
 | `com.google.gson` | Gson 的樹狀 API，以及執行期讀取類別欄位的物件綁定（[docs/json.md](/docs/json)） |
 | 執行緒 | `Thread`／`Runnable`、真正的 `synchronized`（含方法修飾子）與 `Object.wait`／`notify`／`notifyAll`（[docs/language.md](/docs/language) §11） |
 | 框架 | Spring 形狀的容器與 web 層：設定與 profile、`@ControllerAdvice`、攔截器、靜態檔案、CORS、`ResponseEntity`、`MockServer`、WebSocket、會話、multipart 上傳、驗證註解，以及可放上執行緒的接收迴圈（[docs/framework.md](/docs/framework)） |

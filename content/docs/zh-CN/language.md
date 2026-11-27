@@ -561,7 +561,7 @@ GC 是**合作式**停止世界，这才是真正要知道的限制：安全点�
 线程（例如卡在原生 `read()` 里）会让收集等它，直到它回来。单线程程序的分配速度不变
 （每条线程有自己的分配区）。端到端测试是 `tests/programs/t159_threads.teyru`。
 
-### 并发工具（`lib/37`、`lib/38`）
+### 并发工具（`lib/37`、`lib/38`、`lib/61`）
 
 `java.util.concurrent` 的两块：执行器（`Callable`、`Future`、`FutureTask`、`Executor`、
 `ExecutorService`、`ThreadPool`，以及 `Executors` 的 `newFixedThreadPool`／
