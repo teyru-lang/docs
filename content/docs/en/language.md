@@ -807,7 +807,9 @@ the same name it is `TY-TYP-0099`, and one is not picked according to declaratio
 
 **The import itself is checked** (`TY-TYP-0115`): an `import` must point at a package the
 standard library answers for (`teyru`, plus the compatibility ones `java.util`,
-`com.google.gson`, `lombok`…, see the package table in the previous section), at a package
+`java.util.concurrent` (and `.atomic`/`.locks`), `java.security`, `javax.crypto`, `java.nio`,
+`java.util.zip`, `java.util.logging`, `com.google.gson`, `lombok`…, see the package table in the
+previous section), at a package
 declared by some file in this build, or at a type whose fully qualified name is exactly that
 path. In Teyru a name is found by its **simple name**, whatever package is written in front, so
 `import java.utli.List` used to be silently ignored and then still got you `List`; now it is an

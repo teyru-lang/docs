@@ -738,8 +738,9 @@ TLS」是由生成出来的 C 决定的：碰得到才编译那个文件、才�
 `import p.*` 都提供同一个名字时是 `TY-TYP-0099`，不会照声明顺序挑一个。
 
 **导入本身会被检查**（`TY-TYP-0115`）：一条 `import` 必须指向标准库回应的包
-（`teyru`，以及兼容用的 `java.util`、`com.google.gson`、`lombok`…，见上一节的
-包表）、本次构建中某个文件声明的包，或者全限定名就是该路径的类型。名字在
+（`teyru`，以及兼容用的 `java.util`、`java.util.concurrent`、`java.security`、
+`javax.crypto`、`java.nio`、`java.util.zip`、`java.util.logging`、`com.google.gson`、
+`lombok`…，见上一节的包表）、本次构建中某个文件声明的包，或者全限定名就是该路径的类型。名字在
 Teyru 是按**简单名称**找的，前面写什么包都一样，所以 `import java.utli.List`
 曾经是静默忽略、然后照样拿到 `List`；现在它是错误。模块导入
 （`example.com/dep/pkg`）由构建系统解析，不在本检查范围内。

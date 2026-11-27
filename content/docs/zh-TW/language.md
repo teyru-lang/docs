@@ -735,8 +735,9 @@ TLS」是由產生出來的 C 決定的：碰得到才編譯那個檔案、才�
 `import p.*` 都提供同一個名字時是 `TY-TYP-0099`，不會照宣告順序挑一個。
 
 **匯入本身會被檢查**（`TY-TYP-0115`）：一條 `import` 必須指向標準程式庫回答的套件
-（`teyru`，以及相容用的 `java.util`、`com.google.gson`、`lombok`…，見上一節的
-套件表）、這次建置裡某個檔案宣告的套件，或是完整名稱就是那條路徑的型別。名字在
+（`teyru`，以及相容用的 `java.util`、`java.util.concurrent`、`java.security`、
+`javax.crypto`、`java.nio`、`java.util.zip`、`java.util.logging`、`com.google.gson`、
+`lombok`…，見上一節的套件表）、這次建置裡某個檔案宣告的套件，或是完整名稱就是那條路徑的型別。名字在
 Teyru 是照**簡單名稱**找的，前面寫什麼套件都一樣，所以 `import java.utli.List`
 曾經是安靜地被忽略、然後照樣拿到 `List`；現在它是錯誤。模組匯入
 （`example.com/dep/pkg`）由建置解析，不在此檢查範圍。
